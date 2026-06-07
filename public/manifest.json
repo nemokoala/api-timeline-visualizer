@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "API Timeline Visualizer",
+  "version": "0.1.0",
+  "description": "Chrome DevTools panel for viewing API requests in chronological timeline order.",
+  "devtools_page": "devtools.html",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: blob:"
+  },
+  "permissions": [],
+  "host_permissions": []
+}
