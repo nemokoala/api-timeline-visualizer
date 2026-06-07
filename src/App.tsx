@@ -20,6 +20,8 @@ export default function App() {
   const [viewMode, setViewMode] = useState<'flow' | 'timeline'>('flow');
   const [includeText, setIncludeText] = useState('api');
   const [excludeText, setExcludeText] = useState('google-analytics,sentry,datadog,amplitude,hotjar,segment');
+  const [detailPanelWidth, setDetailPanelWidth] = useState(460);
+  const [isResizingDetail, setIsResizingDetail] = useState(false);
   const networkRequestById = useRef(new Map<string, chrome.devtools.network.Request>());
 
   const visibleRequests = useMemo(
@@ -97,6 +99,29 @@ export default function App() {
     loadResponseBody(selectedRequest.id);
   }, [bodyLoadingId, loadResponseBody, selectedRequest]);
 
+  useEffect(() => {
+    if (!isResizingDetail) return;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const nextWidth = window.innerWidth - event.clientX;
+      setDetailPanelWidth(clamp(nextWidth, 320, Math.min(820, window.innerWidth * 0.72)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingDetail(false);
+    };
+
+    document.body.classList.add('resizing-detail-panel');
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.body.classList.remove('resizing-detail-panel');
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizingDetail]);
+
   return (
     <main className="app-shell">
       <Toolbar
@@ -110,7 +135,10 @@ export default function App() {
         onViewModeChange={setViewMode}
         onClear={handleClear}
       />
-      <section className="workspace">
+      <section
+        className="workspace"
+        style={{ gridTemplateColumns: `minmax(0, 1fr) 8px minmax(320px, ${detailPanelWidth}px)` }}
+      >
         {viewMode === 'flow' ? (
           <FlowChartView
             items={timelineItems}
@@ -126,6 +154,16 @@ export default function App() {
             onSelectRequest={setSelectedRequestId}
           />
         )}
+        <button
+          className="detail-resizer"
+          type="button"
+          aria-label="Resize request detail panel"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            setIsResizingDetail(true);
+          }}
+          onDoubleClick={() => setDetailPanelWidth(460)}
+        />
         <RequestDetailPanel
           request={selectedRequest}
           isBodyLoading={bodyLoadingId === selectedRequest?.id}
@@ -134,4 +172,8 @@ export default function App() {
       </section>
     </main>
   );
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
