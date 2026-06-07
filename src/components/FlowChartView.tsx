@@ -15,8 +15,8 @@ type FlowChartViewProps = {
 
 const NODE_WIDTH = 240;
 const NODE_HEIGHT = 152;
-const COLUMN_GAP = 96;
-const ROW_GAP = 96;
+const COLUMN_GAP = 56;
+const ROW_GAP = 64;
 const NODES_PER_ROW = 3;
 const MIN_ZOOM = 0.12;
 const MAX_ZOOM = 1.6;
@@ -71,7 +71,7 @@ export function FlowChartView({ items, requests, selectedRequestId, onSelectRequ
             nodes={nodes}
             edges={edges}
             fitView
-            fitViewOptions={{ padding: 0.16 }}
+            fitViewOptions={{ padding: 0.12 }}
             minZoom={MIN_ZOOM}
             maxZoom={MAX_ZOOM}
             nodesDraggable={false}
