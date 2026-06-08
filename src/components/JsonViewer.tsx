@@ -2,6 +2,11 @@ import { useState } from 'react';
 import { getImageSource } from '../utils/imageSource';
 import { ImagePreview } from './ImagePreview';
 
+type ActiveFieldMenu = {
+  id: string;
+  value: unknown;
+} | null;
+
 type JsonViewerProps = {
   value: unknown;
   mimeType?: string;
@@ -28,6 +33,7 @@ export function JsonViewer({ value, mimeType }: JsonViewerProps) {
 
 function JsonBlock({ value, fallback }: { value: unknown; fallback: string }) {
   const [copied, setCopied] = useState(false);
+  const [fieldMenu, setFieldMenu] = useState<ActiveFieldMenu>(null);
   const copyText = fallback || '{}';
 
   const handleCopy = async () => {
@@ -43,12 +49,40 @@ function JsonBlock({ value, fallback }: { value: unknown; fallback: string }) {
       {copied ? 'Copied' : 'Copy'}
     </button>
   );
+  const handleFieldCopy = async (mode: 'value' | 'string') => {
+    if (!fieldMenu) return;
+
+    const text = mode === 'value' ? formatCopyValue(fieldMenu.value) : formatCopyString(fieldMenu.value);
+    const didCopy = await copyToClipboard(text);
+    if (!didCopy) return;
+
+    setFieldMenu(null);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1200);
+  };
 
   if (value && typeof value === 'object') {
     return (
       <div className="json-viewer-wrap">
         {copyButton}
-        <pre className="json-viewer json-tree">{renderJsonValue(value, 0)}</pre>
+        {fieldMenu ? (
+          <div className="json-field-menu">
+            <button type="button" onClick={() => handleFieldCopy('value')}>
+              값 복사
+            </button>
+            <button type="button" onClick={() => handleFieldCopy('string')}>
+              문자열 복사
+            </button>
+            <button type="button" onClick={() => setFieldMenu(null)} aria-label="Close field copy menu">
+              ×
+            </button>
+          </div>
+        ) : null}
+        <pre className="json-viewer json-tree">
+          {renderJsonValue(value, 0, 'root', (id, targetValue) => {
+            setFieldMenu((current) => (current?.id === id ? null : { id, value: targetValue }));
+          })}
+        </pre>
       </div>
     );
   }
@@ -61,7 +95,12 @@ function JsonBlock({ value, fallback }: { value: unknown; fallback: string }) {
   );
 }
 
-function renderJsonValue(value: unknown, depth: number): React.ReactNode {
+function renderJsonValue(
+  value: unknown,
+  depth: number,
+  path: string,
+  onFieldClick: (id: string, value: unknown) => void,
+): React.ReactNode {
   if (Array.isArray(value)) {
     if (value.length === 0) return <span className="json-punctuation">[]</span>;
 
@@ -72,7 +111,7 @@ function renderJsonValue(value: unknown, depth: number): React.ReactNode {
           <span key={index}>
             {'\n'}
             {indent(depth + 1)}
-            {renderJsonValue(item, depth + 1)}
+            {renderJsonValue(item, depth + 1, `${path}.${index}`, onFieldClick)}
             {index < value.length - 1 ? <span className="json-punctuation">,</span> : null}
           </span>
         ))}
@@ -94,9 +133,16 @@ function renderJsonValue(value: unknown, depth: number): React.ReactNode {
           <span key={key}>
             {'\n'}
             {indent(depth + 1)}
-            <span className="json-key">"{key}"</span>
+            <button
+              className="json-key json-key-button"
+              type="button"
+              onClick={() => onFieldClick(`${path}.${key}`, item)}
+              title="Copy field value"
+            >
+              "{key}"
+            </button>
             <span className="json-punctuation">: </span>
-            {renderJsonValue(item, depth + 1)}
+            {renderJsonValue(item, depth + 1, `${path}.${key}`, onFieldClick)}
             {index < entries.length - 1 ? <span className="json-punctuation">,</span> : null}
           </span>
         ))}
@@ -148,6 +194,19 @@ function coerceJson(value: unknown): unknown {
 
 function indent(depth: number): string {
   return '  '.repeat(depth);
+}
+
+function formatCopyValue(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (value === null || value === undefined) return String(value);
+  if (typeof value === 'object') return JSON.stringify(value, null, 2);
+  return String(value);
+}
+
+function formatCopyString(value: unknown): string {
+  if (typeof value === 'string') return JSON.stringify(value);
+  if (value === null || value === undefined) return String(value);
+  return JSON.stringify(value);
 }
 
 async function copyToClipboard(value: string): Promise<boolean> {

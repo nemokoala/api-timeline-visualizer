@@ -15,9 +15,9 @@ type FlowChartViewProps = {
 };
 
 const NODE_WIDTH = 240;
-const NODE_HEIGHT = 184;
-const COLUMN_GAP = 56;
-const ROW_GAP = 64;
+const NODE_HEIGHT = 152;
+const COLUMN_GAP = 40;
+const ROW_GAP = 32;
 const NODES_PER_ROW = 3;
 const PARALLEL_GROUP_THRESHOLD_MS = 120;
 const MIN_ZOOM = 0.12;
@@ -146,7 +146,6 @@ function toFlowNodes(
             ) : (
               <strong title={item.path}>{getNodeTitle(item)}</strong>
             )}
-            <span>{item.host}</span>
             <div className="flow-node-summary">
               {bodySummary.map((summary) => (
                 <span key={summary}>{summary}</span>

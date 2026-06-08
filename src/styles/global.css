@@ -294,14 +294,14 @@ button {
 
 .flow-node {
   display: grid;
-  grid-template-rows: 30px minmax(34px, auto) 16px minmax(34px, 1fr) 20px;
+  grid-template-rows: auto minmax(34px, auto) minmax(34px, 1fr) auto;
   align-content: start;
-  gap: 7px;
+  gap: 5px;
   width: 240px;
   height: 152px;
   border: 1px solid #313b49;
   border-radius: 7px;
-  padding: 12px 10px 16px;
+  padding: 9px 10px 12px;
   color: #d8dee9;
   background: #171d25;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
@@ -312,7 +312,31 @@ button {
   box-shadow: 0 0 0 2px rgba(139, 213, 255, 0.22);
 }
 
-.flow-node-top,
+.flow-node-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 0;
+  line-height: 1;
+}
+
+.flow-node-top .method {
+  min-width: 0;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+}
+
+.flow-node-top .flow-status {
+  padding: 0;
+  background: transparent;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 15px;
+}
+
 .flow-node-bottom {
   display: flex;
   align-items: center;
@@ -355,15 +379,6 @@ button {
   -webkit-line-clamp: 1;
 }
 
-.flow-node > span {
-  overflow: hidden;
-  color: #9aa7b8;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: left;
-}
-
 .flow-node-summary {
   display: grid;
   gap: 2px;
@@ -391,6 +406,13 @@ button {
   background: #222a35;
   font-size: 11px;
   font-weight: 700;
+}
+
+.flow-node-top .flow-status::before {
+  content: '·';
+  margin-right: 5px;
+  color: #4d5a6b;
+  font-weight: 400;
 }
 
 .flow-status.good {
@@ -699,7 +721,7 @@ button {
 .json-copy-button {
   position: absolute;
   top: 7px;
-  right: 7px;
+  right: 22px;
   z-index: 1;
   height: 24px;
   border: 1px solid #3a4656;
@@ -716,13 +738,42 @@ button {
   background: #8bd5ff;
 }
 
+.json-field-menu {
+  position: absolute;
+  top: 7px;
+  left: 10px;
+  z-index: 2;
+  display: inline-flex;
+  gap: 4px;
+  border: 1px solid #3a4656;
+  border-radius: 5px;
+  padding: 3px;
+  background: rgba(24, 31, 40, 0.96);
+}
+
+.json-field-menu button {
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  padding: 0 7px;
+  color: #c9d5e3;
+  background: transparent;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.json-field-menu button:hover {
+  color: #071016;
+  background: #8bd5ff;
+}
+
 .json-viewer {
   max-height: 280px;
   margin: 0;
   overflow: auto;
   border: 1px solid #27313d;
   border-radius: 6px;
-  padding: 34px 10px 10px;
+  padding: 34px 26px 10px 10px;
   color: #dce6f3;
   background: #0f1319;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -738,6 +789,21 @@ button {
 
 .json-key {
   color: #8bd5ff;
+}
+
+.json-key-button {
+  border: 0;
+  padding: 0;
+  color: #8bd5ff;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.json-key-button:hover {
+  color: #ffffff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .json-string {
