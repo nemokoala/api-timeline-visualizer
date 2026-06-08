@@ -692,13 +692,37 @@ button {
   overflow-wrap: anywhere;
 }
 
+.json-viewer-wrap {
+  position: relative;
+}
+
+.json-copy-button {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  z-index: 1;
+  height: 24px;
+  border: 1px solid #3a4656;
+  border-radius: 5px;
+  padding: 0 8px;
+  color: #c9d5e3;
+  background: rgba(24, 31, 40, 0.92);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.json-copy-button:hover {
+  color: #071016;
+  background: #8bd5ff;
+}
+
 .json-viewer {
   max-height: 280px;
   margin: 0;
   overflow: auto;
   border: 1px solid #27313d;
   border-radius: 6px;
-  padding: 10px;
+  padding: 34px 10px 10px;
   color: #dce6f3;
   background: #0f1319;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;

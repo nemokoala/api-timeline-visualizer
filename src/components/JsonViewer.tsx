@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { getImageSource } from '../utils/imageSource';
 import { ImagePreview } from './ImagePreview';
 
@@ -26,11 +27,38 @@ export function JsonViewer({ value, mimeType }: JsonViewerProps) {
 }
 
 function JsonBlock({ value, fallback }: { value: unknown; fallback: string }) {
+  const [copied, setCopied] = useState(false);
+  const copyText = fallback || '{}';
+
+  const handleCopy = async () => {
+    const didCopy = await copyToClipboard(copyText);
+    if (!didCopy) return;
+
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1200);
+  };
+
+  const copyButton = (
+    <button className="json-copy-button" type="button" onClick={handleCopy}>
+      {copied ? 'Copied' : 'Copy'}
+    </button>
+  );
+
   if (value && typeof value === 'object') {
-    return <pre className="json-viewer json-tree">{renderJsonValue(value, 0)}</pre>;
+    return (
+      <div className="json-viewer-wrap">
+        {copyButton}
+        <pre className="json-viewer json-tree">{renderJsonValue(value, 0)}</pre>
+      </div>
+    );
   }
 
-  return <pre className="json-viewer">{fallback || '{}'}</pre>;
+  return (
+    <div className="json-viewer-wrap">
+      {copyButton}
+      <pre className="json-viewer">{copyText}</pre>
+    </div>
+  );
 }
 
 function renderJsonValue(value: unknown, depth: number): React.ReactNode {
@@ -120,4 +148,30 @@ function coerceJson(value: unknown): unknown {
 
 function indent(depth: number): string {
   return '  '.repeat(depth);
+}
+
+async function copyToClipboard(value: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch {
+    // Fall through to the legacy path.
+  }
+
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', 'true');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const result = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return result;
+  } catch {
+    return false;
+  }
 }
