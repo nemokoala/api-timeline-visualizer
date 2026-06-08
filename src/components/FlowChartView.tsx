@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type WheelEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type WheelEvent } from "react";
 import {
   Background,
   Controls,
@@ -21,6 +21,7 @@ type FlowChartViewProps = {
   requests: ApiRequest[];
   selectedRequestId: string | null;
   groupByTime: boolean;
+  searchText: string;
   onSelectRequest: (requestId: string) => void;
 };
 
@@ -39,6 +40,7 @@ export function FlowChartView({
   requests,
   selectedRequestId,
   groupByTime,
+  searchText,
   onSelectRequest,
 }: FlowChartViewProps) {
   const flowInstanceRef = useRef<ReactFlowInstance | null>(null);
@@ -47,14 +49,22 @@ export function FlowChartView({
   const [exportError, setExportError] = useState<string | null>(null);
   const requestById = new Map(requests.map((request) => [request.id, request]));
   const groups = groupByTime ? toTimeGroups(items) : [];
-  const nodes = toFlowNodes(
-    items,
-    requestById,
-    selectedRequestId,
-    groupByTime,
-    groups,
-  );
+  const nodes = toFlowNodes(items, requestById, selectedRequestId, groupByTime, groups);
   const edges = toFlowEdges(items, groupByTime, groups);
+
+  useEffect(() => {
+    if (!searchText.trim() || !selectedRequestId) return;
+
+    const flowInstance = flowInstanceRef.current;
+    if (!flowInstance) return;
+
+    flowInstance.fitView({
+      nodes: [{ id: selectedRequestId }],
+      padding: 0.24,
+      duration: 220,
+      maxZoom: 1.2,
+    });
+  }, [searchText, selectedRequestId]);
   const handleWheel = useCallback((event: WheelEvent<HTMLElement>) => {
     const flowInstance = flowInstanceRef.current;
     if (!flowInstance) return;

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { ApiRequest, TimelineItem } from '../types/network';
 import { formatDuration, formatOffset, getStatusTone } from './formatters';
 
@@ -5,12 +6,26 @@ type TimelineViewProps = {
   items: TimelineItem[];
   requests: ApiRequest[];
   selectedRequestId: string | null;
+  searchText: string;
   onSelectRequest: (requestId: string) => void;
 };
 
-export function TimelineView({ items, requests, selectedRequestId, onSelectRequest }: TimelineViewProps) {
+export function TimelineView({
+  items,
+  requests,
+  selectedRequestId,
+  searchText,
+  onSelectRequest,
+}: TimelineViewProps) {
   const maxEnd = Math.max(100, ...items.map((item) => item.startOffset + item.duration));
   const requestById = new Map(requests.map((request) => [request.id, request]));
+  const rowRefs = useRef(new Map<string, HTMLButtonElement>());
+  const hasSearch = Boolean(searchText.trim());
+
+  useEffect(() => {
+    if (!selectedRequestId) return;
+    rowRefs.current.get(selectedRequestId)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [items, selectedRequestId]);
 
   return (
     <section className="timeline-panel" aria-label="Timeline">
@@ -23,8 +38,12 @@ export function TimelineView({ items, requests, selectedRequestId, onSelectReque
 
       {items.length === 0 ? (
         <div className="empty-state">
-          <strong>No API requests captured.</strong>
-          <span>Open a page with DevTools active and trigger XHR or fetch traffic.</span>
+          <strong>{hasSearch ? 'No matching API requests.' : 'No API requests captured.'}</strong>
+          <span>
+            {hasSearch
+              ? 'Try another keyword or clear the search field.'
+              : 'Open a page with DevTools active and trigger XHR or fetch traffic.'}
+          </span>
         </div>
       ) : (
         <div className="timeline-list">
@@ -32,11 +51,16 @@ export function TimelineView({ items, requests, selectedRequestId, onSelectReque
             const request = requestById.get(item.requestId);
             const startPercent = Math.min(94, (item.startOffset / maxEnd) * 100);
             const widthPercent = Math.max(2, (item.duration / maxEnd) * 100);
+            const isSelected = selectedRequestId === item.requestId;
 
             return (
               <button
                 key={item.id}
-                className={`request-row ${selectedRequestId === item.requestId ? 'selected' : ''}`}
+                ref={(element) => {
+                  if (element) rowRefs.current.set(item.requestId, element);
+                  else rowRefs.current.delete(item.requestId);
+                }}
+                className={`request-row ${isSelected ? 'selected' : ''} ${hasSearch ? 'search-match' : ''}`}
                 type="button"
                 onClick={() => onSelectRequest(item.requestId)}
               >
