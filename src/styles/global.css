@@ -434,9 +434,9 @@ button {
 .timeline-heading,
 .request-row {
   display: grid;
-  grid-template-columns: 72px minmax(260px, 1fr) 72px 78px;
+  grid-template-columns: 72px minmax(260px, 1fr) 32px 54px;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .timeline-heading {
@@ -450,6 +450,14 @@ button {
   background: #151a21;
   font-size: 11px;
   text-transform: uppercase;
+}
+
+.timeline-heading > span:nth-child(3) {
+  text-align: center;
+}
+
+.timeline-heading > span:nth-child(4) {
+  text-align: right;
 }
 
 .timeline-list {
@@ -477,12 +485,24 @@ button {
   border-left-color: #41b883;
 }
 
-.offset,
-.duration,
-.status {
+.offset {
   color: #a5b0bf;
   font-size: 12px;
   white-space: nowrap;
+}
+
+.status {
+  color: #a5b0bf;
+  font-size: 11px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.duration {
+  color: #a5b0bf;
+  font-size: 11px;
+  white-space: nowrap;
+  text-align: right;
 }
 
 .request-main {
@@ -529,14 +549,6 @@ button {
   white-space: nowrap;
 }
 
-.host {
-  overflow: hidden;
-  color: #7f8b9b;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .bar-track {
   position: relative;
   display: block;
@@ -567,9 +579,9 @@ button {
 }
 
 .status {
-  justify-self: start;
+  justify-self: center;
   border-radius: 4px;
-  padding: 2px 7px;
+  padding: 2px 4px;
   background: #222a35;
 }
 
@@ -715,14 +727,36 @@ button {
 }
 
 .json-viewer-wrap {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #27313d;
+  border-radius: 6px;
+  background: #0f1319;
 }
 
-.json-copy-button {
-  position: absolute;
-  top: 7px;
-  right: 22px;
-  z-index: 1;
+.json-viewer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 38px;
+  padding: 7px 10px;
+  border-bottom: 1px solid #27313d;
+  background: #121820;
+}
+
+.json-viewer-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.json-copy-button,
+.json-fullscreen-button {
+  flex: 0 0 auto;
   height: 24px;
   border: 1px solid #3a4656;
   border-radius: 5px;
@@ -730,25 +764,70 @@ button {
   color: #c9d5e3;
   background: rgba(24, 31, 40, 0.92);
   font-size: 11px;
+  white-space: nowrap;
   cursor: pointer;
 }
 
-.json-copy-button:hover {
+.json-copy-button:hover,
+.json-fullscreen-button:hover {
   color: #071016;
   background: #8bd5ff;
 }
 
+.json-fullscreen-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(7, 10, 14, 0.72);
+}
+
+.json-viewer-wrap.is-fullscreen {
+  position: fixed;
+  inset: 16px;
+  z-index: 1000;
+  border-color: #3a4656;
+  border-radius: 8px;
+  background: #151a21;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+}
+
+.json-viewer-wrap.is-fullscreen .json-viewer-toolbar {
+  border-bottom-color: #3a4656;
+  background: #151a21;
+}
+
+.json-viewer-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.json-viewer-wrap.is-fullscreen .json-viewer-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.json-viewer-wrap.is-fullscreen .json-viewer {
+  flex: 1;
+  max-height: none;
+  min-height: 0;
+}
+
 .json-field-menu {
-  position: absolute;
-  top: 7px;
-  left: 10px;
-  z-index: 2;
   display: inline-flex;
   gap: 4px;
   border: 1px solid #3a4656;
   border-radius: 5px;
   padding: 3px;
   background: rgba(24, 31, 40, 0.96);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+}
+
+.json-field-menu-floating {
+  position: absolute;
+  z-index: 3;
+  transform: translateY(calc(-100% - 6px));
 }
 
 .json-field-menu button {
@@ -771,11 +850,10 @@ button {
   max-height: 280px;
   margin: 0;
   overflow: auto;
-  border: 1px solid #27313d;
-  border-radius: 6px;
-  padding: 34px 26px 10px 10px;
+  border: 0;
+  padding: 10px;
   color: #dce6f3;
-  background: #0f1319;
+  background: transparent;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 11px;
   line-height: 1.55;

@@ -45,7 +45,6 @@ export function TimelineView({ items, requests, selectedRequestId, onSelectReque
                   <span className="request-meta">
                     <span className={`method method-${item.method.toLowerCase()}`}>{item.method}</span>
                     <span className="path">{item.normalizedPath}</span>
-                    <span className="host">{item.host}</span>
                   </span>
                   <span className="bar-track" aria-hidden="true">
                     <span

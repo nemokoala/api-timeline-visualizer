@@ -1,6 +1,6 @@
 import type { ApiRequest } from '../types/network';
 import { getImageSource } from '../utils/imageSource';
-import { formatDateTime, formatDuration } from './formatters';
+import { formatDateTime, formatDuration, formatLocaleDateTime } from './formatters';
 import { ImagePreview } from './ImagePreview';
 import { JsonViewer } from './JsonViewer';
 
@@ -87,8 +87,8 @@ export function RequestDetailPanel({ request, isBodyLoading, onLoadResponseBody 
       <DetailSection title="Timing">
         <DefinitionList
           rows={[
-            ['Started at', String(request.startedAt)],
-            ['Ended at', String(request.endedAt)],
+            ['Started at', formatLocaleDateTime(request.startedAt)],
+            ['Ended at', formatLocaleDateTime(request.endedAt)],
             ['Duration', `${request.duration}ms`],
           ]}
         />

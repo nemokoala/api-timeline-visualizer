@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { getImageSource } from '../utils/imageSource';
 import { ImagePreview } from './ImagePreview';
 
 type ActiveFieldMenu = {
   id: string;
   value: unknown;
+  left: number;
+  top: number;
 } | null;
 
 type JsonViewerProps = {
@@ -34,7 +36,46 @@ export function JsonViewer({ value, mimeType }: JsonViewerProps) {
 function JsonBlock({ value, fallback }: { value: unknown; fallback: string }) {
   const [copied, setCopied] = useState(false);
   const [fieldMenu, setFieldMenu] = useState<ActiveFieldMenu>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const viewerBodyRef = useRef<HTMLDivElement>(null);
   const copyText = fallback || '{}';
+  const isObject = Boolean(value && typeof value === 'object');
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsFullscreen(false);
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    if (!fieldMenu) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setFieldMenu(null);
+    };
+
+    const viewer = viewerBodyRef.current?.querySelector('.json-viewer');
+    const closeMenu = () => setFieldMenu(null);
+
+    window.addEventListener('keydown', handleKeyDown);
+    viewer?.addEventListener('scroll', closeMenu);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      viewer?.removeEventListener('scroll', closeMenu);
+    };
+  }, [fieldMenu]);
 
   const handleCopy = async () => {
     const didCopy = await copyToClipboard(copyText);
@@ -44,11 +85,6 @@ function JsonBlock({ value, fallback }: { value: unknown; fallback: string }) {
     window.setTimeout(() => setCopied(false), 1200);
   };
 
-  const copyButton = (
-    <button className="json-copy-button" type="button" onClick={handleCopy}>
-      {copied ? 'Copied' : 'Copy'}
-    </button>
-  );
   const handleFieldCopy = async (mode: 'value' | 'string') => {
     if (!fieldMenu) return;
 
@@ -61,37 +97,77 @@ function JsonBlock({ value, fallback }: { value: unknown; fallback: string }) {
     window.setTimeout(() => setCopied(false), 1200);
   };
 
-  if (value && typeof value === 'object') {
-    return (
-      <div className="json-viewer-wrap">
-        {copyButton}
-        {fieldMenu ? (
-          <div className="json-field-menu">
-            <button type="button" onClick={() => handleFieldCopy('value')}>
-              값 복사
-            </button>
-            <button type="button" onClick={() => handleFieldCopy('string')}>
-              문자열 복사
-            </button>
-            <button type="button" onClick={() => setFieldMenu(null)} aria-label="Close field copy menu">
-              ×
-            </button>
-          </div>
-        ) : null}
-        <pre className="json-viewer json-tree">
-          {renderJsonValue(value, 0, 'root', (id, targetValue) => {
-            setFieldMenu((current) => (current?.id === id ? null : { id, value: targetValue }));
-          })}
-        </pre>
-      </div>
-    );
-  }
+  const handleFieldClick = (id: string, targetValue: unknown, event: MouseEvent<HTMLButtonElement>) => {
+    if (fieldMenu?.id === id) {
+      setFieldMenu(null);
+      return;
+    }
+
+    const body = viewerBodyRef.current;
+    const button = event.currentTarget;
+    if (!body) return;
+
+    const bodyRect = body.getBoundingClientRect();
+    const buttonRect = button.getBoundingClientRect();
+    const menuWidth = 196;
+    const left = clamp(buttonRect.left - bodyRect.left, 8, Math.max(8, bodyRect.width - menuWidth - 8));
+    const top = buttonRect.top - bodyRect.top;
+
+    setFieldMenu({ id, value: targetValue, left, top });
+  };
 
   return (
-    <div className="json-viewer-wrap">
-      {copyButton}
-      <pre className="json-viewer">{copyText}</pre>
-    </div>
+    <>
+      {isFullscreen ? (
+        <div className="json-fullscreen-backdrop" onClick={() => setIsFullscreen(false)} aria-hidden="true" />
+      ) : null}
+      <div
+        className={`json-viewer-wrap${isFullscreen ? ' is-fullscreen' : ''}`}
+        role={isFullscreen ? 'dialog' : undefined}
+        aria-modal={isFullscreen ? true : undefined}
+        aria-label={isFullscreen ? 'JSON fullscreen' : undefined}
+      >
+        <div className="json-viewer-toolbar">
+          <div className="json-viewer-actions">
+            <button
+              className="json-fullscreen-button"
+              type="button"
+              onClick={() => setIsFullscreen((current) => !current)}
+            >
+              {isFullscreen ? 'Close' : 'Fullscreen'}
+            </button>
+            <button className="json-copy-button" type="button" onClick={handleCopy}>
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+        </div>
+        <div className="json-viewer-body" ref={viewerBodyRef}>
+          {fieldMenu ? (
+            <div
+              className="json-field-menu json-field-menu-floating"
+              style={{ left: fieldMenu.left, top: fieldMenu.top }}
+            >
+              <button type="button" onClick={() => handleFieldCopy('value')}>
+                값 복사
+              </button>
+              <button type="button" onClick={() => handleFieldCopy('string')}>
+                문자열 복사
+              </button>
+              <button type="button" onClick={() => setFieldMenu(null)} aria-label="Close field copy menu">
+                ×
+              </button>
+            </div>
+          ) : null}
+          {isObject ? (
+            <pre className="json-viewer json-tree">
+              {renderJsonValue(value, 0, 'root', handleFieldClick)}
+            </pre>
+          ) : (
+            <pre className="json-viewer">{copyText}</pre>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -99,7 +175,7 @@ function renderJsonValue(
   value: unknown,
   depth: number,
   path: string,
-  onFieldClick: (id: string, value: unknown) => void,
+  onFieldClick: (id: string, value: unknown, event: MouseEvent<HTMLButtonElement>) => void,
 ): React.ReactNode {
   if (Array.isArray(value)) {
     if (value.length === 0) return <span className="json-punctuation">[]</span>;
@@ -136,7 +212,7 @@ function renderJsonValue(
             <button
               className="json-key json-key-button"
               type="button"
-              onClick={() => onFieldClick(`${path}.${key}`, item)}
+              onClick={(event) => onFieldClick(`${path}.${key}`, item, event)}
               title="Copy field value"
             >
               "{key}"
@@ -207,6 +283,10 @@ function formatCopyString(value: unknown): string {
   if (typeof value === 'string') return JSON.stringify(value);
   if (value === null || value === undefined) return String(value);
   return JSON.stringify(value);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 async function copyToClipboard(value: string): Promise<boolean> {

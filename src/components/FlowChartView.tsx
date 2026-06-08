@@ -1,10 +1,18 @@
-import { useCallback, useRef, type WheelEvent } from 'react';
-import { Background, Controls, MarkerType, Position, ReactFlow, type Edge, type Node } from '@xyflow/react';
-import type { ReactFlowInstance } from '@xyflow/react';
-import type { ApiRequest, TimelineItem } from '../types/network';
-import { getImageSource } from '../utils/imageSource';
-import { formatDuration, formatOffset, getStatusTone } from './formatters';
-import { ImagePreview } from './ImagePreview';
+import { useCallback, useRef, type WheelEvent } from "react";
+import {
+  Background,
+  Controls,
+  MarkerType,
+  Position,
+  ReactFlow,
+  type Edge,
+  type Node,
+} from "@xyflow/react";
+import type { ReactFlowInstance } from "@xyflow/react";
+import type { ApiRequest, TimelineItem } from "../types/network";
+import { getImageSource } from "../utils/imageSource";
+import { formatDuration, formatOffset, getStatusTone } from "./formatters";
+import { ImagePreview } from "./ImagePreview";
 
 type FlowChartViewProps = {
   items: TimelineItem[];
@@ -34,7 +42,13 @@ export function FlowChartView({
   const flowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const requestById = new Map(requests.map((request) => [request.id, request]));
   const groups = groupByTime ? toTimeGroups(items) : [];
-  const nodes = toFlowNodes(items, requestById, selectedRequestId, groupByTime, groups);
+  const nodes = toFlowNodes(
+    items,
+    requestById,
+    selectedRequestId,
+    groupByTime,
+    groups,
+  );
   const edges = toFlowEdges(items, groupByTime, groups);
   const handleWheel = useCallback((event: WheelEvent<HTMLElement>) => {
     const flowInstance = flowInstanceRef.current;
@@ -64,22 +78,21 @@ export function FlowChartView({
   }, []);
 
   return (
-    <section className="flow-panel" aria-label="Request flow chart" onWheel={handleWheel}>
+    <section
+      className="flow-panel"
+      aria-label="Request flow chart"
+      onWheel={handleWheel}
+    >
       {items.length === 0 ? (
         <div className="empty-state">
           <strong>No API flow captured.</strong>
-          <span>Open DevTools, trigger API traffic, then inspect the inferred request sequence here.</span>
+          <span>
+            Open DevTools, trigger API traffic, then inspect the inferred
+            request sequence here.
+          </span>
         </div>
       ) : (
         <>
-          <div className="flow-caption">
-            <strong>{groupByTime ? 'Grouped Sequence' : 'Inferred Sequence'}</strong>
-            <span>
-              {groupByTime
-                ? `Requests within ${PARALLEL_GROUP_THRESHOLD_MS}ms share a row; group links show time order.`
-                : 'Ordered by request start time, not a guaranteed dependency graph.'}
-            </span>
-          </div>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -95,7 +108,9 @@ export function FlowChartView({
             onInit={(instance) => {
               flowInstanceRef.current = instance;
             }}
-            onNodeClick={(_, node) => onSelectRequest(String(node.data.requestId))}
+            onNodeClick={(_, node) =>
+              onSelectRequest(String(node.data.requestId))
+            }
           >
             <Background color="#27313d" gap={22} />
             <Controls showInteractive={false} />
@@ -120,23 +135,34 @@ function toFlowNodes(
   return items.map((item, index) => {
     const request = requestById.get(item.requestId);
     const statusTone = getStatusTone(item.status);
-    const imageSource = getImageSource(item.path) ?? getImageSource(item.normalizedPath) ?? getImageSource(request?.url);
-    const position = groupByTime ? getGroupedPosition(item, groups) : getGridPosition(index);
+    const imageSource =
+      getImageSource(item.path) ??
+      getImageSource(item.normalizedPath) ??
+      getImageSource(request?.url);
+    const position = groupByTime
+      ? getGroupedPosition(item, groups)
+      : getGridPosition(index);
     const bodySummary = getBodySummary(request);
 
     return {
       id: item.requestId,
-      type: 'default',
+      type: "default",
       position,
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
       data: {
         requestId: item.requestId,
         label: (
-          <div className={`flow-node ${selectedRequestId === item.requestId ? 'selected' : ''}`}>
+          <div
+            className={`flow-node ${selectedRequestId === item.requestId ? "selected" : ""}`}
+          >
             <div className="flow-node-top">
-              <span className={`method method-${item.method.toLowerCase()}`}>{item.method}</span>
-              <span className={`flow-status ${statusTone}`}>{item.status || 'n/a'}</span>
+              <span className={`method method-${item.method.toLowerCase()}`}>
+                {item.method}
+              </span>
+              <span className={`flow-status ${statusTone}`}>
+                {item.status || "n/a"}
+              </span>
             </div>
             {imageSource ? (
               <div className="flow-node-image-title">
@@ -153,7 +179,9 @@ function toFlowNodes(
             </div>
             <div className="flow-node-bottom">
               <span>{formatOffset(item.startOffset)}</span>
-              <span className={item.isSlow ? 'slow-text' : ''}>{formatDuration(request?.duration ?? item.duration)}</span>
+              <span className={item.isSlow ? "slow-text" : ""}>
+                {formatDuration(request?.duration ?? item.duration)}
+              </span>
             </div>
           </div>
         ),
@@ -161,20 +189,24 @@ function toFlowNodes(
       style: {
         width: NODE_WIDTH,
         height: NODE_HEIGHT,
-        border: '0',
+        border: "0",
         padding: 0,
-        background: 'transparent',
+        background: "transparent",
       },
     };
   });
 }
 
 function getNodeTitle(item: TimelineItem): string {
-  if (item.normalizedPath === '/') return 'Root document';
+  if (item.normalizedPath === "/") return "Root document";
   return item.normalizedPath;
 }
 
-function toFlowEdges(items: TimelineItem[], groupByTime: boolean, groups: TimelineItem[][]): Edge[] {
+function toFlowEdges(
+  items: TimelineItem[],
+  groupByTime: boolean,
+  groups: TimelineItem[][],
+): Edge[] {
   if (groupByTime) {
     return groups.slice(1).map((group, index) => {
       const previous = groups[index][groups[index].length - 1];
@@ -191,16 +223,23 @@ function toFlowEdges(items: TimelineItem[], groupByTime: boolean, groups: Timeli
   });
 }
 
-function createEdge(source: TimelineItem, target: TimelineItem, isError: boolean): Edge {
+function createEdge(
+  source: TimelineItem,
+  target: TimelineItem,
+  isError: boolean,
+): Edge {
   return {
     id: `${source.requestId}-${target.requestId}`,
     source: source.requestId,
     target: target.requestId,
-    type: 'straight',
+    type: "straight",
     animated: false,
-    markerEnd: { type: MarkerType.ArrowClosed, color: isError ? '#ff6b6b' : '#5e6c7f' },
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+      color: isError ? "#ff6b6b" : "#5e6c7f",
+    },
     style: {
-      stroke: isError ? '#ff6b6b' : '#5e6c7f',
+      stroke: isError ? "#ff6b6b" : "#5e6c7f",
       strokeWidth: isError ? 2.4 : 1.8,
     },
   };
@@ -215,9 +254,14 @@ function getGridPosition(index: number): { x: number; y: number } {
   };
 }
 
-function getGroupedPosition(item: TimelineItem, groups: TimelineItem[][]): { x: number; y: number } {
+function getGroupedPosition(
+  item: TimelineItem,
+  groups: TimelineItem[][],
+): { x: number; y: number } {
   for (let groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
-    const itemIndex = groups[groupIndex].findIndex((candidate) => candidate.requestId === item.requestId);
+    const itemIndex = groups[groupIndex].findIndex(
+      (candidate) => candidate.requestId === item.requestId,
+    );
     if (itemIndex >= 0) {
       return {
         x: itemIndex * (NODE_WIDTH + COLUMN_GAP),
@@ -234,7 +278,11 @@ function toTimeGroups(items: TimelineItem[]): TimelineItem[][] {
     const currentGroup = groups[groups.length - 1];
     const firstInGroup = currentGroup?.[0];
 
-    if (!currentGroup || !firstInGroup || item.startOffset - firstInGroup.startOffset > PARALLEL_GROUP_THRESHOLD_MS) {
+    if (
+      !currentGroup ||
+      !firstInGroup ||
+      item.startOffset - firstInGroup.startOffset > PARALLEL_GROUP_THRESHOLD_MS
+    ) {
       groups.push([item]);
       return groups;
     }
@@ -245,34 +293,38 @@ function toTimeGroups(items: TimelineItem[]): TimelineItem[][] {
 }
 
 function getBodySummary(request?: ApiRequest): string[] {
-  if (!request) return ['No request metadata'];
+  if (!request) return ["No request metadata"];
   const source = request.responsePreview ?? request.requestBody;
   const summary = summarizeValue(source);
 
   if (summary.length) return summary;
-  if (request.method !== 'GET' && request.requestBody !== undefined) return ['Payload available'];
+  if (request.method !== "GET" && request.requestBody !== undefined)
+    return ["Payload available"];
   if (request.size) return [`${formatBytes(request.size)}`];
 
-  return ['Body summary unavailable'];
+  return ["Body summary unavailable"];
 }
 
 function summarizeValue(value: unknown): string[] {
   if (value === undefined || value === null) return [];
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     const parsed = parseJsonString(value);
     if (parsed !== undefined) return summarizeValue(parsed);
-    const trimmed = value.replace(/\s+/g, ' ').trim();
+    const trimmed = value.replace(/\s+/g, " ").trim();
     return trimmed ? [trimmed.slice(0, 72)] : [];
   }
 
   if (Array.isArray(value)) {
-    if (!value.length) return ['array[0]'];
+    if (!value.length) return ["array[0]"];
     const first = value[0];
-    const firstLabel = first && typeof first === 'object' ? summarizeObject(first as Record<string, unknown>)[0] : String(first);
+    const firstLabel =
+      first && typeof first === "object"
+        ? summarizeObject(first as Record<string, unknown>)[0]
+        : String(first);
     return [`array[${value.length}]`, firstLabel].filter(Boolean).slice(0, 2);
   }
 
-  if (typeof value === 'object') {
+  if (typeof value === "object") {
     return summarizeObject(value as Record<string, unknown>);
   }
 
@@ -280,7 +332,17 @@ function summarizeValue(value: unknown): string[] {
 }
 
 function summarizeObject(value: Record<string, unknown>): string[] {
-  const priorityKeys = ['success', 'status', 'code', 'message', 'error', 'count', 'id', 'name', 'type'];
+  const priorityKeys = [
+    "success",
+    "status",
+    "code",
+    "message",
+    "error",
+    "count",
+    "id",
+    "name",
+    "type",
+  ];
   const entries = Object.entries(value);
   const selected = [
     ...priorityKeys
@@ -289,21 +351,28 @@ function summarizeObject(value: Record<string, unknown>): string[] {
     ...entries.filter(([key]) => !priorityKeys.includes(key)),
   ];
 
-  return selected.slice(0, 3).map(([key, item]) => `${key}: ${formatSummaryValue(item)}`);
+  return selected
+    .slice(0, 3)
+    .map(([key, item]) => `${key}: ${formatSummaryValue(item)}`);
 }
 
 function formatSummaryValue(value: unknown): string {
   if (Array.isArray(value)) return `array[${value.length}]`;
-  if (value && typeof value === 'object') return '{...}';
-  if (typeof value === 'string') return value.replace(/\s+/g, ' ').slice(0, 36);
-  if (value === null) return 'null';
+  if (value && typeof value === "object") return "{...}";
+  if (typeof value === "string") return value.replace(/\s+/g, " ").slice(0, 36);
+  if (value === null) return "null";
   return String(value);
 }
 
 function parseJsonString(value: string): unknown {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
-  if (!((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']')))) {
+  if (
+    !(
+      (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+      (trimmed.startsWith("[") && trimmed.endsWith("]"))
+    )
+  ) {
     return undefined;
   }
 
