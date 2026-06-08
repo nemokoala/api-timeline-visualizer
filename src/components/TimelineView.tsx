@@ -1,12 +1,16 @@
 import { useEffect, useRef } from 'react';
 import type { ApiRequest, TimelineItem } from '../types/network';
+import type { RequestSearchSummary } from '../utils/requestSearch';
 import { formatDuration, formatOffset, getStatusTone } from './formatters';
+import { SearchHitBadge } from './SearchHitBadge';
 
 type TimelineViewProps = {
   items: TimelineItem[];
   requests: ApiRequest[];
   selectedRequestId: string | null;
   searchText: string;
+  searchOccurrenceByRequest: Map<string, RequestSearchSummary>;
+  activeGlobalSearchIndex: number | null;
   onSelectRequest: (requestId: string) => void;
 };
 
@@ -15,6 +19,8 @@ export function TimelineView({
   requests,
   selectedRequestId,
   searchText,
+  searchOccurrenceByRequest,
+  activeGlobalSearchIndex,
   onSelectRequest,
 }: TimelineViewProps) {
   const maxEnd = Math.max(100, ...items.map((item) => item.startOffset + item.duration));
@@ -52,6 +58,7 @@ export function TimelineView({
             const startPercent = Math.min(94, (item.startOffset / maxEnd) * 100);
             const widthPercent = Math.max(2, (item.duration / maxEnd) * 100);
             const isSelected = selectedRequestId === item.requestId;
+            const searchSummary = searchOccurrenceByRequest.get(item.requestId);
 
             return (
               <button
@@ -69,6 +76,12 @@ export function TimelineView({
                   <span className="request-meta">
                     <span className={`method method-${item.method.toLowerCase()}`}>{item.method}</span>
                     <span className="path">{item.normalizedPath}</span>
+                    {searchSummary ? (
+                      <SearchHitBadge
+                        summary={searchSummary}
+                        activeGlobalSearchIndex={activeGlobalSearchIndex}
+                      />
+                    ) : null}
                   </span>
                   <span className="bar-track" aria-hidden="true">
                     <span

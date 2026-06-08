@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { highlightSearchText } from '../utils/searchHighlight';
 import { getImageSource } from '../utils/imageSource';
 import { ImagePreview } from './ImagePreview';
 
@@ -12,9 +13,10 @@ type ActiveFieldMenu = {
 type JsonViewerProps = {
   value: unknown;
   mimeType?: string;
+  searchText?: string;
 };
 
-export function JsonViewer({ value, mimeType }: JsonViewerProps) {
+export function JsonViewer({ value, mimeType, searchText = '' }: JsonViewerProps) {
   const renderValue = coerceJson(value);
   const output = typeof renderValue === 'string' ? renderValue : JSON.stringify(renderValue, null, 2);
   const imageSource = getImageSource(value, mimeType);
@@ -25,15 +27,23 @@ export function JsonViewer({ value, mimeType }: JsonViewerProps) {
         <div className="image-preview-frame">
           <ImagePreview src={imageSource} alt="Base64 response preview" />
         </div>
-        <JsonBlock value={renderValue} fallback={output} />
+        <JsonBlock value={renderValue} fallback={output} searchText={searchText} />
       </div>
     );
   }
 
-  return <JsonBlock value={renderValue} fallback={output} />;
+  return <JsonBlock value={renderValue} fallback={output} searchText={searchText} />;
 }
 
-function JsonBlock({ value, fallback }: { value: unknown; fallback: string }) {
+function JsonBlock({
+  value,
+  fallback,
+  searchText,
+}: {
+  value: unknown;
+  fallback: string;
+  searchText: string;
+}) {
   const [copied, setCopied] = useState(false);
   const [fieldMenu, setFieldMenu] = useState<ActiveFieldMenu>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -160,10 +170,10 @@ function JsonBlock({ value, fallback }: { value: unknown; fallback: string }) {
           ) : null}
           {isObject ? (
             <pre className="json-viewer json-tree">
-              {renderJsonValue(value, 0, 'root', handleFieldClick)}
+              {renderJsonValue(value, 0, 'root', handleFieldClick, searchText)}
             </pre>
           ) : (
-            <pre className="json-viewer">{copyText}</pre>
+            <pre className="json-viewer">{highlightSearchText(copyText, searchText)}</pre>
           )}
         </div>
       </div>
@@ -176,6 +186,7 @@ function renderJsonValue(
   depth: number,
   path: string,
   onFieldClick: (id: string, value: unknown, event: MouseEvent<HTMLButtonElement>) => void,
+  searchText: string,
 ): React.ReactNode {
   if (Array.isArray(value)) {
     if (value.length === 0) return <span className="json-punctuation">[]</span>;
@@ -187,7 +198,7 @@ function renderJsonValue(
           <span key={index}>
             {'\n'}
             {indent(depth + 1)}
-            {renderJsonValue(item, depth + 1, `${path}.${index}`, onFieldClick)}
+            {renderJsonValue(item, depth + 1, `${path}.${index}`, onFieldClick, searchText)}
             {index < value.length - 1 ? <span className="json-punctuation">,</span> : null}
           </span>
         ))}
@@ -215,10 +226,10 @@ function renderJsonValue(
               onClick={(event) => onFieldClick(`${path}.${key}`, item, event)}
               title="Copy field value"
             >
-              "{key}"
+              "{highlightSearchText(key, searchText)}"
             </button>
             <span className="json-punctuation">: </span>
-            {renderJsonValue(item, depth + 1, `${path}.${key}`, onFieldClick)}
+            {renderJsonValue(item, depth + 1, `${path}.${key}`, onFieldClick, searchText)}
             {index < entries.length - 1 ? <span className="json-punctuation">,</span> : null}
           </span>
         ))}
@@ -230,22 +241,30 @@ function renderJsonValue(
   }
 
   if (typeof value === 'string') {
-    return <span className="json-string">"{value}"</span>;
+    return (
+      <span className="json-string">
+        "{highlightSearchText(value, searchText)}"
+      </span>
+    );
   }
 
   if (typeof value === 'number') {
-    return <span className="json-number">{String(value)}</span>;
+    return <span className="json-number">{highlightSearchText(String(value), searchText)}</span>;
   }
 
   if (typeof value === 'boolean') {
-    return <span className="json-boolean">{String(value)}</span>;
+    return <span className="json-boolean">{highlightSearchText(String(value), searchText)}</span>;
   }
 
   if (value === null) {
     return <span className="json-null">null</span>;
   }
 
-  return <span className="json-string">"{String(value)}"</span>;
+  return (
+    <span className="json-string">
+      "{highlightSearchText(String(value), searchText)}"
+    </span>
+  );
 }
 
 function coerceJson(value: unknown): unknown {

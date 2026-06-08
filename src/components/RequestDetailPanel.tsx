@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { ApiRequest } from '../types/network';
 import { getDetailSectionOpen, setDetailSectionOpen } from '../utils/detailSectionPrefs';
 import { generateCurl, generateFetch } from '../utils/requestCodeSnippets';
+import { getMatchingDetailSections } from '../utils/requestSearch';
+import { highlightSearchText } from '../utils/searchHighlight';
 import { getImageSource } from '../utils/imageSource';
 import { formatDateTime, formatDuration, formatLocaleDateTime } from './formatters';
 import { ImagePreview } from './ImagePreview';
@@ -10,10 +12,53 @@ import { JsonViewer } from './JsonViewer';
 type RequestDetailPanelProps = {
   request: ApiRequest | null;
   isBodyLoading: boolean;
+  searchText: string;
+  searchOccurrenceIndex: number;
+  searchFocusKey: string;
   onLoadResponseBody: (requestId: string) => void;
 };
 
-export function RequestDetailPanel({ request, isBodyLoading, onLoadResponseBody }: RequestDetailPanelProps) {
+export function RequestDetailPanel({
+  request,
+  isBodyLoading,
+  searchText,
+  searchOccurrenceIndex,
+  searchFocusKey,
+  onLoadResponseBody,
+}: RequestDetailPanelProps) {
+  const panelRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!searchText.trim() || !request) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      const panel = panelRef.current;
+      if (!panel) return;
+
+      const marks = panel.querySelectorAll('.search-highlight');
+      marks.forEach((mark, index) => {
+        mark.classList.toggle('is-active', index === searchOccurrenceIndex);
+      });
+
+      const target = marks[searchOccurrenceIndex] ?? marks[0];
+      if (!target) return;
+
+      target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+
+      const jsonViewer = target.closest('.json-viewer');
+      if (jsonViewer instanceof HTMLElement) {
+        jsonViewer.scrollTop = Math.max(
+          0,
+          target instanceof HTMLElement
+            ? target.offsetTop - jsonViewer.clientHeight / 2
+            : 0,
+        );
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [request, searchFocusKey, searchOccurrenceIndex, searchText]);
+
   if (!request) {
     return (
       <aside className="detail-panel">
@@ -29,27 +74,30 @@ export function RequestDetailPanel({ request, isBodyLoading, onLoadResponseBody 
     getImageSource(request.normalizedPath) ?? getImageSource(request.path) ?? getImageSource(request.url);
   const title = titleImageSource ? 'Image payload' : request.normalizedPath;
   const displayUrl = titleImageSource ? summarizeImageUrl(request.url) : request.url;
+  const matchingSections = getMatchingDetailSections(request, searchText);
+  const hasSearch = Boolean(searchText.trim());
 
   return (
-    <aside className="detail-panel">
+    <aside className="detail-panel" ref={panelRef}>
       <div className="detail-title">
         <div>
           <span className={`method method-${request.method.toLowerCase()}`}>{request.method}</span>
           {titleImageSource ? (
             <div className="detail-image-title">
               <ImagePreview src={titleImageSource} alt="Base64 request preview" />
-              <h2>{title}</h2>
+              <h2>{hasSearch ? highlightSearchText(title, searchText) : title}</h2>
             </div>
           ) : (
-            <h2>{title}</h2>
+            <h2>{hasSearch ? highlightSearchText(title, searchText) : title}</h2>
           )}
-          <p>{request.host}</p>
+          <p>{hasSearch ? highlightSearchText(request.host, searchText) : request.host}</p>
         </div>
         <span className={`detail-status ${request.status >= 400 ? 'bad' : 'good'}`}>{request.status || 'n/a'}</span>
       </div>
 
-      <DetailSection sectionId="general" title="General" defaultOpen>
+      <DetailSection sectionId="general" title="General" defaultOpen expandForSearch={matchingSections.has('general')}>
         <DefinitionList
+          searchText={searchText}
           rows={[
             ['Full URL', displayUrl],
             ['Status', `${request.status || 'n/a'} ${request.statusText ?? ''}`.trim()],
@@ -61,21 +109,21 @@ export function RequestDetailPanel({ request, isBodyLoading, onLoadResponseBody 
         />
       </DetailSection>
 
-      <DetailSection sectionId="headers" title="Headers">
+      <DetailSection sectionId="headers" title="Headers" expandForSearch={matchingSections.has('headers')}>
         <h3>Request</h3>
-        <JsonViewer value={request.requestHeaders ?? {}} />
+        <JsonViewer value={request.requestHeaders ?? {}} searchText={searchText} />
         <h3>Response</h3>
-        <JsonViewer value={request.responseHeaders ?? {}} />
+        <JsonViewer value={request.responseHeaders ?? {}} searchText={searchText} />
       </DetailSection>
 
-      <DetailSection sectionId="payload" title="Payload">
+      <DetailSection sectionId="payload" title="Payload" expandForSearch={matchingSections.has('payload')}>
         <h3>Query Params</h3>
-        <JsonViewer value={request.queryParams ?? {}} />
+        <JsonViewer value={request.queryParams ?? {}} searchText={searchText} />
         <h3>Request Body</h3>
-        <JsonViewer value={request.requestBody ?? 'Request payload is not available for this request.'} />
+        <JsonViewer value={request.requestBody ?? 'Request payload is not available for this request.'} searchText={searchText} />
       </DetailSection>
 
-      <DetailSection sectionId="response" title="Response" defaultOpen>
+      <DetailSection sectionId="response" title="Response" defaultOpen expandForSearch={matchingSections.has('response')}>
         <div className="response-actions">
           <button type="button" onClick={() => onLoadResponseBody(request.id)} disabled={isBodyLoading}>
             {isBodyLoading ? 'Loading...' : request.responseContent === undefined ? 'Load body' : 'Reload body'}
@@ -84,11 +132,13 @@ export function RequestDetailPanel({ request, isBodyLoading, onLoadResponseBody 
         <JsonViewer
           value={request.responsePreview ?? request.responseContent ?? 'Response body is not available.'}
           mimeType={request.mimeType}
+          searchText={searchText}
         />
       </DetailSection>
 
-      <DetailSection sectionId="timing" title="Timing">
+      <DetailSection sectionId="timing" title="Timing" expandForSearch={matchingSections.has('timing')}>
         <DefinitionList
+          searchText={searchText}
           rows={[
             ['Started at', formatLocaleDateTime(request.startedAt)],
             ['Ended at', formatLocaleDateTime(request.endedAt)],
@@ -97,8 +147,8 @@ export function RequestDetailPanel({ request, isBodyLoading, onLoadResponseBody 
         />
       </DetailSection>
 
-      <DetailSection sectionId="replay" title="Replay">
-        <CodeSnippetBlock request={request} />
+      <DetailSection sectionId="replay" title="Replay" expandForSearch={matchingSections.has('replay')}>
+        <CodeSnippetBlock request={request} searchText={searchText} />
       </DetailSection>
     </aside>
   );
@@ -115,13 +165,16 @@ function DetailSection({
   title,
   children,
   defaultOpen = false,
+  expandForSearch = false,
 }: {
   sectionId: string;
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
   defaultOpen?: boolean;
+  expandForSearch?: boolean;
 }) {
   const [open, setOpen] = useState(() => getDetailSectionOpen(sectionId, defaultOpen));
+  const isOpen = open || expandForSearch;
 
   const handleToggle = () => {
     setOpen((current) => {
@@ -132,28 +185,36 @@ function DetailSection({
   };
 
   return (
-    <section className={`detail-section ${open ? 'is-open' : ''}`}>
+    <section className={`detail-section ${isOpen ? 'is-open' : ''} ${expandForSearch ? 'has-search-match' : ''}`}>
       <button
         className="detail-section-toggle"
         type="button"
-        aria-expanded={open}
+        aria-expanded={isOpen}
         onClick={handleToggle}
       >
         <span className="detail-section-title">{title}</span>
         <span className="detail-section-chevron" aria-hidden="true" />
       </button>
-      {open ? <div className="detail-section-body">{children}</div> : null}
+      {isOpen ? <div className="detail-section-body">{children}</div> : null}
     </section>
   );
 }
 
-function DefinitionList({ rows }: { rows: Array<[string, string]> }) {
+function DefinitionList({
+  rows,
+  searchText,
+}: {
+  rows: Array<[string, string]>;
+  searchText: string;
+}) {
+  const hasSearch = Boolean(searchText.trim());
+
   return (
     <dl className="definition-list">
       {rows.map(([label, value]) => (
         <div key={label}>
           <dt>{label}</dt>
-          <dd>{value}</dd>
+          <dd>{hasSearch ? highlightSearchText(value, searchText) : value}</dd>
         </div>
       ))}
     </dl>
@@ -162,10 +223,11 @@ function DefinitionList({ rows }: { rows: Array<[string, string]> }) {
 
 type SnippetMode = 'curl' | 'fetch';
 
-function CodeSnippetBlock({ request }: { request: ApiRequest }) {
+function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; searchText: string }) {
   const [mode, setMode] = useState<SnippetMode>('curl');
   const [copied, setCopied] = useState(false);
   const snippet = mode === 'curl' ? generateCurl(request) : generateFetch(request);
+  const hasSearch = Boolean(searchText.trim());
 
   const handleCopy = async () => {
     const didCopy = await copyToClipboard(snippet);
@@ -190,7 +252,9 @@ function CodeSnippetBlock({ request }: { request: ApiRequest }) {
           {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
-      <pre className="code-snippet-viewer">{snippet}</pre>
+      <pre className="code-snippet-viewer">
+        {hasSearch ? highlightSearchText(snippet, searchText) : snippet}
+      </pre>
     </div>
   );
 }

@@ -5,7 +5,10 @@ type ToolbarProps = {
   totalRequestCount: number;
   searchText: string;
   searchMatchIndex: number;
-  searchMatchCount: number;
+  searchOccurrenceCount: number;
+  searchRequestCount: number;
+  searchRequestJumpCount: number;
+  activeSearchRequestOrder: number;
   searchInputRef: RefObject<HTMLInputElement | null>;
   viewMode: 'flow' | 'timeline';
   groupFlowByTime: boolean;
@@ -15,6 +18,8 @@ type ToolbarProps = {
   onSearchTextChange: (searchText: string) => void;
   onSearchNext: () => void;
   onSearchPrevious: () => void;
+  onSearchNextRequest: () => void;
+  onSearchPreviousRequest: () => void;
   onGroupFlowByTimeChange: (groupFlowByTime: boolean) => void;
   onIncludeTextChange: (includeText: string) => void;
   onExcludeTextChange: (excludeText: string) => void;
@@ -29,7 +34,10 @@ export function Toolbar({
   totalRequestCount,
   searchText,
   searchMatchIndex,
-  searchMatchCount,
+  searchOccurrenceCount,
+  searchRequestCount,
+  searchRequestJumpCount,
+  activeSearchRequestOrder,
   searchInputRef,
   viewMode,
   groupFlowByTime,
@@ -39,6 +47,8 @@ export function Toolbar({
   onSearchTextChange,
   onSearchNext,
   onSearchPrevious,
+  onSearchNextRequest,
+  onSearchPreviousRequest,
   onGroupFlowByTimeChange,
   onIncludeTextChange,
   onExcludeTextChange,
@@ -48,7 +58,8 @@ export function Toolbar({
   onClear,
 }: ToolbarProps) {
   const hasSearch = Boolean(searchText.trim());
-  const searchPosition = hasSearch && searchMatchCount > 0 ? searchMatchIndex + 1 : 0;
+  const searchPosition = hasSearch && searchOccurrenceCount > 0 ? searchMatchIndex + 1 : 0;
+  const requestPosition = hasSearch && searchRequestJumpCount > 0 ? activeSearchRequestOrder : 0;
 
   return (
     <header className="toolbar">
@@ -57,39 +68,76 @@ export function Toolbar({
         <p>
           {requestCount} shown
           {totalRequestCount !== requestCount ? ` / ${totalRequestCount} captured` : ' requests'}
-          {hasSearch ? ` · ${searchMatchCount} match${searchMatchCount === 1 ? '' : 'es'}` : ''}
+          {hasSearch
+            ? ` · ${searchOccurrenceCount} hit${searchOccurrenceCount === 1 ? '' : 's'} in ${searchRequestCount} request${searchRequestCount === 1 ? '' : 's'}`
+            : ''}
         </p>
         {sessionNotice ? <p className="toolbar-notice">{sessionNotice}</p> : null}
       </div>
       <div className="toolbar-actions">
-        <label className="filter-field search-field">
-          <span>Search</span>
-          <input
-            ref={searchInputRef}
-            type="search"
-            value={searchText}
-            onChange={(event) => onSearchTextChange(event.currentTarget.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && event.shiftKey) {
-                event.preventDefault();
-                onSearchPrevious();
-                return;
-              }
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                onSearchNext();
-                return;
-              }
-              if (event.key === 'Escape') {
-                event.preventDefault();
-                onSearchTextChange('');
-              }
-            }}
-            placeholder="path, status, body"
-            aria-label="Search requests"
-          />
-          {hasSearch ? <span className="search-position">{searchPosition}/{searchMatchCount}</span> : null}
-        </label>
+        <div className="search-control">
+          <label className="filter-field search-input-field">
+            <span>Search</span>
+            <input
+              ref={searchInputRef}
+              type="search"
+              value={searchText}
+              onChange={(event) => onSearchTextChange(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && event.shiftKey) {
+                  event.preventDefault();
+                  onSearchPreviousRequest();
+                  return;
+                }
+                if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                  event.preventDefault();
+                  onSearchNextRequest();
+                  return;
+                }
+                if (event.key === 'Enter' && event.shiftKey) {
+                  event.preventDefault();
+                  onSearchPrevious();
+                  return;
+                }
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  onSearchNext();
+                  return;
+                }
+                if (event.key === 'Escape') {
+                  event.preventDefault();
+                  onSearchTextChange('');
+                }
+              }}
+              placeholder="path, status, body"
+              aria-label="Search requests"
+              title="Enter: next hit · Shift+Enter: previous hit · Ctrl+Enter: next card · Ctrl+Shift+Enter: previous card"
+            />
+          </label>
+          {hasSearch ? (
+            <div className="search-nav" aria-label="Search navigation">
+              <div className="search-nav-group" aria-label="Hit navigation">
+                <button type="button" className="search-nav-button" onClick={onSearchPrevious} title="Previous hit (Shift+Enter)">
+                  ‹
+                </button>
+                <span className="search-position">{searchPosition}/{searchOccurrenceCount}</span>
+                <button type="button" className="search-nav-button" onClick={onSearchNext} title="Next hit (Enter)">
+                  ›
+                </button>
+              </div>
+              <span className="search-nav-divider" aria-hidden="true" />
+              <div className="search-nav-group" aria-label="Card navigation">
+                <button type="button" className="search-nav-button" onClick={onSearchPreviousRequest} title="Previous card (Ctrl+Shift+Enter)">
+                  «
+                </button>
+                <span className="search-position">{requestPosition}/{searchRequestJumpCount}</span>
+                <button type="button" className="search-nav-button" onClick={onSearchNextRequest} title="Next card (Ctrl+Enter)">
+                  »
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
         <label className="filter-field">
           <span>Include</span>
           <input

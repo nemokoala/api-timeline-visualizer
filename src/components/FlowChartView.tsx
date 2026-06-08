@@ -13,8 +13,10 @@ import type { ReactFlowInstance } from "@xyflow/react";
 import type { ApiRequest, TimelineItem } from "../types/network";
 import { exportFlowChartToPng } from "../utils/exportFlowImage";
 import { getImageSource } from "../utils/imageSource";
+import type { RequestSearchSummary } from "../utils/requestSearch";
 import { formatDuration, formatOffset, getStatusTone } from "./formatters";
 import { ImagePreview } from "./ImagePreview";
+import { SearchHitBadge } from "./SearchHitBadge";
 
 type FlowChartViewProps = {
   items: TimelineItem[];
@@ -22,6 +24,8 @@ type FlowChartViewProps = {
   selectedRequestId: string | null;
   groupByTime: boolean;
   searchText: string;
+  searchOccurrenceByRequest: Map<string, RequestSearchSummary>;
+  activeGlobalSearchIndex: number | null;
   onSelectRequest: (requestId: string) => void;
 };
 
@@ -41,6 +45,8 @@ export function FlowChartView({
   selectedRequestId,
   groupByTime,
   searchText,
+  searchOccurrenceByRequest,
+  activeGlobalSearchIndex,
   onSelectRequest,
 }: FlowChartViewProps) {
   const flowInstanceRef = useRef<ReactFlowInstance | null>(null);
@@ -49,7 +55,15 @@ export function FlowChartView({
   const [exportError, setExportError] = useState<string | null>(null);
   const requestById = new Map(requests.map((request) => [request.id, request]));
   const groups = groupByTime ? toTimeGroups(items) : [];
-  const nodes = toFlowNodes(items, requestById, selectedRequestId, groupByTime, groups);
+  const nodes = toFlowNodes(
+    items,
+    requestById,
+    selectedRequestId,
+    groupByTime,
+    groups,
+    searchOccurrenceByRequest,
+    activeGlobalSearchIndex,
+  );
   const edges = toFlowEdges(items, groupByTime, groups);
 
   useEffect(() => {
@@ -190,9 +204,12 @@ function toFlowNodes(
   selectedRequestId: string | null,
   groupByTime: boolean,
   groups: TimelineItem[][],
+  searchOccurrenceByRequest: Map<string, RequestSearchSummary>,
+  activeGlobalSearchIndex: number | null,
 ): Node[] {
   return items.map((item, index) => {
     const request = requestById.get(item.requestId);
+    const searchSummary = searchOccurrenceByRequest.get(item.requestId);
     const statusTone = getStatusTone(item.status);
     const imageSource =
       getImageSource(item.path) ??
@@ -218,12 +235,20 @@ function toFlowNodes(
             className={`flow-node ${selectedRequestId === item.requestId ? "selected" : ""}`}
           >
             <div className="flow-node-top">
-              <span className={`method method-${item.method.toLowerCase()}`}>
-                {item.method}
-              </span>
-              <span className={`flow-status ${statusTone}`}>
-                {item.status || "n/a"}
-              </span>
+              <div className="flow-node-top-main">
+                <span className={`method method-${item.method.toLowerCase()}`}>
+                  {item.method}
+                </span>
+                <span className={`flow-status ${statusTone}`}>
+                  {item.status || "n/a"}
+                </span>
+              </div>
+              {searchSummary ? (
+                <SearchHitBadge
+                  summary={searchSummary}
+                  activeGlobalSearchIndex={activeGlobalSearchIndex}
+                />
+              ) : null}
             </div>
             {imageSource ? (
               <div className="flow-node-image-title">

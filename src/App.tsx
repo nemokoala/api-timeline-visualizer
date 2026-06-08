@@ -12,8 +12,17 @@ import {
   parseResponseContent,
   shouldCollectRequest,
 } from './utils/requestParser';
-import { matchesRequestSearch } from './utils/requestSearch';
+import {
+  buildSearchOccurrenceSummaryByRequest,
+  buildSearchOccurrences,
+  getNextRequestJumpIndex,
+  getSearchMatchIndexForRequest,
+  matchesRequestSearch,
+} from './utils/requestSearch';
 import { toTimelineItems } from './utils/timeline';
+
+const PRELOAD_CONCURRENCY = 4;
+const PRELOAD_MAX = 100;
 
 export default function App() {
   const [requests, setRequests] = useState<ApiRequest[]>([]);
@@ -30,6 +39,8 @@ export default function App() {
   const [isResizingDetail, setIsResizingDetail] = useState(false);
   const networkRequestById = useRef(new Map<string, chrome.devtools.network.Request>());
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const preloadQueueRef = useRef<string[]>([]);
+  const preloadInFlightRef = useRef(new Set<string>());
 
   const filteredRequests = useMemo(
     () => requests.filter((request) => matchesTextFilters(request, includeText, excludeText)),
@@ -41,6 +52,22 @@ export default function App() {
     return filteredRequests.filter((request) => matchesRequestSearch(request, searchText));
   }, [filteredRequests, searchText]);
 
+  const searchOccurrences = useMemo(() => {
+    if (!searchText.trim()) return [];
+    return buildSearchOccurrences(searchMatches, searchText);
+  }, [searchMatches, searchText]);
+
+  const activeSearchOccurrence = searchOccurrences[searchMatchIndex] ?? null;
+  const searchOccurrenceByRequest = useMemo(
+    () => buildSearchOccurrenceSummaryByRequest(searchOccurrences),
+    [searchOccurrences],
+  );
+  const activeGlobalSearchIndex =
+    searchText.trim() && searchOccurrences.length > 0 ? searchMatchIndex + 1 : null;
+  const searchRequestJumpCount = searchOccurrenceByRequest.size;
+  const activeSearchRequestOrder = activeSearchOccurrence
+    ? (searchOccurrenceByRequest.get(activeSearchOccurrence.requestId)?.requestOrder ?? 0)
+    : 0;
   const displayedRequests = searchMatches;
   const selectedRequest = displayedRequests.find((request) => request.id === selectedRequestId) ?? null;
   const timelineItems = useMemo(() => toTimelineItems(displayedRequests), [displayedRequests]);
@@ -56,17 +83,17 @@ export default function App() {
   }, [searchText]);
 
   useEffect(() => {
-    if (!searchText.trim() || !searchMatches.length) return;
+    if (!searchText.trim() || !searchOccurrences.length) return;
 
-    const clampedIndex = searchMatchIndex % searchMatches.length;
+    const clampedIndex = searchMatchIndex % searchOccurrences.length;
     if (clampedIndex !== searchMatchIndex) {
       setSearchMatchIndex(clampedIndex);
       return;
     }
 
-    const activeMatch = searchMatches[clampedIndex];
-    if (activeMatch) setSelectedRequestId(activeMatch.id);
-  }, [searchMatchIndex, searchMatches, searchText]);
+    const activeOccurrence = searchOccurrences[clampedIndex];
+    if (activeOccurrence) setSelectedRequestId(activeOccurrence.requestId);
+  }, [searchMatchIndex, searchOccurrences, searchText]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -119,14 +146,84 @@ export default function App() {
 
   const goToSearchMatch = useCallback(
     (direction: 1 | -1) => {
-      if (!searchMatches.length) return;
+      if (!searchOccurrences.length) return;
       setSearchMatchIndex((current) => {
-        const nextIndex = (current + direction + searchMatches.length) % searchMatches.length;
+        const nextIndex = (current + direction + searchOccurrences.length) % searchOccurrences.length;
         return nextIndex;
       });
     },
-    [searchMatches],
+    [searchOccurrences],
   );
+
+  const goToSearchRequest = useCallback(
+    (direction: 1 | -1) => {
+      if (!searchOccurrences.length) return;
+      setSearchMatchIndex((current) => {
+        const nextIndex = getNextRequestJumpIndex(searchOccurrences, current, direction);
+        return nextIndex ?? current;
+      });
+    },
+    [searchOccurrences],
+  );
+
+  const handleSelectRequest = useCallback(
+    (requestId: string) => {
+      if (searchText.trim()) {
+        const matchIndex = getSearchMatchIndexForRequest(searchOccurrences, requestId);
+        if (matchIndex !== null) {
+          setSearchMatchIndex(matchIndex);
+        }
+      }
+
+      setSelectedRequestId(requestId);
+    },
+    [searchOccurrences, searchText],
+  );
+
+  const applyResponseContent = useCallback((requestId: string, content: string | null) => {
+    setRequests((current) =>
+      current.map((request) => {
+        if (request.id !== requestId) return request;
+
+        const resolved = content || 'Response body is not available.';
+        return {
+          ...request,
+          responseContent: resolved,
+          responsePreview: parseResponseContent(content || '', request.mimeType),
+        };
+      }),
+    );
+  }, []);
+
+  const fetchResponseContent = useCallback(
+    (requestId: string, onComplete?: () => void) => {
+      const networkRequest = networkRequestById.current.get(requestId);
+      if (!networkRequest) {
+        applyResponseContent(requestId, null);
+        onComplete?.();
+        return;
+      }
+
+      networkRequest.getContent((content) => {
+        applyResponseContent(requestId, content);
+        onComplete?.();
+      });
+    },
+    [applyResponseContent],
+  );
+
+  const drainPreloadQueue = useCallback(() => {
+    while (preloadInFlightRef.current.size < PRELOAD_CONCURRENCY && preloadQueueRef.current.length > 0) {
+      const requestId = preloadQueueRef.current.shift();
+      if (!requestId || preloadInFlightRef.current.has(requestId)) continue;
+
+      preloadInFlightRef.current.add(requestId);
+      fetchResponseContent(requestId, () => {
+        preloadInFlightRef.current.delete(requestId);
+        drainPreloadQueue();
+      });
+    }
+  }, [fetchResponseContent]);
 
   const handleExportSession = useCallback(() => {
     if (!requests.length) return;
@@ -150,39 +247,47 @@ export default function App() {
     }
   }, []);
 
-  const loadResponseBody = useCallback((requestId: string) => {
-    const networkRequest = networkRequestById.current.get(requestId);
-    if (!networkRequest) {
-      setRequests((current) =>
-        current.map((request) =>
-          request.id === requestId ? { ...request, responseContent: 'Response body is not available.' } : request,
-        ),
-      );
+  const loadResponseBody = useCallback(
+    (requestId: string) => {
+      if (bodyLoadingId === requestId) return;
+
+      setBodyLoadingId(requestId);
+      fetchResponseContent(requestId, () => setBodyLoadingId(null));
+    },
+    [bodyLoadingId, fetchResponseContent],
+  );
+
+  useEffect(() => {
+    if (!searchText.trim()) {
+      preloadQueueRef.current = [];
       return;
     }
 
-    setBodyLoadingId(requestId);
+    const queued = new Set(preloadQueueRef.current);
+    const pendingIds = filteredRequests
+      .filter(
+        (request) =>
+          request.responseContent === undefined &&
+          networkRequestById.current.has(request.id) &&
+          !preloadInFlightRef.current.has(request.id) &&
+          !queued.has(request.id),
+      )
+      .map((request) => request.id)
+      .slice(0, PRELOAD_MAX);
 
-    networkRequest.getContent((content) => {
-      setRequests((current) =>
-        current.map((request) =>
-          request.id === requestId
-            ? {
-                ...request,
-                responseContent: content || 'Response body is not available.',
-                responsePreview: parseResponseContent(content, request.mimeType),
-              }
-            : request,
-        ),
-      );
-      setBodyLoadingId(null);
-    });
-  }, []);
+    for (const requestId of pendingIds) {
+      preloadQueueRef.current.push(requestId);
+      queued.add(requestId);
+    }
+
+    drainPreloadQueue();
+  }, [drainPreloadQueue, filteredRequests, searchText]);
 
   useEffect(() => {
     if (!selectedRequest) return;
     if (bodyLoadingId === selectedRequest.id) return;
     if (selectedRequest.responseContent !== undefined) return;
+    if (preloadInFlightRef.current.has(selectedRequest.id)) return;
 
     loadResponseBody(selectedRequest.id);
   }, [bodyLoadingId, loadResponseBody, selectedRequest]);
@@ -217,7 +322,8 @@ export default function App() {
         totalRequestCount={requests.length}
         searchText={searchText}
         searchMatchIndex={searchMatchIndex}
-        searchMatchCount={searchMatches.length}
+        searchOccurrenceCount={searchOccurrences.length}
+        searchRequestCount={searchMatches.length}
         searchInputRef={searchInputRef}
         viewMode={viewMode}
         groupFlowByTime={groupFlowByTime}
@@ -227,6 +333,10 @@ export default function App() {
         onSearchTextChange={handleSearchTextChange}
         onSearchNext={() => goToSearchMatch(1)}
         onSearchPrevious={() => goToSearchMatch(-1)}
+        onSearchNextRequest={() => goToSearchRequest(1)}
+        onSearchPreviousRequest={() => goToSearchRequest(-1)}
+        searchRequestJumpCount={searchRequestJumpCount}
+        activeSearchRequestOrder={activeSearchRequestOrder}
         onGroupFlowByTimeChange={setGroupFlowByTime}
         onIncludeTextChange={setIncludeText}
         onExcludeTextChange={setExcludeText}
@@ -248,7 +358,9 @@ export default function App() {
             selectedRequestId={selectedRequestId}
             groupByTime={groupFlowByTime}
             searchText={searchText}
-            onSelectRequest={setSelectedRequestId}
+            searchOccurrenceByRequest={searchOccurrenceByRequest}
+            activeGlobalSearchIndex={activeGlobalSearchIndex}
+            onSelectRequest={handleSelectRequest}
           />
         ) : (
           <TimelineView
@@ -256,7 +368,9 @@ export default function App() {
             requests={displayedRequests}
             selectedRequestId={selectedRequestId}
             searchText={searchText}
-            onSelectRequest={setSelectedRequestId}
+            searchOccurrenceByRequest={searchOccurrenceByRequest}
+            activeGlobalSearchIndex={activeGlobalSearchIndex}
+            onSelectRequest={handleSelectRequest}
           />
         )}
         <button
@@ -272,6 +386,9 @@ export default function App() {
         <RequestDetailPanel
           request={selectedRequest}
           isBodyLoading={bodyLoadingId === selectedRequest?.id}
+          searchText={searchText}
+          searchOccurrenceIndex={activeSearchOccurrence?.occurrenceIndex ?? 0}
+          searchFocusKey={`${searchMatchIndex}:${activeSearchOccurrence?.requestId ?? ''}:${activeSearchOccurrence?.occurrenceIndex ?? 0}`}
           onLoadResponseBody={loadResponseBody}
         />
       </section>
