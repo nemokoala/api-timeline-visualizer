@@ -1,8 +1,9 @@
-import { useCallback, useRef, type WheelEvent } from "react";
+import { useCallback, useRef, useState, type WheelEvent } from "react";
 import {
   Background,
   Controls,
   MarkerType,
+  Panel,
   Position,
   ReactFlow,
   type Edge,
@@ -10,6 +11,7 @@ import {
 } from "@xyflow/react";
 import type { ReactFlowInstance } from "@xyflow/react";
 import type { ApiRequest, TimelineItem } from "../types/network";
+import { exportFlowChartToPng } from "../utils/exportFlowImage";
 import { getImageSource } from "../utils/imageSource";
 import { formatDuration, formatOffset, getStatusTone } from "./formatters";
 import { ImagePreview } from "./ImagePreview";
@@ -40,6 +42,9 @@ export function FlowChartView({
   onSelectRequest,
 }: FlowChartViewProps) {
   const flowInstanceRef = useRef<ReactFlowInstance | null>(null);
+  const flowPanelRef = useRef<HTMLElement | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const requestById = new Map(requests.map((request) => [request.id, request]));
   const groups = groupByTime ? toTimeGroups(items) : [];
   const nodes = toFlowNodes(
@@ -77,8 +82,35 @@ export function FlowChartView({
     );
   }, []);
 
+  const handleDownloadImage = useCallback(async () => {
+    const flowInstance = flowInstanceRef.current;
+    const panel = flowPanelRef.current;
+    if (!flowInstance || !panel || items.length === 0 || isExporting) return;
+
+    const viewportElement = panel.querySelector(".react-flow__viewport");
+    if (!(viewportElement instanceof HTMLElement)) return;
+
+    setIsExporting(true);
+    setExportError(null);
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      await exportFlowChartToPng(
+        viewportElement,
+        flowInstance.getNodes(),
+        `api-flow-${timestamp}.png`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to export image.";
+      setExportError(message);
+      console.error("Failed to export flow chart image", error);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [isExporting, items.length]);
+
   return (
     <section
+      ref={flowPanelRef}
       className="flow-panel"
       aria-label="Request flow chart"
       onWheel={handleWheel}
@@ -114,6 +146,23 @@ export function FlowChartView({
           >
             <Background color="#27313d" gap={22} />
             <Controls showInteractive={false} />
+            <Panel position="top-right" className="flow-export-panel">
+              <div className="flow-export-controls">
+                <button
+                  className="flow-export-button"
+                  type="button"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void handleDownloadImage();
+                  }}
+                  disabled={isExporting}
+                >
+                  {isExporting ? "Exporting..." : "Download PNG"}
+                </button>
+                {exportError ? <span className="flow-export-error">{exportError}</span> : null}
+              </div>
+            </Panel>
           </ReactFlow>
         </>
       )}
@@ -148,6 +197,8 @@ function toFlowNodes(
       id: item.requestId,
       type: "default",
       position,
+      width: NODE_WIDTH,
+      height: NODE_HEIGHT,
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
       data: {
