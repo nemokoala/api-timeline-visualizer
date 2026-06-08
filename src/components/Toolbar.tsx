@@ -2,8 +2,10 @@ type ToolbarProps = {
   requestCount: number;
   totalRequestCount: number;
   viewMode: 'flow' | 'timeline';
+  groupFlowByTime: boolean;
   includeText: string;
   excludeText: string;
+  onGroupFlowByTimeChange: (groupFlowByTime: boolean) => void;
   onIncludeTextChange: (includeText: string) => void;
   onExcludeTextChange: (excludeText: string) => void;
   onViewModeChange: (viewMode: 'flow' | 'timeline') => void;
@@ -14,8 +16,10 @@ export function Toolbar({
   requestCount,
   totalRequestCount,
   viewMode,
+  groupFlowByTime,
   includeText,
   excludeText,
+  onGroupFlowByTimeChange,
   onIncludeTextChange,
   onExcludeTextChange,
   onViewModeChange,
@@ -48,6 +52,14 @@ export function Toolbar({
             onChange={(event) => onExcludeTextChange(event.currentTarget.value)}
             placeholder="analytics,sentry"
           />
+        </label>
+        <label className="toggle-control">
+          <input
+            type="checkbox"
+            checked={groupFlowByTime}
+            onChange={(event) => onGroupFlowByTimeChange(event.currentTarget.checked)}
+          />
+          <span>Group</span>
         </label>
         <div className="segmented-control" aria-label="View mode">
           <button

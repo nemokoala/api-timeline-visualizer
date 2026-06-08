@@ -92,6 +92,27 @@ button {
   color: #5f6b7a;
 }
 
+.toggle-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  border: 1px solid #303a48;
+  border-radius: 7px;
+  padding: 0 9px;
+  color: #c8d2de;
+  background: #10151c;
+  font-size: 12px;
+  user-select: none;
+}
+
+.toggle-control input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #8bd5ff;
+}
+
 .segmented-control {
   display: inline-flex;
   align-items: center;
@@ -273,7 +294,7 @@ button {
 
 .flow-node {
   display: grid;
-  grid-template-rows: 30px minmax(38px, 1fr) 16px 20px;
+  grid-template-rows: 30px minmax(34px, auto) 16px minmax(34px, 1fr) 20px;
   align-content: start;
   gap: 7px;
   width: 240px;
@@ -341,6 +362,22 @@ button {
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: left;
+}
+
+.flow-node-summary {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+  color: #c3cedd;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.flow-node-summary span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .flow-node-bottom {

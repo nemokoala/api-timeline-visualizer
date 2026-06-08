@@ -10,23 +10,32 @@ type FlowChartViewProps = {
   items: TimelineItem[];
   requests: ApiRequest[];
   selectedRequestId: string | null;
+  groupByTime: boolean;
   onSelectRequest: (requestId: string) => void;
 };
 
 const NODE_WIDTH = 240;
-const NODE_HEIGHT = 152;
+const NODE_HEIGHT = 184;
 const COLUMN_GAP = 56;
 const ROW_GAP = 64;
 const NODES_PER_ROW = 3;
+const PARALLEL_GROUP_THRESHOLD_MS = 120;
 const MIN_ZOOM = 0.12;
 const MAX_ZOOM = 1.6;
 const WHEEL_ZOOM_SENSITIVITY = 0.00065;
 
-export function FlowChartView({ items, requests, selectedRequestId, onSelectRequest }: FlowChartViewProps) {
+export function FlowChartView({
+  items,
+  requests,
+  selectedRequestId,
+  groupByTime,
+  onSelectRequest,
+}: FlowChartViewProps) {
   const flowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const requestById = new Map(requests.map((request) => [request.id, request]));
-  const nodes = toFlowNodes(items, requestById, selectedRequestId);
-  const edges = toFlowEdges(items);
+  const groups = groupByTime ? toTimeGroups(items) : [];
+  const nodes = toFlowNodes(items, requestById, selectedRequestId, groupByTime, groups);
+  const edges = toFlowEdges(items, groupByTime, groups);
   const handleWheel = useCallback((event: WheelEvent<HTMLElement>) => {
     const flowInstance = flowInstanceRef.current;
     if (!flowInstance) return;
@@ -64,8 +73,12 @@ export function FlowChartView({ items, requests, selectedRequestId, onSelectRequ
       ) : (
         <>
           <div className="flow-caption">
-            <strong>Inferred Sequence</strong>
-            <span>Ordered by request start time, not a guaranteed dependency graph.</span>
+            <strong>{groupByTime ? 'Grouped Sequence' : 'Inferred Sequence'}</strong>
+            <span>
+              {groupByTime
+                ? `Requests within ${PARALLEL_GROUP_THRESHOLD_MS}ms share a row; group links show time order.`
+                : 'Ordered by request start time, not a guaranteed dependency graph.'}
+            </span>
           </div>
           <ReactFlow
             nodes={nodes}
@@ -101,20 +114,20 @@ function toFlowNodes(
   items: TimelineItem[],
   requestById: Map<string, ApiRequest>,
   selectedRequestId: string | null,
+  groupByTime: boolean,
+  groups: TimelineItem[][],
 ): Node[] {
   return items.map((item, index) => {
     const request = requestById.get(item.requestId);
     const statusTone = getStatusTone(item.status);
     const imageSource = getImageSource(item.path) ?? getImageSource(item.normalizedPath) ?? getImageSource(request?.url);
-    const column = index % NODES_PER_ROW;
-    const row = Math.floor(index / NODES_PER_ROW);
-    const x = column * (NODE_WIDTH + COLUMN_GAP);
-    const y = row * (NODE_HEIGHT + ROW_GAP);
+    const position = groupByTime ? getGroupedPosition(item, groups) : getGridPosition(index);
+    const bodySummary = getBodySummary(request);
 
     return {
       id: item.requestId,
       type: 'default',
-      position: { x, y },
+      position,
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
       data: {
@@ -134,6 +147,11 @@ function toFlowNodes(
               <strong title={item.path}>{getNodeTitle(item)}</strong>
             )}
             <span>{item.host}</span>
+            <div className="flow-node-summary">
+              {bodySummary.map((summary) => (
+                <span key={summary}>{summary}</span>
+              ))}
+            </div>
             <div className="flow-node-bottom">
               <span>{formatOffset(item.startOffset)}</span>
               <span className={item.isSlow ? 'slow-text' : ''}>{formatDuration(request?.duration ?? item.duration)}</span>
@@ -157,22 +175,148 @@ function getNodeTitle(item: TimelineItem): string {
   return item.normalizedPath;
 }
 
-function toFlowEdges(items: TimelineItem[]): Edge[] {
+function toFlowEdges(items: TimelineItem[], groupByTime: boolean, groups: TimelineItem[][]): Edge[] {
+  if (groupByTime) {
+    return groups.slice(1).map((group, index) => {
+      const previous = groups[index][groups[index].length - 1];
+      const next = group[0];
+      const isError = group.some((item) => item.isError);
+
+      return createEdge(previous, next, isError);
+    });
+  }
+
   return items.slice(1).map((item, index) => {
     const previous = items[index];
-    const isError = item.isError;
-
-    return {
-      id: `${previous.requestId}-${item.requestId}`,
-      source: previous.requestId,
-      target: item.requestId,
-      type: 'straight',
-      animated: false,
-      markerEnd: { type: MarkerType.ArrowClosed, color: isError ? '#ff6b6b' : '#5e6c7f' },
-      style: {
-        stroke: isError ? '#ff6b6b' : '#5e6c7f',
-        strokeWidth: isError ? 2.4 : 1.8,
-      },
-    };
+    return createEdge(previous, item, item.isError);
   });
+}
+
+function createEdge(source: TimelineItem, target: TimelineItem, isError: boolean): Edge {
+  return {
+    id: `${source.requestId}-${target.requestId}`,
+    source: source.requestId,
+    target: target.requestId,
+    type: 'straight',
+    animated: false,
+    markerEnd: { type: MarkerType.ArrowClosed, color: isError ? '#ff6b6b' : '#5e6c7f' },
+    style: {
+      stroke: isError ? '#ff6b6b' : '#5e6c7f',
+      strokeWidth: isError ? 2.4 : 1.8,
+    },
+  };
+}
+
+function getGridPosition(index: number): { x: number; y: number } {
+  const column = index % NODES_PER_ROW;
+  const row = Math.floor(index / NODES_PER_ROW);
+  return {
+    x: column * (NODE_WIDTH + COLUMN_GAP),
+    y: row * (NODE_HEIGHT + ROW_GAP),
+  };
+}
+
+function getGroupedPosition(item: TimelineItem, groups: TimelineItem[][]): { x: number; y: number } {
+  for (let groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
+    const itemIndex = groups[groupIndex].findIndex((candidate) => candidate.requestId === item.requestId);
+    if (itemIndex >= 0) {
+      return {
+        x: itemIndex * (NODE_WIDTH + COLUMN_GAP),
+        y: groupIndex * (NODE_HEIGHT + ROW_GAP),
+      };
+    }
+  }
+
+  return { x: 0, y: 0 };
+}
+
+function toTimeGroups(items: TimelineItem[]): TimelineItem[][] {
+  return items.reduce<TimelineItem[][]>((groups, item) => {
+    const currentGroup = groups[groups.length - 1];
+    const firstInGroup = currentGroup?.[0];
+
+    if (!currentGroup || !firstInGroup || item.startOffset - firstInGroup.startOffset > PARALLEL_GROUP_THRESHOLD_MS) {
+      groups.push([item]);
+      return groups;
+    }
+
+    currentGroup.push(item);
+    return groups;
+  }, []);
+}
+
+function getBodySummary(request?: ApiRequest): string[] {
+  if (!request) return ['No request metadata'];
+  const source = request.responsePreview ?? request.requestBody;
+  const summary = summarizeValue(source);
+
+  if (summary.length) return summary;
+  if (request.method !== 'GET' && request.requestBody !== undefined) return ['Payload available'];
+  if (request.size) return [`${formatBytes(request.size)}`];
+
+  return ['Body summary unavailable'];
+}
+
+function summarizeValue(value: unknown): string[] {
+  if (value === undefined || value === null) return [];
+  if (typeof value === 'string') {
+    const parsed = parseJsonString(value);
+    if (parsed !== undefined) return summarizeValue(parsed);
+    const trimmed = value.replace(/\s+/g, ' ').trim();
+    return trimmed ? [trimmed.slice(0, 72)] : [];
+  }
+
+  if (Array.isArray(value)) {
+    if (!value.length) return ['array[0]'];
+    const first = value[0];
+    const firstLabel = first && typeof first === 'object' ? summarizeObject(first as Record<string, unknown>)[0] : String(first);
+    return [`array[${value.length}]`, firstLabel].filter(Boolean).slice(0, 2);
+  }
+
+  if (typeof value === 'object') {
+    return summarizeObject(value as Record<string, unknown>);
+  }
+
+  return [String(value)];
+}
+
+function summarizeObject(value: Record<string, unknown>): string[] {
+  const priorityKeys = ['success', 'status', 'code', 'message', 'error', 'count', 'id', 'name', 'type'];
+  const entries = Object.entries(value);
+  const selected = [
+    ...priorityKeys
+      .filter((key) => Object.prototype.hasOwnProperty.call(value, key))
+      .map((key) => [key, value[key]] as [string, unknown]),
+    ...entries.filter(([key]) => !priorityKeys.includes(key)),
+  ];
+
+  return selected.slice(0, 3).map(([key, item]) => `${key}: ${formatSummaryValue(item)}`);
+}
+
+function formatSummaryValue(value: unknown): string {
+  if (Array.isArray(value)) return `array[${value.length}]`;
+  if (value && typeof value === 'object') return '{...}';
+  if (typeof value === 'string') return value.replace(/\s+/g, ' ').slice(0, 36);
+  if (value === null) return 'null';
+  return String(value);
+}
+
+function parseJsonString(value: string): unknown {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (!((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']')))) {
+    return undefined;
+  }
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return undefined;
+  }
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
 }

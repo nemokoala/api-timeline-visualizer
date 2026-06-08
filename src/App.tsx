@@ -18,6 +18,7 @@ export default function App() {
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [bodyLoadingId, setBodyLoadingId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'flow' | 'timeline'>('flow');
+  const [groupFlowByTime, setGroupFlowByTime] = useState(true);
   const [includeText, setIncludeText] = useState('api');
   const [excludeText, setExcludeText] = useState('google-analytics,sentry,datadog,amplitude,hotjar,segment');
   const [detailPanelWidth, setDetailPanelWidth] = useState(460);
@@ -128,8 +129,10 @@ export default function App() {
         requestCount={visibleRequests.length}
         totalRequestCount={requests.length}
         viewMode={viewMode}
+        groupFlowByTime={groupFlowByTime}
         includeText={includeText}
         excludeText={excludeText}
+        onGroupFlowByTimeChange={setGroupFlowByTime}
         onIncludeTextChange={setIncludeText}
         onExcludeTextChange={setExcludeText}
         onViewModeChange={setViewMode}
@@ -144,6 +147,7 @@ export default function App() {
             items={timelineItems}
             requests={visibleRequests}
             selectedRequestId={selectedRequestId}
+            groupByTime={groupFlowByTime}
             onSelectRequest={setSelectedRequestId}
           />
         ) : (
