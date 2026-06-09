@@ -31,6 +31,18 @@ import {
   saveStorageExcludeText,
   saveStorageIncludeText,
 } from './utils/filterPrefs';
+import {
+  getNetworkSearchText,
+  getStorageSearchText,
+  saveNetworkSearchText,
+  saveStorageSearchText,
+} from './utils/searchPrefs';
+import type { StorageSearchOccurrence } from './utils/storageSearch';
+import {
+  buildStorageOccurrenceSummaryByItem,
+  getNextStorageItemJumpIndex,
+  storageTargetKey,
+} from './utils/storageSearch';
 import { useSplitPanelLayout } from './hooks/useSplitPanelLayout';
 import { toTimelineItems } from './utils/timeline';
 
@@ -48,8 +60,11 @@ export default function App() {
   const [networkExcludeText, setNetworkExcludeText] = useState(() => getNetworkExcludeText());
   const [storageIncludeText, setStorageIncludeText] = useState(() => getStorageIncludeText());
   const [storageExcludeText, setStorageExcludeText] = useState(() => getStorageExcludeText());
-  const [searchText, setSearchText] = useState('');
-  const [searchMatchIndex, setSearchMatchIndex] = useState(0);
+  const [networkSearchText, setNetworkSearchText] = useState(() => getNetworkSearchText());
+  const [storageSearchText, setStorageSearchText] = useState(() => getStorageSearchText());
+  const [networkSearchMatchIndex, setNetworkSearchMatchIndex] = useState(0);
+  const [storageSearchMatchIndex, setStorageSearchMatchIndex] = useState(0);
+  const [storageSearchOccurrences, setStorageSearchOccurrences] = useState<StorageSearchOccurrence[]>([]);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const workspaceRef = useRef<HTMLElement>(null);
   const {
@@ -81,31 +96,52 @@ export default function App() {
     saveStorageExcludeText(storageExcludeText);
   }, [storageExcludeText]);
 
+  useEffect(() => {
+    saveNetworkSearchText(networkSearchText);
+  }, [networkSearchText]);
+
+  useEffect(() => {
+    saveStorageSearchText(storageSearchText);
+  }, [storageSearchText]);
+
+  const isNetworkMode = workspaceMode === 'network';
+  const activeSearchText = isNetworkMode ? networkSearchText : storageSearchText;
+  const activeSearchMatchIndex = isNetworkMode ? networkSearchMatchIndex : storageSearchMatchIndex;
+
   const filteredRequests = useMemo(
     () => requests.filter((request) => matchesTextFilters(request, networkIncludeText, networkExcludeText)),
     [networkExcludeText, networkIncludeText, requests],
   );
 
   const searchMatches = useMemo(() => {
-    if (!searchText.trim()) return filteredRequests;
-    return filteredRequests.filter((request) => matchesRequestSearch(request, searchText));
-  }, [filteredRequests, searchText]);
+    if (!networkSearchText.trim()) return filteredRequests;
+    return filteredRequests.filter((request) => matchesRequestSearch(request, networkSearchText));
+  }, [filteredRequests, networkSearchText]);
 
   const searchOccurrences = useMemo(() => {
-    if (!searchText.trim()) return [];
-    return buildSearchOccurrences(searchMatches, searchText);
-  }, [searchMatches, searchText]);
+    if (!networkSearchText.trim()) return [];
+    return buildSearchOccurrences(searchMatches, networkSearchText);
+  }, [searchMatches, networkSearchText]);
 
-  const activeSearchOccurrence = searchOccurrences[searchMatchIndex] ?? null;
+  const activeSearchOccurrence = searchOccurrences[networkSearchMatchIndex] ?? null;
   const searchOccurrenceByRequest = useMemo(
     () => buildSearchOccurrenceSummaryByRequest(searchOccurrences),
     [searchOccurrences],
   );
   const activeGlobalSearchIndex =
-    searchText.trim() && searchOccurrences.length > 0 ? searchMatchIndex + 1 : null;
+    networkSearchText.trim() && searchOccurrences.length > 0 ? networkSearchMatchIndex + 1 : null;
   const searchRequestJumpCount = searchOccurrenceByRequest.size;
   const activeSearchRequestOrder = activeSearchOccurrence
     ? (searchOccurrenceByRequest.get(activeSearchOccurrence.requestId)?.requestOrder ?? 0)
+    : 0;
+  const storageOccurrenceByItem = useMemo(
+    () => buildStorageOccurrenceSummaryByItem(storageSearchOccurrences),
+    [storageSearchOccurrences],
+  );
+  const activeStorageSearchOccurrence = storageSearchOccurrences[storageSearchMatchIndex] ?? null;
+  const storageSearchRequestJumpCount = storageOccurrenceByItem.size;
+  const activeStorageItemOrder = activeStorageSearchOccurrence
+    ? (storageOccurrenceByItem.get(storageTargetKey(activeStorageSearchOccurrence.target))?.itemOrder ?? 0)
     : 0;
   const displayedRequests = searchMatches;
   const selectedRequest = displayedRequests.find((request) => request.id === selectedRequestId) ?? null;
@@ -118,21 +154,25 @@ export default function App() {
   }, [displayedRequests, selectedRequestId]);
 
   useEffect(() => {
-    setSearchMatchIndex(0);
-  }, [searchText]);
+    setNetworkSearchMatchIndex(0);
+  }, [networkSearchText]);
 
   useEffect(() => {
-    if (!searchText.trim() || !searchOccurrences.length) return;
+    setStorageSearchMatchIndex(0);
+  }, [storageSearchText]);
 
-    const clampedIndex = searchMatchIndex % searchOccurrences.length;
-    if (clampedIndex !== searchMatchIndex) {
-      setSearchMatchIndex(clampedIndex);
+  useEffect(() => {
+    if (!networkSearchText.trim() || !searchOccurrences.length) return;
+
+    const clampedIndex = networkSearchMatchIndex % searchOccurrences.length;
+    if (clampedIndex !== networkSearchMatchIndex) {
+      setNetworkSearchMatchIndex(clampedIndex);
       return;
     }
 
     const activeOccurrence = searchOccurrences[clampedIndex];
     if (activeOccurrence) setSelectedRequestId(activeOccurrence.requestId);
-  }, [searchMatchIndex, searchOccurrences, searchText]);
+  }, [networkSearchMatchIndex, networkSearchText, searchOccurrences]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -175,18 +215,26 @@ export default function App() {
     networkRequestById.current.clear();
     setRequests([]);
     setSelectedRequestId(null);
-    setSearchText('');
-    setSearchMatchIndex(0);
+    setNetworkSearchText('');
+    setNetworkSearchMatchIndex(0);
   }, []);
 
-  const handleSearchTextChange = useCallback((value: string) => {
-    setSearchText(value);
-  }, []);
+  const handleSearchTextChange = useCallback(
+    (value: string) => {
+      if (workspaceMode === 'network') {
+        setNetworkSearchText(value);
+        return;
+      }
 
-  const goToSearchMatch = useCallback(
+      setStorageSearchText(value);
+    },
+    [workspaceMode],
+  );
+
+  const goToNetworkSearchMatch = useCallback(
     (direction: 1 | -1) => {
       if (!searchOccurrences.length) return;
-      setSearchMatchIndex((current) => {
+      setNetworkSearchMatchIndex((current) => {
         const nextIndex = (current + direction + searchOccurrences.length) % searchOccurrences.length;
         return nextIndex;
       });
@@ -194,10 +242,10 @@ export default function App() {
     [searchOccurrences],
   );
 
-  const goToSearchRequest = useCallback(
+  const goToNetworkSearchRequest = useCallback(
     (direction: 1 | -1) => {
       if (!searchOccurrences.length) return;
-      setSearchMatchIndex((current) => {
+      setNetworkSearchMatchIndex((current) => {
         const nextIndex = getNextRequestJumpIndex(searchOccurrences, current, direction);
         return nextIndex ?? current;
       });
@@ -205,18 +253,41 @@ export default function App() {
     [searchOccurrences],
   );
 
+  const goToStorageSearchMatch = useCallback(
+    (direction: 1 | -1) => {
+      if (!storageSearchOccurrences.length) return;
+      setStorageSearchMatchIndex((current) => {
+        const nextIndex =
+          (current + direction + storageSearchOccurrences.length) % storageSearchOccurrences.length;
+        return nextIndex;
+      });
+    },
+    [storageSearchOccurrences],
+  );
+
+  const goToStorageSearchItem = useCallback(
+    (direction: 1 | -1) => {
+      if (!storageSearchOccurrences.length) return;
+      setStorageSearchMatchIndex((current) => {
+        const nextIndex = getNextStorageItemJumpIndex(storageSearchOccurrences, current, direction);
+        return nextIndex ?? current;
+      });
+    },
+    [storageSearchOccurrences],
+  );
+
   const handleSelectRequest = useCallback(
     (requestId: string) => {
-      if (searchText.trim()) {
+      if (networkSearchText.trim()) {
         const matchIndex = getSearchMatchIndexForRequest(searchOccurrences, requestId);
         if (matchIndex !== null) {
-          setSearchMatchIndex(matchIndex);
+          setNetworkSearchMatchIndex(matchIndex);
         }
       }
 
       setSelectedRequestId(requestId);
     },
-    [searchOccurrences, searchText],
+    [networkSearchText, searchOccurrences],
   );
 
   const applyResponseContent = useCallback((requestId: string, content: string | null) => {
@@ -292,8 +363,8 @@ export default function App() {
       networkRequestById.current.clear();
       setRequests(importedRequests);
       setSelectedRequestId(importedRequests[0]?.id ?? null);
-      setSearchText('');
-      setSearchMatchIndex(0);
+      setNetworkSearchText('');
+      setNetworkSearchMatchIndex(0);
       setSessionNotice(`Imported ${importedRequests.length} requests.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to import session.';
@@ -324,7 +395,7 @@ export default function App() {
   );
 
   useEffect(() => {
-    if (!searchText.trim()) {
+    if (!networkSearchText.trim()) {
       preloadQueueRef.current = [];
       return;
     }
@@ -347,7 +418,7 @@ export default function App() {
     }
 
     drainPreloadQueue();
-  }, [drainPreloadQueue, filteredRequests, searchText]);
+  }, [drainPreloadQueue, filteredRequests, networkSearchText]);
 
   useEffect(() => {
     if (!selectedRequest) return;
@@ -359,10 +430,12 @@ export default function App() {
       <Toolbar
         requestCount={displayedRequests.length}
         totalRequestCount={requests.length}
-        searchText={searchText}
-        searchMatchIndex={searchMatchIndex}
-        searchOccurrenceCount={searchOccurrences.length}
-        searchRequestCount={searchMatches.length}
+        searchText={activeSearchText}
+        searchMatchIndex={activeSearchMatchIndex}
+        searchOccurrenceCount={
+          isNetworkMode ? searchOccurrences.length : storageSearchOccurrences.length
+        }
+        searchScopeCount={isNetworkMode ? searchMatches.length : storageOccurrenceByItem.size}
         searchInputRef={searchInputRef}
         workspaceMode={workspaceMode}
         networkViewMode={networkViewMode}
@@ -373,12 +446,24 @@ export default function App() {
         storageExcludeText={storageExcludeText}
         sessionNotice={sessionNotice}
         onSearchTextChange={handleSearchTextChange}
-        onSearchNext={() => goToSearchMatch(1)}
-        onSearchPrevious={() => goToSearchMatch(-1)}
-        onSearchNextRequest={() => goToSearchRequest(1)}
-        onSearchPreviousRequest={() => goToSearchRequest(-1)}
-        searchRequestJumpCount={searchRequestJumpCount}
-        activeSearchRequestOrder={activeSearchRequestOrder}
+        onSearchNext={() =>
+          isNetworkMode ? goToNetworkSearchMatch(1) : goToStorageSearchMatch(1)
+        }
+        onSearchPrevious={() =>
+          isNetworkMode ? goToNetworkSearchMatch(-1) : goToStorageSearchMatch(-1)
+        }
+        onSearchNextScope={() =>
+          isNetworkMode ? goToNetworkSearchRequest(1) : goToStorageSearchItem(1)
+        }
+        onSearchPreviousScope={() =>
+          isNetworkMode ? goToNetworkSearchRequest(-1) : goToStorageSearchItem(-1)
+        }
+        searchScopeJumpCount={
+          isNetworkMode ? searchRequestJumpCount : storageSearchRequestJumpCount
+        }
+        activeSearchScopeOrder={
+          isNetworkMode ? activeSearchRequestOrder : activeStorageItemOrder
+        }
         onGroupFlowByTimeChange={setGroupFlowByTime}
         onNetworkIncludeTextChange={setNetworkIncludeText}
         onNetworkExcludeTextChange={setNetworkExcludeText}
@@ -399,9 +484,12 @@ export default function App() {
       >
         {workspaceMode === 'storage' ? (
           <StorageView
-            searchText={searchText}
+            searchText={storageSearchText}
+            searchMatchIndex={storageSearchMatchIndex}
             includeText={storageIncludeText}
             excludeText={storageExcludeText}
+            onSearchOccurrencesChange={setStorageSearchOccurrences}
+            onSearchMatchIndexChange={setStorageSearchMatchIndex}
           />
         ) : networkViewMode === 'flow' ? (
           <FlowChartView
@@ -409,7 +497,7 @@ export default function App() {
             requests={displayedRequests}
             selectedRequestId={selectedRequestId}
             groupByTime={groupFlowByTime}
-            searchText={searchText}
+            searchText={networkSearchText}
             searchOccurrenceByRequest={searchOccurrenceByRequest}
             activeGlobalSearchIndex={activeGlobalSearchIndex}
             onSelectRequest={handleSelectRequestWithBodyLoad}
@@ -419,7 +507,7 @@ export default function App() {
             items={timelineItems}
             requests={displayedRequests}
             selectedRequestId={selectedRequestId}
-            searchText={searchText}
+            searchText={networkSearchText}
             searchOccurrenceByRequest={searchOccurrenceByRequest}
             activeGlobalSearchIndex={activeGlobalSearchIndex}
             onSelectRequest={handleSelectRequestWithBodyLoad}
@@ -436,9 +524,9 @@ export default function App() {
             <RequestDetailPanel
               request={selectedRequest}
               isBodyLoading={bodyLoadingId === selectedRequest?.id}
-              searchText={searchText}
+              searchText={networkSearchText}
               searchOccurrenceIndex={activeSearchOccurrence?.occurrenceIndex ?? 0}
-              searchFocusKey={`${searchMatchIndex}:${activeSearchOccurrence?.requestId ?? ''}:${activeSearchOccurrence?.occurrenceIndex ?? 0}`}
+              searchFocusKey={`${networkSearchMatchIndex}:${activeSearchOccurrence?.requestId ?? ''}:${activeSearchOccurrence?.occurrenceIndex ?? 0}`}
               onLoadResponseBody={loadResponseBody}
             />
           </>
