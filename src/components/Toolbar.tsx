@@ -203,6 +203,24 @@ export function Toolbar({
         </div>
 
         <div className="toolbar-cluster">
+          {isNetworkMode ? (
+            <div className="segmented-control" aria-label="Network view mode">
+              <button
+                className={networkViewMode === 'flow' ? 'active' : ''}
+                type="button"
+                onClick={() => onNetworkViewModeChange('flow')}
+              >
+                Flow
+              </button>
+              <button
+                className={networkViewMode === 'timeline' ? 'active' : ''}
+                type="button"
+                onClick={() => onNetworkViewModeChange('timeline')}
+              >
+                Timeline
+              </button>
+            </div>
+          ) : null}
           <div className="segmented-control" aria-label="Workspace mode">
             <button
               className={workspaceMode === 'network' ? 'active' : ''}
@@ -226,24 +244,6 @@ export function Toolbar({
               Console
             </button>
           </div>
-          {isNetworkMode ? (
-            <div className="segmented-control" aria-label="Network view mode">
-              <button
-                className={networkViewMode === 'flow' ? 'active' : ''}
-                type="button"
-                onClick={() => onNetworkViewModeChange('flow')}
-              >
-                Flow
-              </button>
-              <button
-                className={networkViewMode === 'timeline' ? 'active' : ''}
-                type="button"
-                onClick={() => onNetworkViewModeChange('timeline')}
-              >
-                Timeline
-              </button>
-            </div>
-          ) : null}
         </div>
       </div>
 

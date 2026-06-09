@@ -60,6 +60,7 @@ import {
 } from './utils/storageSearch';
 import { useSplitPanelLayout } from './hooks/useSplitPanelLayout';
 import { toTimelineItems } from './utils/timeline';
+import { getWorkspaceMode, saveWorkspaceMode } from './utils/workspacePrefs';
 
 const PRELOAD_CONCURRENCY = 4;
 const PRELOAD_MAX = 100;
@@ -68,7 +69,7 @@ export default function App() {
   const [requests, setRequests] = useState<ApiRequest[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [bodyLoadingId, setBodyLoadingId] = useState<string | null>(null);
-  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('network');
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(() => getWorkspaceMode());
   const [networkViewMode, setNetworkViewMode] = useState<NetworkViewMode>('flow');
   const [groupFlowByTime, setGroupFlowByTime] = useState(true);
   const [networkIncludeText, setNetworkIncludeText] = useState(() => getNetworkIncludeText());
@@ -127,6 +128,10 @@ export default function App() {
   useEffect(() => {
     saveConsoleSearchText(consoleSearchText);
   }, [consoleSearchText]);
+
+  useEffect(() => {
+    saveWorkspaceMode(workspaceMode);
+  }, [workspaceMode]);
 
   const isNetworkMode = workspaceMode === 'network';
   const isStorageMode = workspaceMode === 'storage';
@@ -615,8 +620,12 @@ export default function App() {
       />
       <section
         ref={workspaceRef}
-        className={`workspace ${workspaceMode === 'storage' ? 'workspace-storage' : ''} ${workspaceMode === 'console' ? 'workspace-console' : ''} ${isSplitStacked ? 'split-layout-stacked' : ''}`}
-        style={workspaceMode === 'storage' || workspaceMode === 'console' ? undefined : splitLayoutStyle}
+        className={`workspace ${workspaceMode === 'storage' ? 'workspace-storage' : ''} ${workspaceMode === 'console' ? 'workspace-console' : ''} ${isNetworkMode && selectedRequest && isSplitStacked ? 'split-layout-stacked' : ''}`}
+        style={
+          workspaceMode === 'storage' || workspaceMode === 'console' || !selectedRequest
+            ? undefined
+            : splitLayoutStyle
+        }
       >
         {workspaceMode === 'console' ? (
           <ConsoleView
@@ -660,7 +669,7 @@ export default function App() {
             onSelectRequest={handleSelectRequestWithBodyLoad}
           />
         )}
-        {workspaceMode === 'storage' || workspaceMode === 'console' ? null : (
+        {isNetworkMode && selectedRequest ? (
           <>
             <SplitPanelResizer
               orientation={isSplitStacked ? 'horizontal' : 'vertical'}
@@ -670,14 +679,15 @@ export default function App() {
             />
             <RequestDetailPanel
               request={selectedRequest}
-              isBodyLoading={bodyLoadingId === selectedRequest?.id}
+              isBodyLoading={bodyLoadingId === selectedRequest.id}
               searchText={networkSearchText}
               searchOccurrenceIndex={activeSearchOccurrence?.occurrenceIndex ?? 0}
               searchFocusKey={`${networkSearchMatchIndex}:${activeSearchOccurrence?.requestId ?? ''}:${activeSearchOccurrence?.occurrenceIndex ?? 0}`}
               onLoadResponseBody={loadResponseBody}
+              onClose={() => setSelectedRequestId(null)}
             />
           </>
-        )}
+        ) : null}
       </section>
     </main>
   );
