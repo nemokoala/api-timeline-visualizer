@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
-import { highlightSearchText } from '../utils/searchHighlight';
+import { highlightSearchText, textMatchesSearch } from '../utils/searchHighlight';
 import { getImagePreviews, mergeBlobPreviewItems, type ImagePreviewItem } from '../utils/imageSource';
 import { fetchStorageRecordBlobPreviews } from '../utils/storageInspector';
 import { findStorageBlobPreviews, sanitizeStorageBlobsForDisplay } from '../utils/storageBlobValue';
@@ -19,6 +19,7 @@ type JsonViewerProps = {
   searchText?: string;
   instanceId?: string;
   recordKey?: string;
+  searchFocusKey?: string;
   blobPreviewRequest?: {
     databaseName: string;
     storeName: string;
@@ -32,6 +33,7 @@ export function JsonViewer({
   searchText = '',
   instanceId,
   recordKey,
+  searchFocusKey = '',
   blobPreviewRequest,
 }: JsonViewerProps) {
   const [fetchedBlobPreviews, setFetchedBlobPreviews] = useState<Awaited<
@@ -79,6 +81,12 @@ export function JsonViewer({
 
   if (imagePreviews.length > 0) {
     const sectionPrefix = instanceId ?? 'json-viewer';
+    const hasSearch = Boolean(searchText.trim());
+    const imageSearchHaystack = imagePreviews
+      .map((preview) => [preview.label, preview.mimeType, preview.unavailableReason].filter(Boolean).join(' '))
+      .join(' ');
+    const imageMatchesSearch = hasSearch && textMatchesSearch(imageSearchHaystack, searchText);
+    const jsonMatchesSearch = hasSearch && textMatchesSearch(output, searchText);
 
     return (
       <div className="json-value-sections">
@@ -86,6 +94,8 @@ export function JsonViewer({
           sectionId={`${sectionPrefix}:images`}
           title={imagePreviews.length > 1 ? 'Images' : 'Image'}
           defaultOpen
+          expandForSearch={imageMatchesSearch}
+          searchExpandToken={searchFocusKey}
         >
           <div className="image-preview-stack">
             {imagePreviews.map((preview) => (
@@ -119,7 +129,13 @@ export function JsonViewer({
             ))}
           </div>
         </DetailSection>
-        <DetailSection sectionId={`${sectionPrefix}:json`} title="JSON" defaultOpen>
+        <DetailSection
+          sectionId={`${sectionPrefix}:json`}
+          title="JSON"
+          defaultOpen
+          expandForSearch={jsonMatchesSearch}
+          searchExpandToken={searchFocusKey}
+        >
           <JsonBlock
             value={displayValue}
             fallback={output}
