@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type {
   IndexedDbDatabaseSnapshot,
+  IndexedDbRecord,
   IndexedDbStoreSnapshot,
   PageStorageSnapshot,
   StorageEntry,
@@ -12,19 +13,21 @@ import { formatLocaleDateTime } from './formatters';
 
 type StorageViewProps = {
   searchText: string;
+  excludeText: string;
 };
 
 type StorageTab = 'local' | 'session' | 'indexeddb';
 
-export function StorageView({ searchText }: StorageViewProps) {
+type SelectedStorageItem =
+  | { kind: 'local' | 'session'; key: string }
+  | { kind: 'indexeddb'; databaseName: string; storeName: string; recordIndex: number };
+
+export function StorageView({ searchText, excludeText }: StorageViewProps) {
   const [snapshot, setSnapshot] = useState<PageStorageSnapshot | null>(null);
   const [activeTab, setActiveTab] = useState<StorageTab>('local');
-  const [selectedEntryKey, setSelectedEntryKey] = useState<string | null>(null);
-  const [selectedIndexedDbRecord, setSelectedIndexedDbRecord] = useState<{
-    databaseName: string;
-    storeName: string;
-    recordIndex: number;
-  } | null>(null);
+  const [selectedItem, setSelectedItem] = useState<SelectedStorageItem | null>(null);
+  const [detailPanelWidth, setDetailPanelWidth] = useState(460);
+  const [isResizingDetail, setIsResizingDetail] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,8 +38,7 @@ export function StorageView({ searchText }: StorageViewProps) {
     try {
       const nextSnapshot = await inspectPageStorage();
       setSnapshot(nextSnapshot);
-      setSelectedEntryKey(null);
-      setSelectedIndexedDbRecord(null);
+      setSelectedItem(null);
     } catch (loadError) {
       const message = loadError instanceof Error ? loadError.message : 'Failed to inspect page storage.';
       setError(message);
@@ -52,22 +54,54 @@ export function StorageView({ searchText }: StorageViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!isResizingDetail) return;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const nextWidth = window.innerWidth - event.clientX;
+      setDetailPanelWidth(clamp(nextWidth, 320, Math.min(820, window.innerWidth * 0.72)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingDetail(false);
+    };
+
+    document.body.classList.add('resizing-detail-panel');
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.body.classList.remove('resizing-detail-panel');
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizingDetail]);
+
   const localEntries = useMemo(
-    () => filterEntries(snapshot?.localStorage ?? [], searchText),
-    [searchText, snapshot],
+    () => filterEntries(snapshot?.localStorage ?? [], searchText, excludeText),
+    [excludeText, searchText, snapshot],
   );
   const sessionEntries = useMemo(
-    () => filterEntries(snapshot?.sessionStorage ?? [], searchText),
-    [searchText, snapshot],
+    () => filterEntries(snapshot?.sessionStorage ?? [], searchText, excludeText),
+    [excludeText, searchText, snapshot],
   );
   const indexedDatabases = useMemo(
-    () => filterIndexedDB(snapshot?.indexedDB ?? [], searchText),
-    [searchText, snapshot],
+    () => filterIndexedDB(snapshot?.indexedDB ?? [], searchText, excludeText),
+    [excludeText, searchText, snapshot],
   );
 
-  const activeEntries = activeTab === 'local' ? localEntries : sessionEntries;
-  const selectedEntry = activeEntries.find((entry) => entry.key === selectedEntryKey) ?? activeEntries[0] ?? null;
-  const selectedRecord = getSelectedRecord(indexedDatabases, selectedIndexedDbRecord);
+  const selectedDetail = useMemo(
+    () => resolveSelectedDetail(selectedItem, localEntries, sessionEntries, indexedDatabases),
+    [indexedDatabases, localEntries, selectedItem, sessionEntries],
+  );
+
+  useEffect(() => {
+    if (!selectedItem) return;
+    if (selectedDetail) return;
+    setSelectedItem(null);
+  }, [selectedDetail, selectedItem]);
+
+  const hasDetail = Boolean(selectedDetail);
 
   return (
     <section className="storage-panel">
@@ -88,20 +122,29 @@ export function StorageView({ searchText }: StorageViewProps) {
         <StorageTabButton
           active={activeTab === 'local'}
           label="localStorage"
-          count={snapshot?.localStorage.length ?? 0}
-          onClick={() => setActiveTab('local')}
+          count={localEntries.length}
+          onClick={() => {
+            setActiveTab('local');
+            setSelectedItem(null);
+          }}
         />
         <StorageTabButton
           active={activeTab === 'session'}
           label="sessionStorage"
-          count={snapshot?.sessionStorage.length ?? 0}
-          onClick={() => setActiveTab('session')}
+          count={sessionEntries.length}
+          onClick={() => {
+            setActiveTab('session');
+            setSelectedItem(null);
+          }}
         />
         <StorageTabButton
           active={activeTab === 'indexeddb'}
           label="IndexedDB"
-          count={snapshot?.indexedDB.length ?? 0}
-          onClick={() => setActiveTab('indexeddb')}
+          count={indexedDatabases.length}
+          onClick={() => {
+            setActiveTab('indexeddb');
+            setSelectedItem(null);
+          }}
         />
       </div>
 
@@ -110,25 +153,45 @@ export function StorageView({ searchText }: StorageViewProps) {
         <div className="storage-message">{snapshot.errors.join(' ')}</div>
       ) : null}
 
-      {activeTab === 'indexeddb' ? (
-        <IndexedDbPane
-          databases={indexedDatabases}
-          selectedRecord={selectedIndexedDbRecord}
-          onSelectRecord={setSelectedIndexedDbRecord}
-          recordValue={selectedRecord?.value ?? null}
-          searchText={searchText}
-          isLoading={isLoading}
-        />
-      ) : (
-        <WebStoragePane
-          entries={activeEntries}
-          selectedKey={selectedEntry?.key ?? null}
-          onSelectKey={setSelectedEntryKey}
-          selectedEntry={selectedEntry}
-          searchText={searchText}
-          isLoading={isLoading}
-        />
-      )}
+      <div
+        className={`storage-workspace ${hasDetail ? 'has-detail' : ''}`}
+        style={{
+          gridTemplateColumns: hasDetail ? `minmax(0, 1fr) 8px minmax(320px, ${detailPanelWidth}px)` : 'minmax(0, 1fr)',
+        }}
+      >
+        {activeTab === 'indexeddb' ? (
+          <IndexedDbPane
+            databases={indexedDatabases}
+            selectedItem={selectedItem}
+            onSelectRecord={(record) => setSelectedItem(record)}
+            isLoading={isLoading}
+          />
+        ) : (
+          <WebStoragePane
+            kind={activeTab}
+            entries={activeTab === 'local' ? localEntries : sessionEntries}
+            selectedItem={selectedItem}
+            onSelectEntry={(key) => setSelectedItem({ kind: activeTab, key })}
+            isLoading={isLoading}
+          />
+        )}
+
+        {hasDetail ? (
+          <>
+            <button
+              className="detail-resizer"
+              type="button"
+              aria-label="Resize storage detail panel"
+              onMouseDown={(event) => {
+                event.preventDefault();
+                setIsResizingDetail(true);
+              }}
+              onDoubleClick={() => setDetailPanelWidth(460)}
+            />
+            <StorageDetailPanel detail={selectedDetail} searchText={searchText} />
+          </>
+        ) : null}
+      </div>
     </section>
   );
 }
@@ -153,18 +216,16 @@ function StorageTabButton({
 }
 
 function WebStoragePane({
+  kind,
   entries,
-  selectedKey,
-  selectedEntry,
-  onSelectKey,
-  searchText,
+  selectedItem,
+  onSelectEntry,
   isLoading,
 }: {
+  kind: 'local' | 'session';
   entries: StorageEntry[];
-  selectedKey: string | null;
-  selectedEntry: StorageEntry | null;
-  onSelectKey: (key: string) => void;
-  searchText: string;
+  selectedItem: SelectedStorageItem | null;
+  onSelectEntry: (key: string) => void;
   isLoading: boolean;
 }) {
   if (!entries.length && !isLoading) {
@@ -172,59 +233,42 @@ function WebStoragePane({
   }
 
   return (
-    <div className="storage-split">
-      <div className="storage-table-wrap">
-        <table className="storage-table">
-          <thead>
-            <tr>
-              <th>Key</th>
-              <th>Value</th>
-              <th>Size</th>
+    <div className="storage-table-wrap">
+      <table className="storage-table">
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Value</th>
+            <th>Size</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((entry) => (
+            <tr
+              key={entry.key}
+              className={selectedItem?.kind === kind && selectedItem.key === entry.key ? 'selected' : ''}
+              onClick={() => onSelectEntry(entry.key)}
+            >
+              <td>{entry.key}</td>
+              <td>{entry.value}</td>
+              <td>{formatBytes(entry.size)}</td>
             </tr>
-          </thead>
-          <tbody>
-            {entries.map((entry) => (
-              <tr
-                key={entry.key}
-                className={entry.key === selectedKey ? 'selected' : ''}
-                onClick={() => onSelectKey(entry.key)}
-              >
-                <td>{entry.key}</td>
-                <td>{entry.value}</td>
-                <td>{formatBytes(entry.size)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="storage-value-panel">
-        <div className="storage-value-heading">
-          <strong>{selectedEntry?.key ?? 'Value'}</strong>
-          {selectedEntry ? <span>{formatBytes(selectedEntry.size)}</span> : null}
-        </div>
-        <JsonViewer
-          instanceId={selectedEntry?.key}
-          value={selectedEntry?.value ?? ''}
-          searchText={searchText}
-        />
-      </div>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
 function IndexedDbPane({
   databases,
-  selectedRecord,
-  recordValue,
+  selectedItem,
   onSelectRecord,
-  searchText,
   isLoading,
 }: {
   databases: IndexedDbDatabaseSnapshot[];
-  selectedRecord: { databaseName: string; storeName: string; recordIndex: number } | null;
-  recordValue: string | null;
-  onSelectRecord: (record: { databaseName: string; storeName: string; recordIndex: number }) => void;
-  searchText: string;
+  selectedItem: SelectedStorageItem | null;
+  onSelectRecord: (record: SelectedStorageItem) => void;
   isLoading: boolean;
 }) {
   if (!databases.length && !isLoading) {
@@ -232,46 +276,25 @@ function IndexedDbPane({
   }
 
   return (
-    <div className="storage-split">
-      <div className="indexeddb-tree">
-        {databases.map((database) => (
-          <section className="indexeddb-database" key={database.name}>
-            <h3>
-              {database.name}
-              {database.version ? <span>v{database.version}</span> : null}
-            </h3>
-            {database.error ? <p className="storage-inline-error">{database.error}</p> : null}
-            {database.stores.map((store) => (
-              <IndexedDbStore
-                key={`${database.name}:${store.name}`}
-                databaseName={database.name}
-                store={store}
-                selectedRecord={selectedRecord}
-                onSelectRecord={onSelectRecord}
-              />
-            ))}
-          </section>
-        ))}
-      </div>
-      <div className="storage-value-panel">
-        <div className="storage-value-heading">
-          <strong>Record value</strong>
-          {selectedRecord ? (
-            <span>
-              {selectedRecord.databaseName} / {selectedRecord.storeName}
-            </span>
-          ) : null}
-        </div>
-        <JsonViewer
-          instanceId={
-            selectedRecord
-              ? `${selectedRecord.databaseName}:${selectedRecord.storeName}:${selectedRecord.recordIndex}`
-              : 'indexeddb-empty'
-          }
-          value={recordValue ?? 'Select a record to inspect its value.'}
-          searchText={searchText}
-        />
-      </div>
+    <div className="indexeddb-tree">
+      {databases.map((database) => (
+        <section className="indexeddb-database" key={database.name}>
+          <h3>
+            {database.name}
+            {database.version ? <span>v{database.version}</span> : null}
+          </h3>
+          {database.error ? <p className="storage-inline-error">{database.error}</p> : null}
+          {database.stores.map((store) => (
+            <IndexedDbStore
+              key={`${database.name}:${store.name}`}
+              databaseName={database.name}
+              store={store}
+              selectedItem={selectedItem}
+              onSelectRecord={onSelectRecord}
+            />
+          ))}
+        </section>
+      ))}
     </div>
   );
 }
@@ -279,13 +302,13 @@ function IndexedDbPane({
 function IndexedDbStore({
   databaseName,
   store,
-  selectedRecord,
+  selectedItem,
   onSelectRecord,
 }: {
   databaseName: string;
   store: IndexedDbStoreSnapshot;
-  selectedRecord: { databaseName: string; storeName: string; recordIndex: number } | null;
-  onSelectRecord: (record: { databaseName: string; storeName: string; recordIndex: number }) => void;
+  selectedItem: SelectedStorageItem | null;
+  onSelectRecord: (record: SelectedStorageItem) => void;
 }) {
   return (
     <details className="indexeddb-store" open>
@@ -307,15 +330,23 @@ function IndexedDbStore({
         <tbody>
           {store.records.map((record, index) => {
             const isSelected =
-              selectedRecord?.databaseName === databaseName &&
-              selectedRecord.storeName === store.name &&
-              selectedRecord.recordIndex === index;
+              selectedItem?.kind === 'indexeddb' &&
+              selectedItem.databaseName === databaseName &&
+              selectedItem.storeName === store.name &&
+              selectedItem.recordIndex === index;
 
             return (
               <tr
                 key={`${record.key}:${index}`}
                 className={isSelected ? 'selected' : ''}
-                onClick={() => onSelectRecord({ databaseName, storeName: store.name, recordIndex: index })}
+                onClick={() =>
+                  onSelectRecord({
+                    kind: 'indexeddb',
+                    databaseName,
+                    storeName: store.name,
+                    recordIndex: index,
+                  })
+                }
               >
                 <td>{record.key}</td>
                 <td>{record.value}</td>
@@ -328,45 +359,161 @@ function IndexedDbStore({
   );
 }
 
-function filterEntries(entries: StorageEntry[], searchText: string): StorageEntry[] {
-  if (!searchText.trim()) return entries;
-  return entries.filter((entry) => textMatchesSearch(`${entry.key} ${entry.value}`, searchText));
+type StorageDetail =
+  | {
+      title: string;
+      subtitle: string;
+      metaRows: Array<[string, string]>;
+      value: unknown;
+      instanceId: string;
+    }
+  | null;
+
+function StorageDetailPanel({ detail, searchText }: { detail: StorageDetail; searchText: string }) {
+  if (!detail) return null;
+
+  return (
+    <aside className="storage-detail-panel">
+      <div className="storage-detail-title">
+        <div>
+          <span className="storage-detail-kicker">{detail.subtitle}</span>
+          <h2>{detail.title}</h2>
+        </div>
+      </div>
+      <dl className="definition-list storage-detail-meta">
+        {detail.metaRows.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="storage-detail-value">
+        <JsonViewer instanceId={detail.instanceId} value={detail.value} searchText={searchText} />
+      </div>
+    </aside>
+  );
+}
+
+function resolveSelectedDetail(
+  selectedItem: SelectedStorageItem | null,
+  localEntries: StorageEntry[],
+  sessionEntries: StorageEntry[],
+  indexedDatabases: IndexedDbDatabaseSnapshot[],
+): StorageDetail {
+  if (!selectedItem) return null;
+
+  if (selectedItem.kind === 'local' || selectedItem.kind === 'session') {
+    const entries = selectedItem.kind === 'local' ? localEntries : sessionEntries;
+    const entry = entries.find((item) => item.key === selectedItem.key);
+    if (!entry) return null;
+
+    return {
+      title: entry.key,
+      subtitle: selectedItem.kind === 'local' ? 'localStorage' : 'sessionStorage',
+      metaRows: [
+        ['Key', entry.key],
+        ['Size', formatBytes(entry.size)],
+      ],
+      value: entry.value,
+      instanceId: `${selectedItem.kind}:${entry.key}`,
+    };
+  }
+
+  if (selectedItem.kind !== 'indexeddb') return null;
+
+  const database = indexedDatabases.find((item) => item.name === selectedItem.databaseName);
+  const store = database?.stores.find((item) => item.name === selectedItem.storeName);
+  const record = store?.records[selectedItem.recordIndex];
+  if (!database || !store || !record) return null;
+
+  return {
+    title: record.key,
+    subtitle: `${database.name} / ${store.name}`,
+    metaRows: [
+      ['Database', database.name],
+      ['Store', store.name],
+      ['Record', String(selectedItem.recordIndex + 1)],
+      ['Key path', store.keyPath ?? 'none'],
+    ],
+    value: record.value,
+    instanceId: `indexeddb:${database.name}:${store.name}:${selectedItem.recordIndex}`,
+  };
+}
+
+function filterEntries(entries: StorageEntry[], searchText: string, excludeText: string): StorageEntry[] {
+  return entries.filter((entry) => {
+    const haystack = `${entry.key} ${entry.value}`;
+    if (matchesAnyExclude(haystack, excludeText)) return false;
+    if (!searchText.trim()) return true;
+    return textMatchesSearch(haystack, searchText);
+  });
 }
 
 function filterIndexedDB(
   databases: IndexedDbDatabaseSnapshot[],
   searchText: string,
+  excludeText: string,
 ): IndexedDbDatabaseSnapshot[] {
-  if (!searchText.trim()) return databases;
-
   return databases
+    .filter((database) => !matchesAnyExclude(database.name, excludeText))
     .map((database) => {
       const stores = database.stores
+        .filter((store) => !matchesAnyExclude(`${database.name} ${store.name}`, excludeText))
         .map((store) => ({
           ...store,
-          records: store.records.filter((record) =>
-            textMatchesSearch(`${database.name} ${store.name} ${record.key} ${record.value}`, searchText),
-          ),
+          records: filterIndexedDbRecords(database, store, searchText, excludeText),
         }))
-        .filter((store) => store.records.length > 0 || textMatchesSearch(`${database.name} ${store.name}`, searchText));
+        .filter((store) => {
+          if (store.records.length > 0) return true;
+          if (!searchText.trim()) return true;
+          return textMatchesSearch(`${database.name} ${store.name}`, searchText);
+        });
 
       return { ...database, stores };
     })
-    .filter((database) => database.stores.length > 0 || textMatchesSearch(database.name, searchText));
+    .filter((database) => {
+      if (database.stores.length > 0) return true;
+      if (!searchText.trim()) return true;
+      return textMatchesSearch(database.name, searchText);
+    });
 }
 
-function getSelectedRecord(
-  databases: IndexedDbDatabaseSnapshot[],
-  selectedRecord: { databaseName: string; storeName: string; recordIndex: number } | null,
-) {
-  if (!selectedRecord) return null;
-  const database = databases.find((item) => item.name === selectedRecord.databaseName);
-  const store = database?.stores.find((item) => item.name === selectedRecord.storeName);
-  return store?.records[selectedRecord.recordIndex] ?? null;
+function filterIndexedDbRecords(
+  database: IndexedDbDatabaseSnapshot,
+  store: IndexedDbStoreSnapshot,
+  searchText: string,
+  excludeText: string,
+): IndexedDbRecord[] {
+  return store.records.filter((record) => {
+    const haystack = `${database.name} ${store.name} ${record.key} ${record.value}`;
+    if (matchesAnyExclude(haystack, excludeText)) return false;
+    if (!searchText.trim()) return true;
+    return textMatchesSearch(haystack, searchText);
+  });
+}
+
+function matchesAnyExclude(text: string, excludeText: string): boolean {
+  const terms = getFilterTerms(excludeText);
+  if (!terms.length) return false;
+  const haystack = text.toLowerCase();
+  return terms.some((term) => haystack.includes(term));
+}
+
+function getFilterTerms(value: string): string[] {
+  return value
+    .toLowerCase()
+    .split(/[,\s]+/)
+    .map((term) => term.trim())
+    .filter(Boolean);
 }
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }

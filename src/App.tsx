@@ -3,7 +3,7 @@ import { FlowChartView } from './components/FlowChartView';
 import { RequestDetailPanel } from './components/RequestDetailPanel';
 import { StorageView } from './components/StorageView';
 import { TimelineView } from './components/TimelineView';
-import { Toolbar } from './components/Toolbar';
+import { Toolbar, type NetworkViewMode, type WorkspaceMode } from './components/Toolbar';
 import type { DevtoolsNetworkRequest } from './types/chrome-har';
 import type { ApiRequest } from './types/network';
 import { exportSession, parseSession, pickSessionFile } from './utils/sessionIO';
@@ -29,7 +29,8 @@ export default function App() {
   const [requests, setRequests] = useState<ApiRequest[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [bodyLoadingId, setBodyLoadingId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'flow' | 'timeline' | 'storage'>('flow');
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('network');
+  const [networkViewMode, setNetworkViewMode] = useState<NetworkViewMode>('flow');
   const [groupFlowByTime, setGroupFlowByTime] = useState(true);
   const [includeText, setIncludeText] = useState('api');
   const [excludeText, setExcludeText] = useState('google-analytics,sentry,datadog,amplitude,hotjar,segment');
@@ -349,7 +350,8 @@ export default function App() {
         searchOccurrenceCount={searchOccurrences.length}
         searchRequestCount={searchMatches.length}
         searchInputRef={searchInputRef}
-        viewMode={viewMode}
+        workspaceMode={workspaceMode}
+        networkViewMode={networkViewMode}
         groupFlowByTime={groupFlowByTime}
         includeText={includeText}
         excludeText={excludeText}
@@ -364,7 +366,8 @@ export default function App() {
         onGroupFlowByTimeChange={setGroupFlowByTime}
         onIncludeTextChange={setIncludeText}
         onExcludeTextChange={setExcludeText}
-        onViewModeChange={setViewMode}
+        onWorkspaceModeChange={setWorkspaceMode}
+        onNetworkViewModeChange={setNetworkViewMode}
         onExportSession={handleExportSession}
         onImportSession={() => {
           void handleImportSession();
@@ -372,15 +375,15 @@ export default function App() {
         onClear={handleClear}
       />
       <section
-        className={`workspace ${viewMode === 'storage' ? 'workspace-storage' : ''}`}
+        className={`workspace ${workspaceMode === 'storage' ? 'workspace-storage' : ''}`}
         style={{
           gridTemplateColumns:
-            viewMode === 'storage' ? 'minmax(0, 1fr)' : `minmax(0, 1fr) 8px minmax(320px, ${detailPanelWidth}px)`,
+            workspaceMode === 'storage' ? 'minmax(0, 1fr)' : `minmax(0, 1fr) 8px minmax(320px, ${detailPanelWidth}px)`,
         }}
       >
-        {viewMode === 'storage' ? (
-          <StorageView searchText={searchText} />
-        ) : viewMode === 'flow' ? (
+        {workspaceMode === 'storage' ? (
+          <StorageView searchText={searchText} excludeText={excludeText} />
+        ) : networkViewMode === 'flow' ? (
           <FlowChartView
             items={timelineItems}
             requests={displayedRequests}
@@ -402,7 +405,7 @@ export default function App() {
             onSelectRequest={handleSelectRequestWithBodyLoad}
           />
         )}
-        {viewMode === 'storage' ? null : (
+        {workspaceMode === 'storage' ? null : (
           <>
             <button
               className="detail-resizer"
