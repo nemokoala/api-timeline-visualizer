@@ -212,6 +212,21 @@ export default function App() {
     [applyResponseContent],
   );
 
+  const startResponseBodyLoad = useCallback(
+    (requestId: string) => {
+      const target = requests.find((request) => request.id === requestId);
+      if (!target || target.responseContent !== undefined) return;
+      if (bodyLoadingId === requestId) return;
+      if (preloadInFlightRef.current.has(requestId)) return;
+
+      setBodyLoadingId(requestId);
+      fetchResponseContent(requestId, () => {
+        setBodyLoadingId((current) => (current === requestId ? null : current));
+      });
+    },
+    [bodyLoadingId, fetchResponseContent, requests],
+  );
+
   const drainPreloadQueue = useCallback(() => {
     while (preloadInFlightRef.current.size < PRELOAD_CONCURRENCY && preloadQueueRef.current.length > 0) {
       const requestId = preloadQueueRef.current.shift();
@@ -249,12 +264,24 @@ export default function App() {
 
   const loadResponseBody = useCallback(
     (requestId: string) => {
+      const target = requests.find((request) => request.id === requestId);
+      if (!target) return;
       if (bodyLoadingId === requestId) return;
 
       setBodyLoadingId(requestId);
-      fetchResponseContent(requestId, () => setBodyLoadingId(null));
+      fetchResponseContent(requestId, () => {
+        setBodyLoadingId((current) => (current === requestId ? null : current));
+      });
     },
-    [bodyLoadingId, fetchResponseContent],
+    [bodyLoadingId, fetchResponseContent, requests],
+  );
+
+  const handleSelectRequestWithBodyLoad = useCallback(
+    (requestId: string) => {
+      handleSelectRequest(requestId);
+      startResponseBodyLoad(requestId);
+    },
+    [handleSelectRequest, startResponseBodyLoad],
   );
 
   useEffect(() => {
@@ -285,12 +312,8 @@ export default function App() {
 
   useEffect(() => {
     if (!selectedRequest) return;
-    if (bodyLoadingId === selectedRequest.id) return;
-    if (selectedRequest.responseContent !== undefined) return;
-    if (preloadInFlightRef.current.has(selectedRequest.id)) return;
-
-    loadResponseBody(selectedRequest.id);
-  }, [bodyLoadingId, loadResponseBody, selectedRequest]);
+    startResponseBodyLoad(selectedRequest.id);
+  }, [selectedRequest, startResponseBodyLoad]);
 
   useEffect(() => {
     if (!isResizingDetail) return;
@@ -360,7 +383,7 @@ export default function App() {
             searchText={searchText}
             searchOccurrenceByRequest={searchOccurrenceByRequest}
             activeGlobalSearchIndex={activeGlobalSearchIndex}
-            onSelectRequest={handleSelectRequest}
+            onSelectRequest={handleSelectRequestWithBodyLoad}
           />
         ) : (
           <TimelineView
@@ -370,7 +393,7 @@ export default function App() {
             searchText={searchText}
             searchOccurrenceByRequest={searchOccurrenceByRequest}
             activeGlobalSearchIndex={activeGlobalSearchIndex}
-            onSelectRequest={handleSelectRequest}
+            onSelectRequest={handleSelectRequestWithBodyLoad}
           />
         )}
         <button

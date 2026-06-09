@@ -82,6 +82,9 @@ export function RequestDetailPanel({
     getImageSource(request.normalizedPath) ?? getImageSource(request.path) ?? getImageSource(request.url);
   const title = titleImageSource ? 'Image payload' : request.normalizedPath;
   const displayUrl = titleImageSource ? summarizeImageUrl(request.url) : request.url;
+  const responseBodyValue = request.responsePreview ?? request.responseContent;
+  const isBodyPending = responseBodyValue === undefined;
+  const showLoadingOverlay = isBodyPending || (isBodyLoading && request.responseContent === undefined);
 
   return (
     <aside className="detail-panel" ref={panelRef}>
@@ -153,23 +156,36 @@ export function RequestDetailPanel({
         expandForSearch={matchingSections.has('response')}
       >
         <div className="response-actions">
-          <button type="button" onClick={() => onLoadResponseBody(request.id)} disabled={isBodyLoading}>
-            {isBodyLoading ? 'Loading...' : request.responseContent === undefined ? 'Load body' : 'Reload body'}
+          <button
+            type="button"
+            onClick={() => onLoadResponseBody(request.id)}
+            disabled={isBodyLoading || isBodyPending}
+          >
+            {isBodyLoading || isBodyPending
+              ? 'Loading...'
+              : request.responseContent === undefined
+                ? 'Load body'
+                : 'Reload body'}
           </button>
         </div>
-        <div
-          className={`response-json-slot ${isBodyLoading && request.responseContent === undefined ? 'is-loading' : ''}`}
-        >
-          {isBodyLoading && request.responseContent === undefined ? (
-            <div className="response-loading-overlay" aria-live="polite">
-              Loading response body...
-            </div>
-          ) : null}
-          <JsonViewer
-            value={request.responsePreview ?? request.responseContent ?? 'Response body is not available.'}
-            mimeType={request.mimeType}
-            searchText={searchText}
-          />
+        <div className={`response-json-slot ${showLoadingOverlay ? 'is-loading' : ''}`}>
+          <div
+            className="response-loading-overlay"
+            aria-live="polite"
+            aria-hidden={!showLoadingOverlay}
+          >
+            Loading response body...
+          </div>
+          {responseBodyValue !== undefined ? (
+            <JsonViewer
+              instanceId={request.id}
+              value={responseBodyValue}
+              mimeType={request.mimeType}
+              searchText={searchText}
+            />
+          ) : (
+            <ResponseBodySkeleton />
+          )}
         </div>
       </DetailSection>
 
@@ -198,6 +214,17 @@ export function RequestDetailPanel({
         <CodeSnippetBlock request={request} searchText={searchText} />
       </DetailSection>
     </aside>
+  );
+}
+
+function ResponseBodySkeleton() {
+  return (
+    <div className="json-viewer-wrap response-json-skeleton" aria-hidden="true">
+      <div className="json-viewer-toolbar" />
+      <div className="json-viewer-body">
+        <pre className="json-viewer" />
+      </div>
+    </div>
   );
 }
 
