@@ -201,33 +201,29 @@ export function StorageView({
   return (
     <section className="storage-panel">
       <div className="storage-header">
-        <div className="storage-title">
-          <span className="storage-header-label">Storage</span>
+        <span className="storage-header-label">Storage</span>
+        <span
+          className="storage-header-origin"
+          title={snapshot ? snapshot.origin : 'Inspect the active page storage for this DevTools target.'}
+        >
+          {snapshot ? snapshot.origin : 'Inspect the active page storage for this DevTools target.'}
+        </span>
+        {snapshot ? (
           <span
-            className="storage-header-origin"
-            title={snapshot ? snapshot.origin : 'Inspect the active page storage for this DevTools target.'}
+            className="storage-header-captured"
+            title={formatLocaleDateTime(Date.parse(snapshot.capturedAt))}
           >
-            {snapshot ? snapshot.origin : 'Inspect the active page storage for this DevTools target.'}
+            {formatDateTime(Date.parse(snapshot.capturedAt))}
           </span>
-        </div>
-        <div className="storage-actions">
-          {snapshot ? (
-            <span
-              className="storage-header-captured"
-              title={formatLocaleDateTime(Date.parse(snapshot.capturedAt))}
-            >
-              {formatDateTime(Date.parse(snapshot.capturedAt))}
-            </span>
-          ) : null}
-          <button
-            className="toolbar-button storage-refresh-button"
-            type="button"
-            onClick={() => void loadSnapshot()}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Refreshing' : 'Refresh'}
-          </button>
-        </div>
+        ) : null}
+        <button
+          className="toolbar-button storage-refresh-button"
+          type="button"
+          onClick={() => void loadSnapshot()}
+          disabled={isLoading}
+        >
+          {isLoading ? 'Refreshing' : 'Refresh'}
+        </button>
       </div>
 
       <div className="storage-tabs" role="tablist" aria-label="Storage type">

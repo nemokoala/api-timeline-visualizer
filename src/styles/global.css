@@ -522,6 +522,7 @@ button {
 }
 
 .storage-panel {
+  container-type: inline-size;
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr);
   height: 100%;
@@ -532,34 +533,31 @@ button {
 }
 
 .storage-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  column-gap: 8px;
+  row-gap: 2px;
   min-width: 0;
-  min-height: 34px;
   padding: 5px 10px;
   border-bottom: 1px solid #2a313b;
   background: #151a21;
 }
 
-.storage-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
 .storage-header-label {
-  flex: 0 0 auto;
+  grid-column: 1;
+  grid-row: 1;
   color: #8794a5;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .storage-header-origin {
+  grid-column: 2;
+  grid-row: 1;
   overflow: hidden;
   min-width: 0;
   color: #d8dee9;
@@ -568,24 +566,56 @@ button {
   white-space: nowrap;
 }
 
-.storage-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
+.storage-header-captured {
+  grid-column: 3;
+  grid-row: 1;
   color: #7f8d9f;
   font-size: 10px;
-}
-
-.storage-header-captured {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .storage-refresh-button {
+  grid-column: 4;
+  grid-row: 1;
   height: 24px;
   padding: 0 8px;
   font-size: 11px;
+}
+
+.storage-header:not(:has(.storage-header-captured)) .storage-header-origin {
+  grid-column: 2 / 4;
+}
+
+.storage-header:not(:has(.storage-header-captured)) .storage-refresh-button {
+  grid-column: 4;
+}
+
+@container (max-width: 560px) {
+  .storage-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 3px;
+  }
+
+  .storage-header-label {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .storage-refresh-button {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .storage-header-origin {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .storage-header-captured {
+    display: none;
+  }
 }
 
 .storage-tabs {
@@ -2594,8 +2624,25 @@ button {
   }
 
   .storage-header {
-    gap: 6px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 3px;
     padding: 4px 8px;
+  }
+
+  .storage-header-label {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .storage-refresh-button {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .storage-header-origin {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 
   .storage-header-captured {

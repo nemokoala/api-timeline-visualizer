@@ -60,6 +60,7 @@ import {
 } from './utils/storageSearch';
 import { useSplitPanelLayout } from './hooks/useSplitPanelLayout';
 import { toTimelineItems } from './utils/timeline';
+import { getGroupFlowByTime, saveGroupFlowByTime } from './utils/networkFlowPrefs';
 import { getWorkspaceMode, saveWorkspaceMode } from './utils/workspacePrefs';
 
 const PRELOAD_CONCURRENCY = 4;
@@ -71,7 +72,7 @@ export default function App() {
   const [bodyLoadingId, setBodyLoadingId] = useState<string | null>(null);
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(() => getWorkspaceMode());
   const [networkViewMode, setNetworkViewMode] = useState<NetworkViewMode>('flow');
-  const [groupFlowByTime, setGroupFlowByTime] = useState(true);
+  const [groupFlowByTime, setGroupFlowByTime] = useState(() => getGroupFlowByTime());
   const [networkIncludeText, setNetworkIncludeText] = useState(() => getNetworkIncludeText());
   const [networkExcludeText, setNetworkExcludeText] = useState(() => getNetworkExcludeText());
   const [storageIncludeText, setStorageIncludeText] = useState(() => getStorageIncludeText());
@@ -132,6 +133,10 @@ export default function App() {
   useEffect(() => {
     saveWorkspaceMode(workspaceMode);
   }, [workspaceMode]);
+
+  useEffect(() => {
+    saveGroupFlowByTime(groupFlowByTime);
+  }, [groupFlowByTime]);
 
   const isNetworkMode = workspaceMode === 'network';
   const isStorageMode = workspaceMode === 'storage';
