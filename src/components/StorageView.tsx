@@ -7,6 +7,7 @@ import type {
   StorageEntry,
 } from '../types/storage';
 import { canInspectPageStorage, inspectPageStorage } from '../utils/storageInspector';
+import { formatStorageValuePreview } from '../utils/storageBlobValue';
 import { textMatchesSearch } from '../utils/searchHighlight';
 import { JsonViewer } from './JsonViewer';
 import { formatLocaleDateTime } from './formatters';
@@ -349,7 +350,7 @@ function IndexedDbStore({
                 }
               >
                 <td>{record.key}</td>
-                <td>{record.value}</td>
+                <td>{formatStorageValuePreview(record.value, formatBytes)}</td>
               </tr>
             );
           })}
@@ -366,6 +367,11 @@ type StorageDetail =
       metaRows: Array<[string, string]>;
       value: unknown;
       instanceId: string;
+      blobPreviewRequest?: {
+        databaseName: string;
+        storeName: string;
+        recordIndex: number;
+      };
     }
   | null;
 
@@ -389,7 +395,13 @@ function StorageDetailPanel({ detail, searchText }: { detail: StorageDetail; sea
         ))}
       </dl>
       <div className="storage-detail-value">
-        <JsonViewer instanceId={detail.instanceId} value={detail.value} searchText={searchText} />
+        <JsonViewer
+          instanceId={detail.instanceId}
+          value={detail.value}
+          searchText={searchText}
+          recordKey={detail.title}
+          blobPreviewRequest={detail.blobPreviewRequest}
+        />
       </div>
     </aside>
   );
@@ -438,6 +450,11 @@ function resolveSelectedDetail(
     ],
     value: record.value,
     instanceId: `indexeddb:${database.name}:${store.name}:${selectedItem.recordIndex}`,
+    blobPreviewRequest: {
+      databaseName: database.name,
+      storeName: store.name,
+      recordIndex: selectedItem.recordIndex,
+    },
   };
 }
 

@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { highlightSearchText } from '../utils/searchHighlight';
-import { getImageSource } from '../utils/imageSource';
+import { getImagePreviews, mergeBlobPreviewItems, type ImagePreviewItem } from '../utils/imageSource';
+import { fetchStorageRecordBlobPreviews } from '../utils/storageInspector';
+import { findStorageBlobPreviews, sanitizeStorageBlobsForDisplay } from '../utils/storageBlobValue';
+import { DetailSection } from './DetailSection';
 import { ImagePreview } from './ImagePreview';
 
 type ActiveFieldMenu = {
@@ -15,32 +18,122 @@ type JsonViewerProps = {
   mimeType?: string;
   searchText?: string;
   instanceId?: string;
+  recordKey?: string;
+  blobPreviewRequest?: {
+    databaseName: string;
+    storeName: string;
+    recordIndex: number;
+  };
 };
 
-export function JsonViewer({ value, mimeType, searchText = '', instanceId }: JsonViewerProps) {
+export function JsonViewer({
+  value,
+  mimeType,
+  searchText = '',
+  instanceId,
+  recordKey,
+  blobPreviewRequest,
+}: JsonViewerProps) {
+  const [fetchedBlobPreviews, setFetchedBlobPreviews] = useState<Awaited<
+    ReturnType<typeof fetchStorageRecordBlobPreviews>
+  >>([]);
+  const [blobPreviewsLoading, setBlobPreviewsLoading] = useState(false);
   const renderValue = coerceJson(value);
-  const output = typeof renderValue === 'string' ? renderValue : JSON.stringify(renderValue, null, 2);
-  const imageSource = getImageSource(value, mimeType);
+  const displayValue = sanitizeStorageBlobsForDisplay(renderValue);
+  const output =
+    typeof displayValue === 'string' ? displayValue : JSON.stringify(displayValue, null, 2);
 
-  if (imageSource) {
+  useEffect(() => {
+    if (!blobPreviewRequest) {
+      setFetchedBlobPreviews([]);
+      setBlobPreviewsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setBlobPreviewsLoading(true);
+
+    void fetchStorageRecordBlobPreviews(
+      blobPreviewRequest.databaseName,
+      blobPreviewRequest.storeName,
+      blobPreviewRequest.recordIndex,
+    )
+      .then((previews) => {
+        if (!cancelled) setFetchedBlobPreviews(previews);
+      })
+      .catch(() => {
+        if (!cancelled) setFetchedBlobPreviews([]);
+      })
+      .finally(() => {
+        if (!cancelled) setBlobPreviewsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [blobPreviewRequest, instanceId]);
+
+  const imagePreviews: ImagePreviewItem[] = blobPreviewRequest
+    ? mergeBlobPreviewItems(findStorageBlobPreviews(renderValue, recordKey), fetchedBlobPreviews, recordKey)
+    : getImagePreviews(renderValue, mimeType, recordKey);
+
+  if (imagePreviews.length > 0) {
+    const sectionPrefix = instanceId ?? 'json-viewer';
+
     return (
-      <div className="image-value-viewer">
-        <div className="image-preview-frame">
-          <ImagePreview src={imageSource} alt="Base64 response preview" />
-        </div>
-        <JsonBlock
-          value={renderValue}
-          fallback={output}
-          searchText={searchText}
-          instanceId={instanceId}
-        />
+      <div className="json-value-sections">
+        <DetailSection
+          sectionId={`${sectionPrefix}:images`}
+          title={imagePreviews.length > 1 ? 'Images' : 'Image'}
+          defaultOpen
+        >
+          <div className="image-preview-stack">
+            {imagePreviews.map((preview) => (
+              <div className="image-preview-frame" key={preview.label}>
+                {recordKey ? (
+                  <div className="image-preview-caption">
+                    <span>Blob key</span>
+                    <strong title={preview.label}>{preview.label}</strong>
+                  </div>
+                ) : null}
+                {preview.src ? (
+                  <ImagePreview src={preview.src} alt={`${preview.label} preview`} />
+                ) : blobPreviewsLoading && !preview.unavailableReason ? (
+                  <div className="image-preview-unavailable">
+                    <p>Loading preview...</p>
+                    {preview.mimeType ? <span>{preview.mimeType}</span> : null}
+                    {typeof preview.size === 'number' ? (
+                      <span>{formatPreviewBytes(preview.size)}</span>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="image-preview-unavailable">
+                    <p>{preview.unavailableReason ?? 'Preview unavailable'}</p>
+                    {preview.mimeType ? <span>{preview.mimeType}</span> : null}
+                    {typeof preview.size === 'number' ? (
+                      <span>{formatPreviewBytes(preview.size)}</span>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </DetailSection>
+        <DetailSection sectionId={`${sectionPrefix}:json`} title="JSON" defaultOpen>
+          <JsonBlock
+            value={displayValue}
+            fallback={output}
+            searchText={searchText}
+            instanceId={instanceId}
+          />
+        </DetailSection>
       </div>
     );
   }
 
   return (
     <JsonBlock
-      value={renderValue}
+      value={displayValue}
       fallback={output}
       searchText={searchText}
       instanceId={instanceId}
@@ -327,6 +420,12 @@ function formatCopyString(value: unknown): string {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function formatPreviewBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 async function copyToClipboard(value: string): Promise<boolean> {

@@ -1,4 +1,15 @@
-export function getImageSource(value: unknown, mimeType?: string): string | null {
+import {
+  findStorageBlobPreviews,
+  findStorageImageDataUrl,
+  findStorageImagePreview,
+  formatBlobImageLabel,
+  type StorageBlobPreviewItem,
+} from './storageBlobValue';
+
+export function getImageSource(value: unknown, mimeType?: string, recordKey?: string): string | null {
+  const storageImage = findStorageImagePreview(value, recordKey)?.dataUrl ?? findStorageImageDataUrl(value);
+  if (storageImage) return storageImage;
+
   const candidate = findImageCandidate(value);
   if (!candidate) return null;
 
@@ -43,4 +54,78 @@ function isLikelyBase64(value: string): boolean {
 
 function sanitizeBase64(value: string): string {
   return value.replace(/\s/g, '');
+}
+
+export function getImagePreview(
+  value: unknown,
+  mimeType?: string,
+  recordKey?: string,
+): { src: string; label: string } | null {
+  const preview = getImagePreviews(value, mimeType, recordKey).find((item) => item.src);
+  if (!preview?.src) return null;
+
+  return {
+    src: preview.src,
+    label: preview.label,
+  };
+}
+
+export type ImagePreviewItem = {
+  src?: string;
+  label: string;
+  mimeType?: string;
+  size?: number;
+  unavailableReason?: string;
+};
+
+export function getImagePreviews(
+  value: unknown,
+  mimeType?: string,
+  recordKey?: string,
+): ImagePreviewItem[] {
+  const storagePreviews = findStorageBlobPreviews(value, recordKey);
+  if (storagePreviews.length > 0) {
+    return toImagePreviewItems(storagePreviews, recordKey);
+  }
+
+  const src = getImageSource(value, mimeType, recordKey);
+  if (!src) return [];
+
+  return [
+    {
+      src,
+      label: recordKey ?? 'Response image',
+    },
+  ];
+}
+
+export function toImagePreviewItems(
+  items: StorageBlobPreviewItem[],
+  recordKey?: string,
+): ImagePreviewItem[] {
+  return items.map((item) => ({
+    src: item.src,
+    label: formatBlobImageLabel(recordKey, item.blobKeyPath),
+    mimeType: item.mimeType,
+    size: item.size,
+    unavailableReason: item.unavailableReason,
+  }));
+}
+
+export function mergeBlobPreviewItems(
+  metadata: StorageBlobPreviewItem[],
+  fetched: StorageBlobPreviewItem[],
+  recordKey?: string,
+): ImagePreviewItem[] {
+  const source = metadata.length > 0 ? metadata : fetched;
+  return source.map((meta) => {
+    const match = fetched.find((item) => item.blobKeyPath === meta.blobKeyPath);
+    return {
+      src: match?.src ?? meta.src,
+      label: formatBlobImageLabel(recordKey, meta.blobKeyPath),
+      mimeType: match?.mimeType ?? meta.mimeType,
+      size: match?.size ?? meta.size,
+      unavailableReason: match?.unavailableReason ?? meta.unavailableReason,
+    };
+  });
 }
