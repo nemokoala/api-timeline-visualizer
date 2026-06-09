@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlowChartView } from './components/FlowChartView';
 import { RequestDetailPanel } from './components/RequestDetailPanel';
+import { StorageView } from './components/StorageView';
 import { TimelineView } from './components/TimelineView';
 import { Toolbar } from './components/Toolbar';
 import type { DevtoolsNetworkRequest } from './types/chrome-har';
@@ -28,7 +29,7 @@ export default function App() {
   const [requests, setRequests] = useState<ApiRequest[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [bodyLoadingId, setBodyLoadingId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'flow' | 'timeline'>('flow');
+  const [viewMode, setViewMode] = useState<'flow' | 'timeline' | 'storage'>('flow');
   const [groupFlowByTime, setGroupFlowByTime] = useState(true);
   const [includeText, setIncludeText] = useState('api');
   const [excludeText, setExcludeText] = useState('google-analytics,sentry,datadog,amplitude,hotjar,segment');
@@ -371,10 +372,15 @@ export default function App() {
         onClear={handleClear}
       />
       <section
-        className="workspace"
-        style={{ gridTemplateColumns: `minmax(0, 1fr) 8px minmax(320px, ${detailPanelWidth}px)` }}
+        className={`workspace ${viewMode === 'storage' ? 'workspace-storage' : ''}`}
+        style={{
+          gridTemplateColumns:
+            viewMode === 'storage' ? 'minmax(0, 1fr)' : `minmax(0, 1fr) 8px minmax(320px, ${detailPanelWidth}px)`,
+        }}
       >
-        {viewMode === 'flow' ? (
+        {viewMode === 'storage' ? (
+          <StorageView searchText={searchText} />
+        ) : viewMode === 'flow' ? (
           <FlowChartView
             items={timelineItems}
             requests={displayedRequests}
@@ -396,24 +402,28 @@ export default function App() {
             onSelectRequest={handleSelectRequestWithBodyLoad}
           />
         )}
-        <button
-          className="detail-resizer"
-          type="button"
-          aria-label="Resize request detail panel"
-          onMouseDown={(event) => {
-            event.preventDefault();
-            setIsResizingDetail(true);
-          }}
-          onDoubleClick={() => setDetailPanelWidth(460)}
-        />
-        <RequestDetailPanel
-          request={selectedRequest}
-          isBodyLoading={bodyLoadingId === selectedRequest?.id}
-          searchText={searchText}
-          searchOccurrenceIndex={activeSearchOccurrence?.occurrenceIndex ?? 0}
-          searchFocusKey={`${searchMatchIndex}:${activeSearchOccurrence?.requestId ?? ''}:${activeSearchOccurrence?.occurrenceIndex ?? 0}`}
-          onLoadResponseBody={loadResponseBody}
-        />
+        {viewMode === 'storage' ? null : (
+          <>
+            <button
+              className="detail-resizer"
+              type="button"
+              aria-label="Resize request detail panel"
+              onMouseDown={(event) => {
+                event.preventDefault();
+                setIsResizingDetail(true);
+              }}
+              onDoubleClick={() => setDetailPanelWidth(460)}
+            />
+            <RequestDetailPanel
+              request={selectedRequest}
+              isBodyLoading={bodyLoadingId === selectedRequest?.id}
+              searchText={searchText}
+              searchOccurrenceIndex={activeSearchOccurrence?.occurrenceIndex ?? 0}
+              searchFocusKey={`${searchMatchIndex}:${activeSearchOccurrence?.requestId ?? ''}:${activeSearchOccurrence?.occurrenceIndex ?? 0}`}
+              onLoadResponseBody={loadResponseBody}
+            />
+          </>
+        )}
       </section>
     </main>
   );

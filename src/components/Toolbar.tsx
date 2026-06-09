@@ -1,6 +1,8 @@
 import { useState, type KeyboardEvent, type RefObject } from 'react';
 import { getToolbarExpanded, setToolbarExpanded } from '../utils/toolbarPrefs';
 
+export type WorkspaceViewMode = 'flow' | 'timeline' | 'storage';
+
 type ToolbarProps = {
   requestCount: number;
   totalRequestCount: number;
@@ -11,7 +13,7 @@ type ToolbarProps = {
   searchRequestJumpCount: number;
   activeSearchRequestOrder: number;
   searchInputRef: RefObject<HTMLInputElement | null>;
-  viewMode: 'flow' | 'timeline';
+  viewMode: WorkspaceViewMode;
   groupFlowByTime: boolean;
   includeText: string;
   excludeText: string;
@@ -24,7 +26,7 @@ type ToolbarProps = {
   onGroupFlowByTimeChange: (groupFlowByTime: boolean) => void;
   onIncludeTextChange: (includeText: string) => void;
   onExcludeTextChange: (excludeText: string) => void;
-  onViewModeChange: (viewMode: 'flow' | 'timeline') => void;
+  onViewModeChange: (viewMode: WorkspaceViewMode) => void;
   onExportSession: () => void;
   onImportSession: () => void;
   onClear: () => void;
@@ -60,6 +62,7 @@ export function Toolbar({
 }: ToolbarProps) {
   const [isExpanded, setIsExpanded] = useState(() => getToolbarExpanded());
   const hasSearch = Boolean(searchText.trim());
+  const hasRequestSearch = hasSearch && viewMode !== 'storage';
   const searchPosition = hasSearch && searchOccurrenceCount > 0 ? searchMatchIndex + 1 : 0;
   const requestPosition = hasSearch && searchRequestJumpCount > 0 ? activeSearchRequestOrder : 0;
 
@@ -119,7 +122,7 @@ export function Toolbar({
             {totalRequestCount !== requestCount ? (
               <span className="toolbar-chip">{totalRequestCount} captured</span>
             ) : null}
-            {hasSearch ? (
+            {hasRequestSearch ? (
               <span className="toolbar-chip toolbar-chip-accent">
                 {searchOccurrenceCount} hits · {searchRequestCount} req
               </span>
@@ -139,7 +142,7 @@ export function Toolbar({
             aria-label="Search requests"
             title="Enter: next hit · Shift+Enter: previous hit · Ctrl+Enter: next card · Ctrl+Shift+Enter: previous card"
           />
-          {hasSearch ? (
+          {hasRequestSearch ? (
             <SearchNavigation
               searchPosition={searchPosition}
               searchOccurrenceCount={searchOccurrenceCount}
@@ -168,6 +171,13 @@ export function Toolbar({
               onClick={() => onViewModeChange('timeline')}
             >
               Timeline
+            </button>
+            <button
+              className={viewMode === 'storage' ? 'active' : ''}
+              type="button"
+              onClick={() => onViewModeChange('storage')}
+            >
+              Storage
             </button>
           </div>
         </div>
