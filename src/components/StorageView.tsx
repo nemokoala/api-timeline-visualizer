@@ -20,6 +20,7 @@ import {
   storageTargetTab,
   storageTargetToSelectedItem,
   type StorageSearchOccurrence,
+  type StorageSearchTarget,
 } from '../utils/storageSearch';
 import { DetailSection } from './DetailSection';
 import { JsonViewer } from './JsonViewer';
@@ -118,6 +119,7 @@ export function StorageView({
   }, [hasSearch, indexedDatabases, localEntries, searchTargets, searchText, sessionEntries]);
 
   const activeSearchOccurrence = searchOccurrences[searchMatchIndex] ?? null;
+  const searchFocusKey = `${searchMatchIndex}:${activeSearchOccurrence ? storageTargetKey(activeSearchOccurrence.target) : ''}`;
 
   useEffect(() => {
     onSearchOccurrencesChange(searchOccurrences);
@@ -243,6 +245,7 @@ export function StorageView({
             databases={indexedDatabases}
             selectedItem={selectedItem}
             searchText={searchText}
+            activeSearchTarget={activeSearchOccurrence?.target ?? null}
             onSelectRecord={handleSelectItem}
             isLoading={isLoading}
           />
@@ -265,7 +268,11 @@ export function StorageView({
               onMouseDown={isSplitStacked ? startHeightResize : startWidthResize}
               onDoubleClick={isSplitStacked ? resetSplitHeight : resetSplitWidth}
             />
-            <StorageDetailPanel detail={selectedDetail} searchText={searchText} />
+            <StorageDetailPanel
+              detail={selectedDetail}
+              searchText={searchText}
+              searchFocusKey={searchFocusKey}
+            />
           </>
         ) : null}
       </div>
@@ -346,12 +353,14 @@ function IndexedDbPane({
   databases,
   selectedItem,
   searchText,
+  activeSearchTarget,
   onSelectRecord,
   isLoading,
 }: {
   databases: IndexedDbDatabaseSnapshot[];
   selectedItem: SelectedStorageItem | null;
   searchText: string;
+  activeSearchTarget: StorageSearchTarget | null;
   onSelectRecord: (record: SelectedStorageItem) => void;
   isLoading: boolean;
 }) {
@@ -377,6 +386,7 @@ function IndexedDbPane({
               store={store}
               selectedItem={selectedItem}
               searchText={searchText}
+              activeSearchTarget={activeSearchTarget}
               onSelectRecord={onSelectRecord}
             />
           ))}
@@ -391,18 +401,40 @@ function IndexedDbStore({
   store,
   selectedItem,
   searchText,
+  activeSearchTarget,
   onSelectRecord,
 }: {
   databaseName: string;
   store: IndexedDbStoreSnapshot;
   selectedItem: SelectedStorageItem | null;
   searchText: string;
+  activeSearchTarget: StorageSearchTarget | null;
   onSelectRecord: (record: SelectedStorageItem) => void;
 }) {
   const hasSearch = Boolean(searchText.trim());
+  const containsActiveTarget =
+    activeSearchTarget?.kind === 'indexeddb' &&
+    activeSearchTarget.databaseName === databaseName &&
+    activeSearchTarget.storeName === store.name;
+  const storeHaystack = store.records.map((record) => `${record.key} ${record.value}`).join(' ');
+  const matchesSearch =
+    hasSearch &&
+    (textMatchesSearch(`${databaseName} ${store.name}`, searchText) ||
+      textMatchesSearch(storeHaystack, searchText));
+  const [open, setOpen] = useState(true);
+
+  useEffect(() => {
+    if (containsActiveTarget || matchesSearch) {
+      setOpen(true);
+    }
+  }, [containsActiveTarget, matchesSearch, activeSearchTarget]);
 
   return (
-    <details className="indexeddb-store" open>
+    <details
+      className="indexeddb-store"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
       <summary>
         <span>{hasSearch ? highlightSearchText(store.name, searchText) : store.name}</span>
         <span>{store.count ?? store.records.length} rows</span>
@@ -466,10 +498,22 @@ type StorageDetail =
     }
   | null;
 
-function StorageDetailPanel({ detail, searchText }: { detail: StorageDetail; searchText: string }) {
+function StorageDetailPanel({
+  detail,
+  searchText,
+  searchFocusKey,
+}: {
+  detail: StorageDetail;
+  searchText: string;
+  searchFocusKey: string;
+}) {
   const hasSearch = Boolean(searchText.trim());
-
   if (!detail) return null;
+
+  const metaMatchesSearch =
+    hasSearch &&
+    (textMatchesSearch(detail.title, searchText) ||
+      detail.metaRows.some(([, value]) => textMatchesSearch(value, searchText)));
 
   return (
     <aside className="storage-detail-panel">
@@ -481,7 +525,13 @@ function StorageDetailPanel({ detail, searchText }: { detail: StorageDetail; sea
           </h2>
         </div>
       </div>
-      <DetailSection sectionId={`${detail.instanceId}:meta`} title="Details" defaultOpen={false}>
+      <DetailSection
+        sectionId={`${detail.instanceId}:meta`}
+        title="Details"
+        defaultOpen={false}
+        expandForSearch={metaMatchesSearch}
+        searchExpandToken={searchFocusKey}
+      >
         <dl className="definition-list storage-detail-meta">
           {detail.metaRows.map(([label, value]) => (
             <div key={label}>
@@ -496,6 +546,7 @@ function StorageDetailPanel({ detail, searchText }: { detail: StorageDetail; sea
           instanceId={detail.instanceId}
           value={detail.value}
           searchText={searchText}
+          searchFocusKey={searchFocusKey}
           recordKey={detail.title}
           blobPreviewRequest={detail.blobPreviewRequest}
         />

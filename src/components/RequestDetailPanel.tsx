@@ -131,9 +131,9 @@ export function RequestDetailPanel({
         expandForSearch={matchingSections.has('headers')}
       >
         <h3>Request</h3>
-        <JsonViewer value={request.requestHeaders ?? {}} searchText={searchText} />
+        <JsonViewer value={request.requestHeaders ?? {}} searchText={searchText} searchFocusKey={searchFocusKey} />
         <h3>Response</h3>
-        <JsonViewer value={request.responseHeaders ?? {}} searchText={searchText} />
+        <JsonViewer value={request.responseHeaders ?? {}} searchText={searchText} searchFocusKey={searchFocusKey} />
       </DetailSection>
 
       <DetailSection
@@ -143,9 +143,13 @@ export function RequestDetailPanel({
         expandForSearch={matchingSections.has('payload')}
       >
         <h3>Query Params</h3>
-        <JsonViewer value={request.queryParams ?? {}} searchText={searchText} />
+        <JsonViewer value={request.queryParams ?? {}} searchText={searchText} searchFocusKey={searchFocusKey} />
         <h3>Request Body</h3>
-        <JsonViewer value={request.requestBody ?? 'Request payload is not available for this request.'} searchText={searchText} />
+        <JsonViewer
+          value={request.requestBody ?? 'Request payload is not available for this request.'}
+          searchText={searchText}
+          searchFocusKey={searchFocusKey}
+        />
       </DetailSection>
 
       <DetailSection
@@ -182,6 +186,7 @@ export function RequestDetailPanel({
               value={responseBodyValue}
               mimeType={request.mimeType}
               searchText={searchText}
+              searchFocusKey={searchFocusKey}
             />
           ) : (
             <ResponseBodySkeleton />
