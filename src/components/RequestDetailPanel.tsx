@@ -4,6 +4,7 @@ import { DetailSection } from './DetailSection';
 import { generateCurl, generateFetch } from '../utils/requestCodeSnippets';
 import { getMatchingDetailSections } from '../utils/requestSearch';
 import { scrollSearchHitIntoView } from '../utils/searchScroll';
+import { useSearchOptions } from '../contexts/SearchOptionsContext';
 import { highlightSearchText } from '../utils/searchHighlight';
 import { getImageSource } from '../utils/imageSource';
 import { formatDateTime, formatDuration, formatLocaleDateTime } from './formatters';
@@ -30,6 +31,7 @@ export function RequestDetailPanel({
   onLoadResponseBody,
   onClose,
 }: RequestDetailPanelProps) {
+  const searchOptions = useSearchOptions();
   const panelRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -56,10 +58,10 @@ export function RequestDetailPanel({
   const hasSearch = Boolean(searchText.trim());
   const matchingSections = useMemo(() => {
     if (!request || !hasSearch) return new Set<string>();
-    return getMatchingDetailSections(request, searchText);
+    return getMatchingDetailSections(request, searchText, searchOptions);
     // Body load updates should not re-open collapsed sections.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by selection/search navigation only
-  }, [hasSearch, searchText, searchFocusKey, request?.id]);
+  }, [hasSearch, searchText, searchFocusKey, request?.id, searchOptions]);
 
   const titleImageSource =
     getImageSource(request.normalizedPath) ?? getImageSource(request.path) ?? getImageSource(request.url);
@@ -77,12 +79,12 @@ export function RequestDetailPanel({
           {titleImageSource ? (
             <div className="detail-image-title">
               <ImagePreview src={titleImageSource} alt="Base64 request preview" />
-              <h2>{hasSearch ? highlightSearchText(title, searchText) : title}</h2>
+              <h2>{hasSearch ? highlightSearchText(title, searchText, searchOptions) : title}</h2>
             </div>
           ) : (
-            <h2>{hasSearch ? highlightSearchText(title, searchText) : title}</h2>
+            <h2>{hasSearch ? highlightSearchText(title, searchText, searchOptions) : title}</h2>
           )}
-          <p>{hasSearch ? highlightSearchText(request.host, searchText) : request.host}</p>
+          <p>{hasSearch ? highlightSearchText(request.host, searchText, searchOptions) : request.host}</p>
         </div>
         <div className="detail-panel-title-actions">
           <span className={`detail-status ${request.status >= 400 ? 'bad' : 'good'}`}>{request.status || 'n/a'}</span>
@@ -232,6 +234,7 @@ function DefinitionList({
   rows: Array<[string, string]>;
   searchText: string;
 }) {
+  const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
 
   return (
@@ -239,7 +242,7 @@ function DefinitionList({
       {rows.map(([label, value]) => (
         <div key={label}>
           <dt>{label}</dt>
-          <dd>{hasSearch ? highlightSearchText(value, searchText) : value}</dd>
+          <dd>{hasSearch ? highlightSearchText(value, searchText, searchOptions) : value}</dd>
         </div>
       ))}
     </dl>
@@ -249,6 +252,7 @@ function DefinitionList({
 type SnippetMode = 'curl' | 'fetch';
 
 function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; searchText: string }) {
+  const searchOptions = useSearchOptions();
   const [mode, setMode] = useState<SnippetMode>('curl');
   const [copied, setCopied] = useState(false);
   const snippet = mode === 'curl' ? generateCurl(request) : generateFetch(request);
@@ -278,7 +282,7 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
         </button>
       </div>
       <pre className="code-snippet-viewer">
-        {hasSearch ? highlightSearchText(snippet, searchText) : snippet}
+        {hasSearch ? highlightSearchText(snippet, searchText, searchOptions) : snippet}
       </pre>
     </div>
   );

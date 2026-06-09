@@ -11,7 +11,8 @@ import { canInspectPageStorage, inspectPageStorage } from '../utils/storageInspe
 import { formatStorageValuePreview } from '../utils/storageBlobValue';
 import { matchesIncludeExcludeFilters } from '../utils/textFilters';
 import { scrollSearchHitIntoView } from '../utils/searchScroll';
-import { highlightSearchText, textMatchesSearch } from '../utils/searchHighlight';
+import { useSearchOptions } from '../contexts/SearchOptionsContext';
+import { highlightSearchText, textMatchesSearch, type SearchOptions } from '../utils/searchHighlight';
 import {
   buildStorageSearchOccurrences,
   buildStorageSearchTargets,
@@ -52,6 +53,7 @@ export function StorageView({
   onSearchOccurrencesChange,
   onSearchMatchIndexChange,
 }: StorageViewProps) {
+  const searchOptions = useSearchOptions();
   const [snapshot, setSnapshot] = useState<PageStorageSnapshot | null>(null);
   const [activeTab, setActiveTab] = useState<StorageTab>('local');
   const [selectedItem, setSelectedItem] = useState<SelectedStorageItem | null>(null);
@@ -92,16 +94,16 @@ export function StorageView({
   }, []);
 
   const localEntries = useMemo(
-    () => filterEntries(snapshot?.localStorage ?? [], searchText, includeText, excludeText),
-    [excludeText, includeText, searchText, snapshot],
+    () => filterEntries(snapshot?.localStorage ?? [], searchText, includeText, excludeText, searchOptions),
+    [excludeText, includeText, searchOptions, searchText, snapshot],
   );
   const sessionEntries = useMemo(
-    () => filterEntries(snapshot?.sessionStorage ?? [], searchText, includeText, excludeText),
-    [excludeText, includeText, searchText, snapshot],
+    () => filterEntries(snapshot?.sessionStorage ?? [], searchText, includeText, excludeText, searchOptions),
+    [excludeText, includeText, searchOptions, searchText, snapshot],
   );
   const indexedDatabases = useMemo(
-    () => filterIndexedDB(snapshot?.indexedDB ?? [], searchText, includeText, excludeText),
-    [excludeText, includeText, searchText, snapshot],
+    () => filterIndexedDB(snapshot?.indexedDB ?? [], searchText, includeText, excludeText, searchOptions),
+    [excludeText, includeText, searchOptions, searchText, snapshot],
   );
 
   const searchTargets = useMemo(
@@ -117,8 +119,9 @@ export function StorageView({
       sessionEntries,
       indexedDatabases,
       searchText,
+      searchOptions,
     );
-  }, [hasSearch, indexedDatabases, localEntries, searchTargets, searchText, sessionEntries]);
+  }, [hasSearch, indexedDatabases, localEntries, searchOptions, searchTargets, searchText, sessionEntries]);
 
   const activeSearchOccurrence = searchOccurrences[searchMatchIndex] ?? null;
   const searchFocusKey = `${searchMatchIndex}:${activeSearchOccurrence ? storageTargetKey(activeSearchOccurrence.target) : ''}`;
@@ -342,6 +345,7 @@ function WebStoragePane({
   onSelectEntry: (key: string) => void;
   isLoading: boolean;
 }) {
+  const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
 
   if (!entries.length && !isLoading) {
@@ -366,8 +370,8 @@ function WebStoragePane({
               className={selectedItem?.kind === kind && selectedItem.key === entry.key ? 'selected' : ''}
               onClick={() => onSelectEntry(entry.key)}
             >
-              <td>{hasSearch ? highlightSearchText(entry.key, searchText) : entry.key}</td>
-              <td>{hasSearch ? highlightSearchText(entry.value, searchText) : entry.value}</td>
+              <td>{hasSearch ? highlightSearchText(entry.key, searchText, searchOptions) : entry.key}</td>
+              <td>{hasSearch ? highlightSearchText(entry.value, searchText, searchOptions) : entry.value}</td>
               <td>{formatBytes(entry.size)}</td>
             </tr>
           ))}
@@ -392,6 +396,7 @@ function IndexedDbPane({
   onSelectRecord: (record: SelectedStorageItem) => void;
   isLoading: boolean;
 }) {
+  const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
 
   if (!databases.length && !isLoading) {
@@ -403,7 +408,7 @@ function IndexedDbPane({
       {databases.map((database) => (
         <section className="indexeddb-database" key={database.name}>
           <h3>
-            {hasSearch ? highlightSearchText(database.name, searchText) : database.name}
+            {hasSearch ? highlightSearchText(database.name, searchText, searchOptions) : database.name}
             {database.version ? <span>v{database.version}</span> : null}
           </h3>
           {database.error ? <p className="storage-inline-error">{database.error}</p> : null}
@@ -439,6 +444,7 @@ function IndexedDbStore({
   activeSearchTarget: StorageSearchTarget | null;
   onSelectRecord: (record: SelectedStorageItem) => void;
 }) {
+  const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
   const containsActiveTarget =
     activeSearchTarget?.kind === 'indexeddb' &&
@@ -447,8 +453,8 @@ function IndexedDbStore({
   const storeHaystack = store.records.map((record) => `${record.key} ${record.value}`).join(' ');
   const matchesSearch =
     hasSearch &&
-    (textMatchesSearch(`${databaseName} ${store.name}`, searchText) ||
-      textMatchesSearch(storeHaystack, searchText));
+    (textMatchesSearch(`${databaseName} ${store.name}`, searchText, searchOptions) ||
+      textMatchesSearch(storeHaystack, searchText, searchOptions));
   const [open, setOpen] = useState(true);
 
   useEffect(() => {
@@ -464,7 +470,7 @@ function IndexedDbStore({
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary>
-        <span>{hasSearch ? highlightSearchText(store.name, searchText) : store.name}</span>
+        <span>{hasSearch ? highlightSearchText(store.name, searchText, searchOptions) : store.name}</span>
         <span>{store.count ?? store.records.length} rows</span>
       </summary>
       {store.error ? <p className="storage-inline-error">{store.error}</p> : null}
@@ -500,8 +506,8 @@ function IndexedDbStore({
                 className={isSelected ? 'selected' : ''}
                 onClick={() => onSelectRecord(target)}
               >
-                <td>{hasSearch ? highlightSearchText(record.key, searchText) : record.key}</td>
-                <td>{hasSearch ? highlightSearchText(preview, searchText) : preview}</td>
+                <td>{hasSearch ? highlightSearchText(record.key, searchText, searchOptions) : record.key}</td>
+                <td>{hasSearch ? highlightSearchText(preview, searchText, searchOptions) : preview}</td>
               </tr>
             );
           })}
@@ -539,6 +545,7 @@ function StorageDetailPanel({
   searchFocusKey: string;
   onClose: () => void;
 }) {
+  const searchOptions = useSearchOptions();
   const panelRef = useRef<HTMLElement>(null);
   const hasSearch = Boolean(searchText.trim());
 
@@ -571,8 +578,8 @@ function StorageDetailPanel({
 
   const metaMatchesSearch =
     hasSearch &&
-    (textMatchesSearch(detail.title, searchText) ||
-      detail.metaRows.some(([, value]) => textMatchesSearch(value, searchText)));
+    (textMatchesSearch(detail.title, searchText, searchOptions) ||
+      detail.metaRows.some(([, value]) => textMatchesSearch(value, searchText, searchOptions)));
 
   return (
     <aside className="storage-detail-panel" ref={panelRef}>
@@ -580,7 +587,7 @@ function StorageDetailPanel({
         <div>
           <span className="storage-detail-kicker">{detail.subtitle}</span>
           <h2 title={detail.title}>
-            {hasSearch ? highlightSearchText(detail.title, searchText) : detail.title}
+            {hasSearch ? highlightSearchText(detail.title, searchText, searchOptions) : detail.title}
           </h2>
         </div>
         <DetailPanelCloseButton onClick={onClose} label="Close storage detail" />
@@ -596,7 +603,7 @@ function StorageDetailPanel({
           {detail.metaRows.map(([label, value]) => (
             <div key={label}>
               <dt>{label}</dt>
-              <dd>{hasSearch ? highlightSearchText(value, searchText) : value}</dd>
+              <dd>{hasSearch ? highlightSearchText(value, searchText, searchOptions) : value}</dd>
             </div>
           ))}
         </dl>
@@ -671,10 +678,11 @@ function filterEntries(
   searchText: string,
   includeText: string,
   excludeText: string,
+  searchOptions: SearchOptions,
 ): StorageEntry[] {
   return entries.filter((entry) => {
     const haystack = `${entry.key} ${entry.value}`;
-    if (!matchesStorageFilters(haystack, includeText, excludeText, searchText)) return false;
+    if (!matchesStorageFilters(haystack, includeText, excludeText, searchText, searchOptions)) return false;
     return true;
   });
 }
@@ -684,6 +692,7 @@ function filterIndexedDB(
   searchText: string,
   includeText: string,
   excludeText: string,
+  searchOptions: SearchOptions,
 ): IndexedDbDatabaseSnapshot[] {
   return databases
     .filter((database) => matchesIncludeExcludeFilters(database.name, includeText, excludeText))
@@ -694,12 +703,12 @@ function filterIndexedDB(
         )
         .map((store) => ({
           ...store,
-          records: filterIndexedDbRecords(database, store, searchText, includeText, excludeText),
+          records: filterIndexedDbRecords(database, store, searchText, includeText, excludeText, searchOptions),
         }))
         .filter((store) => {
           if (store.records.length > 0) return true;
           if (!searchText.trim() && !includeText.trim()) return true;
-          return textMatchesSearch(`${database.name} ${store.name}`, searchText);
+          return textMatchesSearch(`${database.name} ${store.name}`, searchText, searchOptions);
         });
 
       return { ...database, stores };
@@ -707,7 +716,7 @@ function filterIndexedDB(
     .filter((database) => {
       if (database.stores.length > 0) return true;
       if (!searchText.trim() && !includeText.trim()) return true;
-      return textMatchesSearch(database.name, searchText);
+      return textMatchesSearch(database.name, searchText, searchOptions);
     });
 }
 
@@ -717,10 +726,11 @@ function filterIndexedDbRecords(
   searchText: string,
   includeText: string,
   excludeText: string,
+  searchOptions: SearchOptions,
 ): IndexedDbRecord[] {
   return store.records.filter((record) => {
     const haystack = `${database.name} ${store.name} ${record.key} ${record.value}`;
-    return matchesStorageFilters(haystack, includeText, excludeText, searchText);
+    return matchesStorageFilters(haystack, includeText, excludeText, searchText, searchOptions);
   });
 }
 
@@ -729,10 +739,11 @@ function matchesStorageFilters(
   includeText: string,
   excludeText: string,
   searchText: string,
+  searchOptions: SearchOptions,
 ): boolean {
   if (!matchesIncludeExcludeFilters(haystack, includeText, excludeText)) return false;
   if (!searchText.trim()) return true;
-  return textMatchesSearch(haystack, searchText);
+  return textMatchesSearch(haystack, searchText, searchOptions);
 }
 
 function formatBytes(bytes: number): string {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
-import { highlightSearchText, textMatchesSearch } from '../utils/searchHighlight';
+import { useSearchOptions } from '../contexts/SearchOptionsContext';
+import { highlightSearchText, textMatchesSearch, type SearchOptions } from '../utils/searchHighlight';
 import { getImagePreviews, mergeBlobPreviewItems, type ImagePreviewItem } from '../utils/imageSource';
 import { fetchStorageRecordBlobPreviews } from '../utils/storageInspector';
 import { findStorageBlobPreviews, sanitizeStorageBlobsForDisplay } from '../utils/storageBlobValue';
@@ -36,6 +37,7 @@ export function JsonViewer({
   searchFocusKey = '',
   blobPreviewRequest,
 }: JsonViewerProps) {
+  const searchOptions = useSearchOptions();
   const [fetchedBlobPreviews, setFetchedBlobPreviews] = useState<Awaited<
     ReturnType<typeof fetchStorageRecordBlobPreviews>
   >>([]);
@@ -85,8 +87,9 @@ export function JsonViewer({
     const imageSearchHaystack = imagePreviews
       .map((preview) => [preview.label, preview.mimeType, preview.unavailableReason].filter(Boolean).join(' '))
       .join(' ');
-    const imageMatchesSearch = hasSearch && textMatchesSearch(imageSearchHaystack, searchText);
-    const jsonMatchesSearch = hasSearch && textMatchesSearch(output, searchText);
+    const imageMatchesSearch =
+      hasSearch && textMatchesSearch(imageSearchHaystack, searchText, searchOptions);
+    const jsonMatchesSearch = hasSearch && textMatchesSearch(output, searchText, searchOptions);
 
     return (
       <div className="json-value-sections">
@@ -115,6 +118,7 @@ export function JsonViewer({
             value={displayValue}
             fallback={output}
             searchText={searchText}
+            searchOptions={searchOptions}
             instanceId={instanceId}
           />
         </DetailSection>
@@ -127,6 +131,7 @@ export function JsonViewer({
       value={displayValue}
       fallback={output}
       searchText={searchText}
+      searchOptions={searchOptions}
       instanceId={instanceId}
     />
   );
@@ -136,11 +141,13 @@ function JsonBlock({
   value,
   fallback,
   searchText,
+  searchOptions,
   instanceId,
 }: {
   value: unknown;
   fallback: string;
   searchText: string;
+  searchOptions: Required<SearchOptions>;
   instanceId?: string;
 }) {
   const [copied, setCopied] = useState(false);
@@ -275,10 +282,10 @@ function JsonBlock({
           ) : null}
           {isObject ? (
             <pre className="json-viewer json-tree">
-              {renderJsonValue(value, 0, 'root', handleFieldClick, searchText)}
+              {renderJsonValue(value, 0, 'root', handleFieldClick, searchText, searchOptions)}
             </pre>
           ) : (
-            <pre className="json-viewer">{highlightSearchText(copyText, searchText)}</pre>
+            <pre className="json-viewer">{highlightSearchText(copyText, searchText, searchOptions)}</pre>
           )}
         </div>
       </div>
@@ -292,6 +299,7 @@ function renderJsonValue(
   path: string,
   onFieldClick: (id: string, value: unknown, event: MouseEvent<HTMLButtonElement>) => void,
   searchText: string,
+  searchOptions: Required<SearchOptions>,
 ): React.ReactNode {
   if (Array.isArray(value)) {
     if (value.length === 0) return <span className="json-punctuation">[]</span>;
@@ -303,7 +311,7 @@ function renderJsonValue(
           <span key={index}>
             {'\n'}
             {indent(depth + 1)}
-            {renderJsonValue(item, depth + 1, `${path}.${index}`, onFieldClick, searchText)}
+            {renderJsonValue(item, depth + 1, `${path}.${index}`, onFieldClick, searchText, searchOptions)}
             {index < value.length - 1 ? <span className="json-punctuation">,</span> : null}
           </span>
         ))}
@@ -331,10 +339,10 @@ function renderJsonValue(
               onClick={(event) => onFieldClick(`${path}.${key}`, item, event)}
               title="Copy field value"
             >
-              "{highlightSearchText(key, searchText)}"
+              "{highlightSearchText(key, searchText, searchOptions)}"
             </button>
             <span className="json-punctuation">: </span>
-            {renderJsonValue(item, depth + 1, `${path}.${key}`, onFieldClick, searchText)}
+            {renderJsonValue(item, depth + 1, `${path}.${key}`, onFieldClick, searchText, searchOptions)}
             {index < entries.length - 1 ? <span className="json-punctuation">,</span> : null}
           </span>
         ))}
@@ -348,17 +356,21 @@ function renderJsonValue(
   if (typeof value === 'string') {
     return (
       <span className="json-string">
-        "{highlightSearchText(value, searchText)}"
+        "{highlightSearchText(value, searchText, searchOptions)}"
       </span>
     );
   }
 
   if (typeof value === 'number') {
-    return <span className="json-number">{highlightSearchText(String(value), searchText)}</span>;
+    return (
+      <span className="json-number">{highlightSearchText(String(value), searchText, searchOptions)}</span>
+    );
   }
 
   if (typeof value === 'boolean') {
-    return <span className="json-boolean">{highlightSearchText(String(value), searchText)}</span>;
+    return (
+      <span className="json-boolean">{highlightSearchText(String(value), searchText, searchOptions)}</span>
+    );
   }
 
   if (value === null) {
@@ -367,7 +379,7 @@ function renderJsonValue(
 
   return (
     <span className="json-string">
-      "{highlightSearchText(String(value), searchText)}"
+      "{highlightSearchText(String(value), searchText, searchOptions)}"
     </span>
   );
 }
