@@ -10,7 +10,17 @@ import { useSplitPanelLayout } from '../hooks/useSplitPanelLayout';
 import { canInspectPageStorage, inspectPageStorage } from '../utils/storageInspector';
 import { formatStorageValuePreview } from '../utils/storageBlobValue';
 import { matchesIncludeExcludeFilters } from '../utils/textFilters';
-import { textMatchesSearch } from '../utils/searchHighlight';
+import { highlightSearchText, textMatchesSearch } from '../utils/searchHighlight';
+import {
+  buildStorageSearchOccurrences,
+  buildStorageSearchTargets,
+  getSearchMatchIndexForStorageTarget,
+  selectedItemToStorageTarget,
+  storageTargetKey,
+  storageTargetTab,
+  storageTargetToSelectedItem,
+  type StorageSearchOccurrence,
+} from '../utils/storageSearch';
 import { DetailSection } from './DetailSection';
 import { JsonViewer } from './JsonViewer';
 import { SplitPanelResizer } from './SplitPanelResizer';
@@ -18,8 +28,11 @@ import { formatLocaleDateTime } from './formatters';
 
 type StorageViewProps = {
   searchText: string;
+  searchMatchIndex: number;
   includeText: string;
   excludeText: string;
+  onSearchOccurrencesChange: (occurrences: StorageSearchOccurrence[]) => void;
+  onSearchMatchIndexChange: (index: number) => void;
 };
 
 type StorageTab = 'local' | 'session' | 'indexeddb';
@@ -28,7 +41,14 @@ type SelectedStorageItem =
   | { kind: 'local' | 'session'; key: string }
   | { kind: 'indexeddb'; databaseName: string; storeName: string; recordIndex: number };
 
-export function StorageView({ searchText, includeText, excludeText }: StorageViewProps) {
+export function StorageView({
+  searchText,
+  searchMatchIndex,
+  includeText,
+  excludeText,
+  onSearchOccurrencesChange,
+  onSearchMatchIndexChange,
+}: StorageViewProps) {
   const [snapshot, setSnapshot] = useState<PageStorageSnapshot | null>(null);
   const [activeTab, setActiveTab] = useState<StorageTab>('local');
   const [selectedItem, setSelectedItem] = useState<SelectedStorageItem | null>(null);
@@ -43,6 +63,7 @@ export function StorageView({ searchText, includeText, excludeText }: StorageVie
   } = useSplitPanelLayout(storageWorkspaceRef);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasSearch = Boolean(searchText.trim());
 
   const loadSnapshot = async () => {
     setIsLoading(true);
@@ -80,6 +101,61 @@ export function StorageView({ searchText, includeText, excludeText }: StorageVie
     [excludeText, includeText, searchText, snapshot],
   );
 
+  const searchTargets = useMemo(
+    () => buildStorageSearchTargets(localEntries, sessionEntries, indexedDatabases),
+    [indexedDatabases, localEntries, sessionEntries],
+  );
+
+  const searchOccurrences = useMemo(() => {
+    if (!hasSearch) return [];
+    return buildStorageSearchOccurrences(
+      searchTargets,
+      localEntries,
+      sessionEntries,
+      indexedDatabases,
+      searchText,
+    );
+  }, [hasSearch, indexedDatabases, localEntries, searchTargets, searchText, sessionEntries]);
+
+  const activeSearchOccurrence = searchOccurrences[searchMatchIndex] ?? null;
+
+  useEffect(() => {
+    onSearchOccurrencesChange(searchOccurrences);
+  }, [onSearchOccurrencesChange, searchOccurrences]);
+
+  useEffect(() => {
+    return () => onSearchOccurrencesChange([]);
+  }, [onSearchOccurrencesChange]);
+
+  useEffect(() => {
+    if (!hasSearch || !searchOccurrences.length) return;
+
+    const clampedIndex = searchMatchIndex % searchOccurrences.length;
+    if (clampedIndex !== searchMatchIndex) {
+      onSearchMatchIndexChange(clampedIndex);
+      return;
+    }
+
+    const occurrence = searchOccurrences[clampedIndex];
+    if (!occurrence) return;
+
+    setActiveTab(storageTargetTab(occurrence.target));
+    setSelectedItem(storageTargetToSelectedItem(occurrence.target));
+  }, [hasSearch, onSearchMatchIndexChange, searchMatchIndex, searchOccurrences]);
+
+  useEffect(() => {
+    if (!activeSearchOccurrence) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      const row = document.getElementById(
+        `storage-row-${storageTargetKey(activeSearchOccurrence.target)}`,
+      );
+      row?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [activeSearchOccurrence, searchMatchIndex]);
+
   const selectedDetail = useMemo(
     () => resolveSelectedDetail(selectedItem, localEntries, sessionEntries, indexedDatabases),
     [indexedDatabases, localEntries, selectedItem, sessionEntries],
@@ -90,6 +166,20 @@ export function StorageView({ searchText, includeText, excludeText }: StorageVie
     if (selectedDetail) return;
     setSelectedItem(null);
   }, [selectedDetail, selectedItem]);
+
+  const handleSelectItem = (item: SelectedStorageItem) => {
+    if (hasSearch) {
+      const matchIndex = getSearchMatchIndexForStorageTarget(
+        searchOccurrences,
+        selectedItemToStorageTarget(item),
+      );
+      if (matchIndex !== null) {
+        onSearchMatchIndexChange(matchIndex);
+      }
+    }
+
+    setSelectedItem(item);
+  };
 
   const hasDetail = Boolean(selectedDetail);
 
@@ -152,7 +242,8 @@ export function StorageView({ searchText, includeText, excludeText }: StorageVie
           <IndexedDbPane
             databases={indexedDatabases}
             selectedItem={selectedItem}
-            onSelectRecord={(record) => setSelectedItem(record)}
+            searchText={searchText}
+            onSelectRecord={handleSelectItem}
             isLoading={isLoading}
           />
         ) : (
@@ -160,7 +251,8 @@ export function StorageView({ searchText, includeText, excludeText }: StorageVie
             kind={activeTab}
             entries={activeTab === 'local' ? localEntries : sessionEntries}
             selectedItem={selectedItem}
-            onSelectEntry={(key) => setSelectedItem({ kind: activeTab, key })}
+            searchText={searchText}
+            onSelectEntry={(key) => handleSelectItem({ kind: activeTab, key })}
             isLoading={isLoading}
           />
         )}
@@ -204,15 +296,19 @@ function WebStoragePane({
   kind,
   entries,
   selectedItem,
+  searchText,
   onSelectEntry,
   isLoading,
 }: {
   kind: 'local' | 'session';
   entries: StorageEntry[];
   selectedItem: SelectedStorageItem | null;
+  searchText: string;
   onSelectEntry: (key: string) => void;
   isLoading: boolean;
 }) {
+  const hasSearch = Boolean(searchText.trim());
+
   if (!entries.length && !isLoading) {
     return <div className="storage-empty">No matching storage entries.</div>;
   }
@@ -231,11 +327,12 @@ function WebStoragePane({
           {entries.map((entry) => (
             <tr
               key={entry.key}
+              id={`storage-row-${storageTargetKey({ kind, key: entry.key })}`}
               className={selectedItem?.kind === kind && selectedItem.key === entry.key ? 'selected' : ''}
               onClick={() => onSelectEntry(entry.key)}
             >
-              <td>{entry.key}</td>
-              <td>{entry.value}</td>
+              <td>{hasSearch ? highlightSearchText(entry.key, searchText) : entry.key}</td>
+              <td>{hasSearch ? highlightSearchText(entry.value, searchText) : entry.value}</td>
               <td>{formatBytes(entry.size)}</td>
             </tr>
           ))}
@@ -248,14 +345,18 @@ function WebStoragePane({
 function IndexedDbPane({
   databases,
   selectedItem,
+  searchText,
   onSelectRecord,
   isLoading,
 }: {
   databases: IndexedDbDatabaseSnapshot[];
   selectedItem: SelectedStorageItem | null;
+  searchText: string;
   onSelectRecord: (record: SelectedStorageItem) => void;
   isLoading: boolean;
 }) {
+  const hasSearch = Boolean(searchText.trim());
+
   if (!databases.length && !isLoading) {
     return <div className="storage-empty">No matching IndexedDB databases.</div>;
   }
@@ -265,7 +366,7 @@ function IndexedDbPane({
       {databases.map((database) => (
         <section className="indexeddb-database" key={database.name}>
           <h3>
-            {database.name}
+            {hasSearch ? highlightSearchText(database.name, searchText) : database.name}
             {database.version ? <span>v{database.version}</span> : null}
           </h3>
           {database.error ? <p className="storage-inline-error">{database.error}</p> : null}
@@ -275,6 +376,7 @@ function IndexedDbPane({
               databaseName={database.name}
               store={store}
               selectedItem={selectedItem}
+              searchText={searchText}
               onSelectRecord={onSelectRecord}
             />
           ))}
@@ -288,17 +390,21 @@ function IndexedDbStore({
   databaseName,
   store,
   selectedItem,
+  searchText,
   onSelectRecord,
 }: {
   databaseName: string;
   store: IndexedDbStoreSnapshot;
   selectedItem: SelectedStorageItem | null;
+  searchText: string;
   onSelectRecord: (record: SelectedStorageItem) => void;
 }) {
+  const hasSearch = Boolean(searchText.trim());
+
   return (
     <details className="indexeddb-store" open>
       <summary>
-        <span>{store.name}</span>
+        <span>{hasSearch ? highlightSearchText(store.name, searchText) : store.name}</span>
         <span>{store.count ?? store.records.length} rows</span>
       </summary>
       {store.error ? <p className="storage-inline-error">{store.error}</p> : null}
@@ -319,22 +425,23 @@ function IndexedDbStore({
               selectedItem.databaseName === databaseName &&
               selectedItem.storeName === store.name &&
               selectedItem.recordIndex === index;
+            const target = {
+              kind: 'indexeddb' as const,
+              databaseName,
+              storeName: store.name,
+              recordIndex: index,
+            };
+            const preview = formatStorageValuePreview(record.value, formatBytes);
 
             return (
               <tr
                 key={`${record.key}:${index}`}
+                id={`storage-row-${storageTargetKey(target)}`}
                 className={isSelected ? 'selected' : ''}
-                onClick={() =>
-                  onSelectRecord({
-                    kind: 'indexeddb',
-                    databaseName,
-                    storeName: store.name,
-                    recordIndex: index,
-                  })
-                }
+                onClick={() => onSelectRecord(target)}
               >
-                <td>{record.key}</td>
-                <td>{formatStorageValuePreview(record.value, formatBytes)}</td>
+                <td>{hasSearch ? highlightSearchText(record.key, searchText) : record.key}</td>
+                <td>{hasSearch ? highlightSearchText(preview, searchText) : preview}</td>
               </tr>
             );
           })}
@@ -360,6 +467,8 @@ type StorageDetail =
   | null;
 
 function StorageDetailPanel({ detail, searchText }: { detail: StorageDetail; searchText: string }) {
+  const hasSearch = Boolean(searchText.trim());
+
   if (!detail) return null;
 
   return (
@@ -367,7 +476,9 @@ function StorageDetailPanel({ detail, searchText }: { detail: StorageDetail; sea
       <div className="storage-detail-title">
         <div>
           <span className="storage-detail-kicker">{detail.subtitle}</span>
-          <h2 title={detail.title}>{detail.title}</h2>
+          <h2 title={detail.title}>
+            {hasSearch ? highlightSearchText(detail.title, searchText) : detail.title}
+          </h2>
         </div>
       </div>
       <DetailSection sectionId={`${detail.instanceId}:meta`} title="Details" defaultOpen={false}>
@@ -375,7 +486,7 @@ function StorageDetailPanel({ detail, searchText }: { detail: StorageDetail; sea
           {detail.metaRows.map(([label, value]) => (
             <div key={label}>
               <dt>{label}</dt>
-              <dd>{value}</dd>
+              <dd>{hasSearch ? highlightSearchText(value, searchText) : value}</dd>
             </div>
           ))}
         </dl>

@@ -10,9 +10,9 @@ type ToolbarProps = {
   searchText: string;
   searchMatchIndex: number;
   searchOccurrenceCount: number;
-  searchRequestCount: number;
-  searchRequestJumpCount: number;
-  activeSearchRequestOrder: number;
+  searchScopeCount: number;
+  searchScopeJumpCount: number;
+  activeSearchScopeOrder: number;
   searchInputRef: RefObject<HTMLInputElement | null>;
   workspaceMode: WorkspaceMode;
   networkViewMode: NetworkViewMode;
@@ -25,8 +25,8 @@ type ToolbarProps = {
   onSearchTextChange: (searchText: string) => void;
   onSearchNext: () => void;
   onSearchPrevious: () => void;
-  onSearchNextRequest: () => void;
-  onSearchPreviousRequest: () => void;
+  onSearchNextScope: () => void;
+  onSearchPreviousScope: () => void;
   onGroupFlowByTimeChange: (groupFlowByTime: boolean) => void;
   onNetworkIncludeTextChange: (includeText: string) => void;
   onNetworkExcludeTextChange: (excludeText: string) => void;
@@ -45,9 +45,9 @@ export function Toolbar({
   searchText,
   searchMatchIndex,
   searchOccurrenceCount,
-  searchRequestCount,
-  searchRequestJumpCount,
-  activeSearchRequestOrder,
+  searchScopeCount,
+  searchScopeJumpCount,
+  activeSearchScopeOrder,
   searchInputRef,
   workspaceMode,
   networkViewMode,
@@ -60,8 +60,8 @@ export function Toolbar({
   onSearchTextChange,
   onSearchNext,
   onSearchPrevious,
-  onSearchNextRequest,
-  onSearchPreviousRequest,
+  onSearchNextScope,
+  onSearchPreviousScope,
   onGroupFlowByTimeChange,
   onNetworkIncludeTextChange,
   onNetworkExcludeTextChange,
@@ -80,19 +80,26 @@ export function Toolbar({
   const excludeText = isNetworkMode ? networkExcludeText : storageExcludeText;
   const onIncludeTextChange = isNetworkMode ? onNetworkIncludeTextChange : onStorageIncludeTextChange;
   const onExcludeTextChange = isNetworkMode ? onNetworkExcludeTextChange : onStorageExcludeTextChange;
-  const hasRequestSearch = hasSearch && isNetworkMode;
+  const hasActiveSearch = hasSearch && searchOccurrenceCount > 0;
   const searchPosition = hasSearch && searchOccurrenceCount > 0 ? searchMatchIndex + 1 : 0;
-  const requestPosition = hasSearch && searchRequestJumpCount > 0 ? activeSearchRequestOrder : 0;
+  const scopePosition = hasSearch && searchScopeJumpCount > 0 ? activeSearchScopeOrder : 0;
+  const scopeLabel = isNetworkMode ? 'Card' : 'Row';
+  const searchScopeSummaryLabel = isNetworkMode ? 'req' : 'rows';
+  const searchPlaceholder = isNetworkMode ? 'Search path, status, body…' : 'Search key, value…';
+  const searchAriaLabel = isNetworkMode ? 'Search requests' : 'Search storage';
+  const searchTitle = isNetworkMode
+    ? 'Enter: next hit · Shift+Enter: previous hit · Ctrl+Enter: next card · Ctrl+Shift+Enter: previous card'
+    : 'Enter: next hit · Shift+Enter: previous hit · Ctrl+Enter: next row · Ctrl+Shift+Enter: previous row';
 
   const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && event.shiftKey) {
       event.preventDefault();
-      onSearchPreviousRequest();
+      onSearchPreviousScope();
       return;
     }
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
-      onSearchNextRequest();
+      onSearchNextScope();
       return;
     }
     if (event.key === 'Enter' && event.shiftKey) {
@@ -146,9 +153,9 @@ export function Toolbar({
             ) : (
               <span className="toolbar-chip">Storage viewer</span>
             )}
-            {hasRequestSearch ? (
+            {hasActiveSearch ? (
               <span className="toolbar-chip toolbar-chip-accent">
-                {searchOccurrenceCount} hits · {searchRequestCount} req
+                {searchOccurrenceCount} hits · {searchScopeCount} {searchScopeSummaryLabel}
               </span>
             ) : null}
           </div>
@@ -162,20 +169,21 @@ export function Toolbar({
             value={searchText}
             onChange={(event) => onSearchTextChange(event.currentTarget.value)}
             onKeyDown={handleSearchKeyDown}
-            placeholder="Search path, status, body…"
-            aria-label="Search requests"
-            title="Enter: next hit · Shift+Enter: previous hit · Ctrl+Enter: next card · Ctrl+Shift+Enter: previous card"
+            placeholder={searchPlaceholder}
+            aria-label={searchAriaLabel}
+            title={searchTitle}
           />
-          {hasRequestSearch ? (
+          {hasActiveSearch ? (
             <SearchNavigation
               searchPosition={searchPosition}
               searchOccurrenceCount={searchOccurrenceCount}
-              requestPosition={requestPosition}
-              searchRequestJumpCount={searchRequestJumpCount}
+              scopePosition={scopePosition}
+              searchScopeJumpCount={searchScopeJumpCount}
+              scopeLabel={scopeLabel}
               onSearchPrevious={onSearchPrevious}
               onSearchNext={onSearchNext}
-              onSearchPreviousRequest={onSearchPreviousRequest}
-              onSearchNextRequest={onSearchNextRequest}
+              onSearchPreviousScope={onSearchPreviousScope}
+              onSearchNextScope={onSearchNextScope}
             />
           ) : null}
         </div>
@@ -276,23 +284,25 @@ export function Toolbar({
 type SearchNavigationProps = {
   searchPosition: number;
   searchOccurrenceCount: number;
-  requestPosition: number;
-  searchRequestJumpCount: number;
+  scopePosition: number;
+  searchScopeJumpCount: number;
+  scopeLabel: string;
   onSearchPrevious: () => void;
   onSearchNext: () => void;
-  onSearchPreviousRequest: () => void;
-  onSearchNextRequest: () => void;
+  onSearchPreviousScope: () => void;
+  onSearchNextScope: () => void;
 };
 
 function SearchNavigation({
   searchPosition,
   searchOccurrenceCount,
-  requestPosition,
-  searchRequestJumpCount,
+  scopePosition,
+  searchScopeJumpCount,
+  scopeLabel,
   onSearchPrevious,
   onSearchNext,
-  onSearchPreviousRequest,
-  onSearchNextRequest,
+  onSearchPreviousScope,
+  onSearchNextScope,
 }: SearchNavigationProps) {
   return (
     <div className="toolbar-search-nav" aria-label="Search navigation">
@@ -309,15 +319,25 @@ function SearchNavigation({
         </button>
       </div>
       <span className="search-nav-divider" aria-hidden="true" />
-      <div className="search-nav-section" aria-label="Card navigation">
-        <span className="search-nav-label">Card</span>
-        <button type="button" className="search-nav-button" onClick={onSearchPreviousRequest} title="Previous card (Ctrl+Shift+Enter)">
+      <div className="search-nav-section" aria-label={`${scopeLabel} navigation`}>
+        <span className="search-nav-label">{scopeLabel}</span>
+        <button
+          type="button"
+          className="search-nav-button"
+          onClick={onSearchPreviousScope}
+          title={`Previous ${scopeLabel.toLowerCase()} (Ctrl+Shift+Enter)`}
+        >
           «
         </button>
         <span className="search-position">
-          {requestPosition}/{searchRequestJumpCount}
+          {scopePosition}/{searchScopeJumpCount}
         </span>
-        <button type="button" className="search-nav-button" onClick={onSearchNextRequest} title="Next card (Ctrl+Enter)">
+        <button
+          type="button"
+          className="search-nav-button"
+          onClick={onSearchNextScope}
+          title={`Next ${scopeLabel.toLowerCase()} (Ctrl+Enter)`}
+        >
           »
         </button>
       </div>
