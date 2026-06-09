@@ -65,7 +65,12 @@ import {
 } from './utils/storageSearch';
 import { useSplitPanelLayout } from './hooks/useSplitPanelLayout';
 import { toTimelineItems } from './utils/timeline';
-import { getGroupFlowByTime, saveGroupFlowByTime } from './utils/networkFlowPrefs';
+import {
+  getGroupFlowByTime,
+  getNetworkViewMode,
+  saveGroupFlowByTime,
+  saveNetworkViewMode,
+} from './utils/networkFlowPrefs';
 import { getWorkspaceMode, saveWorkspaceMode } from './utils/workspacePrefs';
 
 const PRELOAD_CONCURRENCY = 4;
@@ -76,7 +81,7 @@ export default function App() {
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [bodyLoadingId, setBodyLoadingId] = useState<string | null>(null);
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(() => getWorkspaceMode());
-  const [networkViewMode, setNetworkViewMode] = useState<NetworkViewMode>('flow');
+  const [networkViewMode, setNetworkViewMode] = useState<NetworkViewMode>(() => getNetworkViewMode());
   const [groupFlowByTime, setGroupFlowByTime] = useState(() => getGroupFlowByTime());
   const [networkIncludeText, setNetworkIncludeText] = useState(() => getNetworkIncludeText());
   const [networkExcludeText, setNetworkExcludeText] = useState(() => getNetworkExcludeText());
@@ -144,6 +149,10 @@ export default function App() {
   useEffect(() => {
     saveGroupFlowByTime(groupFlowByTime);
   }, [groupFlowByTime]);
+
+  useEffect(() => {
+    saveNetworkViewMode(networkViewMode);
+  }, [networkViewMode]);
 
   useEffect(() => {
     saveSearchMatchCase(searchMatchCase);
@@ -587,13 +596,6 @@ export default function App() {
             : isStorageMode
               ? storageSearchOccurrences.length
               : consoleSearchOccurrences.length
-        }
-        searchScopeCount={
-          isNetworkMode
-            ? searchMatches.length
-            : isStorageMode
-              ? storageOccurrenceByItem.size
-              : consoleOccurrenceByEntry.size
         }
         searchInputRef={searchInputRef}
         workspaceMode={workspaceMode}

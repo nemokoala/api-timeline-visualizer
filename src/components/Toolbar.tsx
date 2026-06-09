@@ -10,7 +10,6 @@ type ToolbarProps = {
   searchText: string;
   searchMatchIndex: number;
   searchOccurrenceCount: number;
-  searchScopeCount: number;
   searchScopeJumpCount: number;
   activeSearchScopeOrder: number;
   searchInputRef: RefObject<HTMLInputElement | null>;
@@ -49,7 +48,6 @@ export function Toolbar({
   searchText,
   searchMatchIndex,
   searchOccurrenceCount,
-  searchScopeCount,
   searchScopeJumpCount,
   activeSearchScopeOrder,
   searchInputRef,
@@ -94,7 +92,6 @@ export function Toolbar({
   const searchPosition = hasSearch && searchOccurrenceCount > 0 ? searchMatchIndex + 1 : 0;
   const scopePosition = hasSearch && searchScopeJumpCount > 0 ? activeSearchScopeOrder : 0;
   const scopeLabel = isNetworkMode ? 'Card' : isStorageMode ? 'Row' : 'Log';
-  const searchScopeSummaryLabel = isNetworkMode ? 'req' : isStorageMode ? 'rows' : 'logs';
   const searchPlaceholder = isNetworkMode
     ? 'Search path, status, body…'
     : isStorageMode
@@ -175,11 +172,6 @@ export function Toolbar({
             ) : (
               <span className="toolbar-chip">{requestCount} logs</span>
             )}
-            {hasActiveSearch ? (
-              <span className="toolbar-chip toolbar-chip-accent">
-                {searchOccurrenceCount} hits · {searchScopeCount} {searchScopeSummaryLabel}
-              </span>
-            ) : null}
           </div>
         </div>
 
