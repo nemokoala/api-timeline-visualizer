@@ -20,6 +20,12 @@ import {
   getSearchMatchIndexForRequest,
   matchesRequestSearch,
 } from './utils/requestSearch';
+import {
+  getExcludeText,
+  getIncludeText,
+  saveExcludeText,
+  saveIncludeText,
+} from './utils/filterPrefs';
 import { toTimelineItems } from './utils/timeline';
 
 const PRELOAD_CONCURRENCY = 4;
@@ -32,8 +38,8 @@ export default function App() {
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('network');
   const [networkViewMode, setNetworkViewMode] = useState<NetworkViewMode>('flow');
   const [groupFlowByTime, setGroupFlowByTime] = useState(true);
-  const [includeText, setIncludeText] = useState('api');
-  const [excludeText, setExcludeText] = useState('google-analytics,sentry,datadog,amplitude,hotjar,segment');
+  const [includeText, setIncludeText] = useState(() => getIncludeText());
+  const [excludeText, setExcludeText] = useState(() => getExcludeText());
   const [searchText, setSearchText] = useState('');
   const [searchMatchIndex, setSearchMatchIndex] = useState(0);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
@@ -43,6 +49,14 @@ export default function App() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const preloadQueueRef = useRef<string[]>([]);
   const preloadInFlightRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    saveIncludeText(includeText);
+  }, [includeText]);
+
+  useEffect(() => {
+    saveExcludeText(excludeText);
+  }, [excludeText]);
 
   const filteredRequests = useMemo(
     () => requests.filter((request) => matchesTextFilters(request, includeText, excludeText)),
