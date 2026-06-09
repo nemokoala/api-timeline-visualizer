@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   IndexedDbDatabaseSnapshot,
   IndexedDbRecord,
@@ -6,10 +6,13 @@ import type {
   PageStorageSnapshot,
   StorageEntry,
 } from '../types/storage';
+import { useSplitPanelLayout } from '../hooks/useSplitPanelLayout';
 import { canInspectPageStorage, inspectPageStorage } from '../utils/storageInspector';
 import { formatStorageValuePreview } from '../utils/storageBlobValue';
 import { textMatchesSearch } from '../utils/searchHighlight';
+import { DetailSection } from './DetailSection';
 import { JsonViewer } from './JsonViewer';
+import { SplitPanelResizer } from './SplitPanelResizer';
 import { formatLocaleDateTime } from './formatters';
 
 type StorageViewProps = {
@@ -27,8 +30,15 @@ export function StorageView({ searchText, excludeText }: StorageViewProps) {
   const [snapshot, setSnapshot] = useState<PageStorageSnapshot | null>(null);
   const [activeTab, setActiveTab] = useState<StorageTab>('local');
   const [selectedItem, setSelectedItem] = useState<SelectedStorageItem | null>(null);
-  const [detailPanelWidth, setDetailPanelWidth] = useState(460);
-  const [isResizingDetail, setIsResizingDetail] = useState(false);
+  const storageWorkspaceRef = useRef<HTMLDivElement>(null);
+  const {
+    isStacked: isSplitStacked,
+    layoutStyle: splitLayoutStyle,
+    startWidthResize,
+    startHeightResize,
+    resetWidth: resetSplitWidth,
+    resetHeight: resetSplitHeight,
+  } = useSplitPanelLayout(storageWorkspaceRef);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,29 +64,6 @@ export function StorageView({ searchText, excludeText }: StorageViewProps) {
     // Load once when the storage workspace first mounts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (!isResizingDetail) return;
-
-    const handleMouseMove = (event: MouseEvent) => {
-      const nextWidth = window.innerWidth - event.clientX;
-      setDetailPanelWidth(clamp(nextWidth, 320, Math.min(820, window.innerWidth * 0.72)));
-    };
-
-    const handleMouseUp = () => {
-      setIsResizingDetail(false);
-    };
-
-    document.body.classList.add('resizing-detail-panel');
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      document.body.classList.remove('resizing-detail-panel');
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizingDetail]);
 
   const localEntries = useMemo(
     () => filterEntries(snapshot?.localStorage ?? [], searchText, excludeText),
@@ -155,10 +142,9 @@ export function StorageView({ searchText, excludeText }: StorageViewProps) {
       ) : null}
 
       <div
-        className={`storage-workspace ${hasDetail ? 'has-detail' : ''}`}
-        style={{
-          gridTemplateColumns: hasDetail ? `minmax(0, 1fr) 8px minmax(320px, ${detailPanelWidth}px)` : 'minmax(0, 1fr)',
-        }}
+        ref={storageWorkspaceRef}
+        className={`storage-workspace ${hasDetail ? 'has-detail' : ''} ${hasDetail && isSplitStacked ? 'split-layout-stacked' : ''}`}
+        style={hasDetail ? splitLayoutStyle : undefined}
       >
         {activeTab === 'indexeddb' ? (
           <IndexedDbPane
@@ -179,15 +165,11 @@ export function StorageView({ searchText, excludeText }: StorageViewProps) {
 
         {hasDetail ? (
           <>
-            <button
-              className="detail-resizer"
-              type="button"
-              aria-label="Resize storage detail panel"
-              onMouseDown={(event) => {
-                event.preventDefault();
-                setIsResizingDetail(true);
-              }}
-              onDoubleClick={() => setDetailPanelWidth(460)}
+            <SplitPanelResizer
+              orientation={isSplitStacked ? 'horizontal' : 'vertical'}
+              ariaLabel="Resize storage detail panel"
+              onMouseDown={isSplitStacked ? startHeightResize : startWidthResize}
+              onDoubleClick={isSplitStacked ? resetSplitHeight : resetSplitWidth}
             />
             <StorageDetailPanel detail={selectedDetail} searchText={searchText} />
           </>
@@ -383,17 +365,19 @@ function StorageDetailPanel({ detail, searchText }: { detail: StorageDetail; sea
       <div className="storage-detail-title">
         <div>
           <span className="storage-detail-kicker">{detail.subtitle}</span>
-          <h2>{detail.title}</h2>
+          <h2 title={detail.title}>{detail.title}</h2>
         </div>
       </div>
-      <dl className="definition-list storage-detail-meta">
-        {detail.metaRows.map(([label, value]) => (
-          <div key={label}>
-            <dt>{label}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <DetailSection sectionId={`${detail.instanceId}:meta`} title="Details" defaultOpen={false}>
+        <dl className="definition-list storage-detail-meta">
+          {detail.metaRows.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </DetailSection>
       <div className="storage-detail-value">
         <JsonViewer
           instanceId={detail.instanceId}
@@ -529,8 +513,4 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
 }
