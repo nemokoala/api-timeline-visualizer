@@ -27,7 +27,7 @@ import { DetailPanelCloseButton } from './DetailPanelCloseButton';
 import { DetailSection } from './DetailSection';
 import { JsonViewer } from './JsonViewer';
 import { SplitPanelResizer } from './SplitPanelResizer';
-import { formatLocaleDateTime } from './formatters';
+import { formatDateTime, formatLocaleDateTime } from './formatters';
 
 type StorageViewProps = {
   searchText: string;
@@ -202,12 +202,29 @@ export function StorageView({
     <section className="storage-panel">
       <div className="storage-header">
         <div className="storage-title">
-          <h2>Storage</h2>
-          <p>{snapshot ? snapshot.origin : 'Inspect the active page storage for this DevTools target.'}</p>
+          <span className="storage-header-label">Storage</span>
+          <span
+            className="storage-header-origin"
+            title={snapshot ? snapshot.origin : 'Inspect the active page storage for this DevTools target.'}
+          >
+            {snapshot ? snapshot.origin : 'Inspect the active page storage for this DevTools target.'}
+          </span>
         </div>
         <div className="storage-actions">
-          {snapshot ? <span>{formatLocaleDateTime(Date.parse(snapshot.capturedAt))}</span> : null}
-          <button className="toolbar-button" type="button" onClick={() => void loadSnapshot()} disabled={isLoading}>
+          {snapshot ? (
+            <span
+              className="storage-header-captured"
+              title={formatLocaleDateTime(Date.parse(snapshot.capturedAt))}
+            >
+              {formatDateTime(Date.parse(snapshot.capturedAt))}
+            </span>
+          ) : null}
+          <button
+            className="toolbar-button storage-refresh-button"
+            type="button"
+            onClick={() => void loadSnapshot()}
+            disabled={isLoading}
+          >
             {isLoading ? 'Refreshing' : 'Refresh'}
           </button>
         </div>

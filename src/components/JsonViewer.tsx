@@ -4,7 +4,7 @@ import { getImagePreviews, mergeBlobPreviewItems, type ImagePreviewItem } from '
 import { fetchStorageRecordBlobPreviews } from '../utils/storageInspector';
 import { findStorageBlobPreviews, sanitizeStorageBlobsForDisplay } from '../utils/storageBlobValue';
 import { DetailSection } from './DetailSection';
-import { ImagePreview } from './ImagePreview';
+import { ImagePreviewGallery } from './ImagePreviewGallery';
 
 type ActiveFieldMenu = {
   id: string;
@@ -97,37 +97,12 @@ export function JsonViewer({
           expandForSearch={imageMatchesSearch}
           searchExpandToken={searchFocusKey}
         >
-          <div className="image-preview-stack">
-            {imagePreviews.map((preview) => (
-              <div className="image-preview-frame" key={preview.label}>
-                {recordKey ? (
-                  <div className="image-preview-caption">
-                    <span>Blob key</span>
-                    <strong title={preview.label}>{preview.label}</strong>
-                  </div>
-                ) : null}
-                {preview.src ? (
-                  <ImagePreview src={preview.src} alt={`${preview.label} preview`} />
-                ) : blobPreviewsLoading && !preview.unavailableReason ? (
-                  <div className="image-preview-unavailable">
-                    <p>Loading preview...</p>
-                    {preview.mimeType ? <span>{preview.mimeType}</span> : null}
-                    {typeof preview.size === 'number' ? (
-                      <span>{formatPreviewBytes(preview.size)}</span>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="image-preview-unavailable">
-                    <p>{preview.unavailableReason ?? 'Preview unavailable'}</p>
-                    {preview.mimeType ? <span>{preview.mimeType}</span> : null}
-                    {typeof preview.size === 'number' ? (
-                      <span>{formatPreviewBytes(preview.size)}</span>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          <ImagePreviewGallery
+            previews={imagePreviews}
+            recordKey={recordKey}
+            blobPreviewsLoading={blobPreviewsLoading}
+            showLayoutToggle={Boolean(blobPreviewRequest)}
+          />
         </DetailSection>
         <DetailSection
           sectionId={`${sectionPrefix}:json`}
@@ -436,12 +411,6 @@ function formatCopyString(value: unknown): string {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
-}
-
-function formatPreviewBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 async function copyToClipboard(value: string): Promise<boolean> {
