@@ -1,5 +1,10 @@
 import type { ConsoleEntry } from '../types/console';
-import { countSearchOccurrences, getSearchTerms, textMatchesSearch } from './searchHighlight';
+import {
+  countSearchOccurrences,
+  getSearchTerms,
+  textMatchesSearch,
+  type SearchOptions,
+} from './searchHighlight';
 
 export type ConsoleSearchOccurrence = {
   entryId: string;
@@ -30,42 +35,62 @@ function stringifyArgs(args: unknown[]): string {
   return args.map((arg) => stringifyValue(arg)).join(' ');
 }
 
-export function buildConsoleSearchText(entry: ConsoleEntry): string {
-  return [entry.level, entry.text, entry.stack ?? '', entry.source ?? '', stringifyArgs(entry.args)]
-    .join(' ')
-    .toLowerCase();
+export function buildConsoleSearchText(entry: ConsoleEntry, options?: SearchOptions): string {
+  const text = [entry.level, entry.text, entry.stack ?? '', entry.source ?? '', stringifyArgs(entry.args)].join(
+    ' ',
+  );
+  return options?.matchCase ? text : text.toLowerCase();
 }
 
-export function matchesConsoleSearch(entry: ConsoleEntry, searchText: string): boolean {
-  if (!getSearchTerms(searchText).length) return true;
-  return textMatchesSearch(buildConsoleSearchText(entry), searchText);
+export function matchesConsoleSearch(
+  entry: ConsoleEntry,
+  searchText: string,
+  options?: SearchOptions,
+): boolean {
+  if (!getSearchTerms(searchText, options).length) return true;
+  return textMatchesSearch(buildConsoleSearchText(entry, options), searchText, options);
 }
 
-export function countSearchOccurrencesInArgValue(value: unknown, searchText: string): number {
-  if (!getSearchTerms(searchText).length) return 0;
+export function countSearchOccurrencesInArgValue(
+  value: unknown,
+  searchText: string,
+  options?: SearchOptions,
+): number {
+  if (!getSearchTerms(searchText, options).length) return 0;
 
   if (Array.isArray(value)) {
-    return value.reduce((sum, item) => sum + countSearchOccurrencesInArgValue(item, searchText), 0);
+    return value.reduce(
+      (sum, item) => sum + countSearchOccurrencesInArgValue(item, searchText, options),
+      0,
+    );
   }
 
   if (value && typeof value === 'object') {
     return Object.entries(value).reduce((sum, [key, item]) => {
-      return sum + countSearchOccurrences(key, searchText) + countSearchOccurrencesInArgValue(item, searchText);
+      return (
+        sum +
+        countSearchOccurrences(key, searchText, options) +
+        countSearchOccurrencesInArgValue(item, searchText, options)
+      );
     }, 0);
   }
 
   if (value === null) return 0;
-  if (typeof value === 'string') return countSearchOccurrences(value, searchText);
+  if (typeof value === 'string') return countSearchOccurrences(value, searchText, options);
   if (typeof value === 'number' || typeof value === 'boolean') {
-    return countSearchOccurrences(String(value), searchText);
+    return countSearchOccurrences(String(value), searchText, options);
   }
 
-  return countSearchOccurrences(String(value), searchText);
+  return countSearchOccurrences(String(value), searchText, options);
 }
 
-export function consoleArgsMatchSearch(args: unknown[], searchText: string): boolean {
-  if (!getSearchTerms(searchText).length) return false;
-  return args.some((arg) => countSearchOccurrencesInArgValue(arg, searchText) > 0);
+export function consoleArgsMatchSearch(
+  args: unknown[],
+  searchText: string,
+  options?: SearchOptions,
+): boolean {
+  if (!getSearchTerms(searchText, options).length) return false;
+  return args.some((arg) => countSearchOccurrencesInArgValue(arg, searchText, options) > 0);
 }
 
 function appendTextOccurrences(
@@ -74,8 +99,9 @@ function appendTextOccurrences(
   markIndex: { value: number },
   searchText: string,
   text: string,
+  options?: SearchOptions,
 ): void {
-  const hitCount = countSearchOccurrences(text, searchText);
+  const hitCount = countSearchOccurrences(text, searchText, options);
   for (let index = 0; index < hitCount; index += 1) {
     occurrences.push({ entryId, occurrenceIndex: markIndex.value });
     markIndex.value += 1;
@@ -88,34 +114,39 @@ function appendArgValueOccurrences(
   markIndex: { value: number },
   searchText: string,
   value: unknown,
+  options?: SearchOptions,
 ): void {
-  const hitCount = countSearchOccurrencesInArgValue(value, searchText);
+  const hitCount = countSearchOccurrencesInArgValue(value, searchText, options);
   for (let index = 0; index < hitCount; index += 1) {
     occurrences.push({ entryId, occurrenceIndex: markIndex.value });
     markIndex.value += 1;
   }
 }
 
-function buildConsoleEntryOccurrences(entry: ConsoleEntry, searchText: string): ConsoleSearchOccurrence[] {
+function buildConsoleEntryOccurrences(
+  entry: ConsoleEntry,
+  searchText: string,
+  options?: SearchOptions,
+): ConsoleSearchOccurrence[] {
   const occurrences: ConsoleSearchOccurrence[] = [];
   const markIndex = { value: 0 };
 
-  appendTextOccurrences(occurrences, entry.id, markIndex, searchText, entry.level);
+  appendTextOccurrences(occurrences, entry.id, markIndex, searchText, entry.level, options);
 
   if (entry.args.length === 0) {
-    appendTextOccurrences(occurrences, entry.id, markIndex, searchText, entry.text);
+    appendTextOccurrences(occurrences, entry.id, markIndex, searchText, entry.text, options);
   }
 
   if (entry.source) {
-    appendTextOccurrences(occurrences, entry.id, markIndex, searchText, entry.source);
+    appendTextOccurrences(occurrences, entry.id, markIndex, searchText, entry.source, options);
   }
 
   for (const arg of entry.args) {
-    appendArgValueOccurrences(occurrences, entry.id, markIndex, searchText, arg);
+    appendArgValueOccurrences(occurrences, entry.id, markIndex, searchText, arg, options);
   }
 
   if (entry.stack) {
-    appendTextOccurrences(occurrences, entry.id, markIndex, searchText, entry.stack);
+    appendTextOccurrences(occurrences, entry.id, markIndex, searchText, entry.stack, options);
   }
 
   return occurrences;
@@ -124,14 +155,15 @@ function buildConsoleEntryOccurrences(entry: ConsoleEntry, searchText: string): 
 export function buildConsoleSearchOccurrences(
   entries: ConsoleEntry[],
   searchText: string,
+  options?: SearchOptions,
 ): ConsoleSearchOccurrence[] {
-  if (!getSearchTerms(searchText).length) return [];
+  if (!getSearchTerms(searchText, options).length) return [];
 
   const occurrences: ConsoleSearchOccurrence[] = [];
 
   for (const entry of entries) {
-    if (!matchesConsoleSearch(entry, searchText)) continue;
-    occurrences.push(...buildConsoleEntryOccurrences(entry, searchText));
+    if (!matchesConsoleSearch(entry, searchText, options)) continue;
+    occurrences.push(...buildConsoleEntryOccurrences(entry, searchText, options));
   }
 
   return occurrences;

@@ -5,6 +5,7 @@ import { RequestDetailPanel } from './components/RequestDetailPanel';
 import { SplitPanelResizer } from './components/SplitPanelResizer';
 import { StorageView } from './components/StorageView';
 import { TimelineView } from './components/TimelineView';
+import { SearchOptionsProvider } from './contexts/SearchOptionsContext';
 import { Toolbar, type NetworkViewMode, type WorkspaceMode } from './components/Toolbar';
 import type { ConsoleEntry } from './types/console';
 import type { DevtoolsNetworkRequest } from './types/chrome-har';
@@ -47,9 +48,13 @@ import {
 import {
   getConsoleSearchText,
   getNetworkSearchText,
+  getSearchMatchCase,
+  getSearchWholeWord,
   getStorageSearchText,
   saveConsoleSearchText,
   saveNetworkSearchText,
+  saveSearchMatchCase,
+  saveSearchWholeWord,
   saveStorageSearchText,
 } from './utils/searchPrefs';
 import type { StorageSearchOccurrence } from './utils/storageSearch';
@@ -80,6 +85,8 @@ export default function App() {
   const [networkSearchText, setNetworkSearchText] = useState(() => getNetworkSearchText());
   const [storageSearchText, setStorageSearchText] = useState(() => getStorageSearchText());
   const [consoleSearchText, setConsoleSearchText] = useState(() => getConsoleSearchText());
+  const [searchMatchCase, setSearchMatchCase] = useState(() => getSearchMatchCase());
+  const [searchWholeWord, setSearchWholeWord] = useState(() => getSearchWholeWord());
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
   const [selectedConsoleEntryId, setSelectedConsoleEntryId] = useState<string | null>(null);
   const [networkSearchMatchIndex, setNetworkSearchMatchIndex] = useState(0);
@@ -138,6 +145,19 @@ export default function App() {
     saveGroupFlowByTime(groupFlowByTime);
   }, [groupFlowByTime]);
 
+  useEffect(() => {
+    saveSearchMatchCase(searchMatchCase);
+  }, [searchMatchCase]);
+
+  useEffect(() => {
+    saveSearchWholeWord(searchWholeWord);
+  }, [searchWholeWord]);
+
+  const searchOptions = useMemo(
+    () => ({ matchCase: searchMatchCase, matchWholeWord: searchWholeWord }),
+    [searchMatchCase, searchWholeWord],
+  );
+
   const isNetworkMode = workspaceMode === 'network';
   const isStorageMode = workspaceMode === 'storage';
   const isConsoleMode = workspaceMode === 'console';
@@ -159,13 +179,15 @@ export default function App() {
 
   const searchMatches = useMemo(() => {
     if (!networkSearchText.trim()) return filteredRequests;
-    return filteredRequests.filter((request) => matchesRequestSearch(request, networkSearchText));
-  }, [filteredRequests, networkSearchText]);
+    return filteredRequests.filter((request) =>
+      matchesRequestSearch(request, networkSearchText, searchOptions),
+    );
+  }, [filteredRequests, networkSearchText, searchOptions]);
 
   const searchOccurrences = useMemo(() => {
     if (!networkSearchText.trim()) return [];
-    return buildSearchOccurrences(searchMatches, networkSearchText);
-  }, [searchMatches, networkSearchText]);
+    return buildSearchOccurrences(searchMatches, networkSearchText, searchOptions);
+  }, [searchMatches, networkSearchText, searchOptions]);
 
   const activeSearchOccurrence = searchOccurrences[networkSearchMatchIndex] ?? null;
   const searchOccurrenceByRequest = useMemo(
@@ -221,6 +243,12 @@ export default function App() {
   useEffect(() => {
     setConsoleSearchMatchIndex(0);
   }, [consoleSearchText]);
+
+  useEffect(() => {
+    setNetworkSearchMatchIndex(0);
+    setStorageSearchMatchIndex(0);
+    setConsoleSearchMatchIndex(0);
+  }, [searchMatchCase, searchWholeWord]);
 
   useEffect(() => {
     if (!networkSearchText.trim() || !searchOccurrences.length) return;
@@ -546,6 +574,7 @@ export default function App() {
   }, [selectedRequest, startResponseBodyLoad]);
 
   return (
+    <SearchOptionsProvider value={searchOptions}>
     <main className="app-shell">
       <Toolbar
         requestCount={isConsoleMode ? displayedConsoleEntries.length : displayedRequests.length}
@@ -622,6 +651,10 @@ export default function App() {
           void handleImportSession();
         }}
         onClear={handleClear}
+        searchMatchCase={searchMatchCase}
+        searchWholeWord={searchWholeWord}
+        onSearchMatchCaseChange={setSearchMatchCase}
+        onSearchWholeWordChange={setSearchWholeWord}
       />
       <section
         ref={workspaceRef}
@@ -695,5 +728,6 @@ export default function App() {
         ) : null}
       </section>
     </main>
+    </SearchOptionsProvider>
   );
 }

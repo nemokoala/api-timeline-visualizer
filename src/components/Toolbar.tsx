@@ -37,6 +37,10 @@ type ToolbarProps = {
   onExportSession: () => void;
   onImportSession: () => void;
   onClear: () => void;
+  searchMatchCase: boolean;
+  searchWholeWord: boolean;
+  onSearchMatchCaseChange: (matchCase: boolean) => void;
+  onSearchWholeWordChange: (wholeWord: boolean) => void;
 };
 
 export function Toolbar({
@@ -72,6 +76,10 @@ export function Toolbar({
   onExportSession,
   onImportSession,
   onClear,
+  searchMatchCase,
+  searchWholeWord,
+  onSearchMatchCaseChange,
+  onSearchWholeWordChange,
 }: ToolbarProps) {
   const [isExpanded, setIsExpanded] = useState(() => getToolbarExpanded());
   const hasSearch = Boolean(searchText.trim());
@@ -187,6 +195,26 @@ export function Toolbar({
             aria-label={searchAriaLabel}
             title={searchTitle}
           />
+          <div className="toolbar-search-options" aria-label="Search options">
+            <button
+              type="button"
+              className={`search-option-button ${searchMatchCase ? 'active' : ''}`}
+              aria-pressed={searchMatchCase}
+              title="Match case (Alt+C)"
+              onClick={() => onSearchMatchCaseChange(!searchMatchCase)}
+            >
+              Aa
+            </button>
+            <button
+              type="button"
+              className={`search-option-button search-option-whole-word ${searchWholeWord ? 'active' : ''}`}
+              aria-pressed={searchWholeWord}
+              title="Match whole word (Alt+W)"
+              onClick={() => onSearchWholeWordChange(!searchWholeWord)}
+            >
+              ab
+            </button>
+          </div>
           {hasActiveSearch ? (
             <SearchNavigation
               searchPosition={searchPosition}

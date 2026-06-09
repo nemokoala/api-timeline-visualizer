@@ -6,6 +6,7 @@ import {
   setConsolePreserveLog,
 } from '../utils/consoleInspector';
 import { scrollSearchHitIntoView } from '../utils/searchScroll';
+import { useSearchOptions } from '../contexts/SearchOptionsContext';
 import { highlightSearchText, textMatchesSearch } from '../utils/searchHighlight';
 import {
   buildConsoleSearchOccurrences,
@@ -50,6 +51,7 @@ export function ConsoleView({
   onSearchOccurrencesChange,
   onSearchMatchIndexChange,
 }: ConsoleViewProps) {
+  const searchOptions = useSearchOptions();
   const [levelFilter, setLevelFilter] = useState<ConsoleLevelFilter>('all');
   const [preserveLog, setPreserveLog] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -71,16 +73,16 @@ export function ConsoleView({
       if (entry.level === 'clear') return false;
       if (levelFilter !== 'all' && entry.level !== levelFilter) return false;
       if (!hasSearch) return true;
-      return matchesConsoleSearch(entry, searchText);
+      return matchesConsoleSearch(entry, searchText, searchOptions);
     });
 
     return groupRepeatedEntries(filtered);
-  }, [entries, hasSearch, levelFilter, searchText]);
+  }, [entries, hasSearch, levelFilter, searchOptions, searchText]);
 
   const searchOccurrences = useMemo(() => {
     if (!hasSearch) return [];
-    return buildConsoleSearchOccurrences(displayEntries, searchText);
-  }, [displayEntries, hasSearch, searchText]);
+    return buildConsoleSearchOccurrences(displayEntries, searchText, searchOptions);
+  }, [displayEntries, hasSearch, searchOptions, searchText]);
 
   const activeSearchOccurrence = searchOccurrences[searchMatchIndex] ?? null;
   const searchFocusKey = `${searchMatchIndex}:${activeSearchOccurrence?.entryId ?? ''}`;
@@ -260,6 +262,7 @@ function ConsoleLogRow({
   searchText: string;
   onSelect: () => void;
 }) {
+  const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
   const levelClass = `is-${entry.level}`;
 
@@ -273,14 +276,14 @@ function ConsoleLogRow({
       <span className={`console-level-badge ${levelClass}`}>{entry.level}</span>
       <span className="console-log-timestamp">{formatDateTime(entry.timestamp)}</span>
       <span className="console-log-message" title={entry.text}>
-        {hasSearch ? highlightSearchText(entry.text, searchText) : entry.text}
+        {hasSearch ? highlightSearchText(entry.text, searchText, searchOptions) : entry.text}
       </span>
       {entry.repeatCount && entry.repeatCount > 1 ? (
         <span className="console-repeat-badge">{entry.repeatCount}</span>
       ) : null}
       {entry.source ? (
         <span className="console-log-source" title={entry.source}>
-          {hasSearch ? highlightSearchText(entry.source, searchText) : entry.source}
+          {hasSearch ? highlightSearchText(entry.source, searchText, searchOptions) : entry.source}
         </span>
       ) : null}
     </button>
@@ -300,6 +303,7 @@ function ConsoleDetailPanel({
   searchFocusKey: string;
   onClose: () => void;
 }) {
+  const searchOptions = useSearchOptions();
   const panelRef = useRef<HTMLElement>(null);
   const hasSearch = Boolean(searchText.trim());
 
@@ -328,14 +332,15 @@ function ConsoleDetailPanel({
     return () => window.cancelAnimationFrame(frameId);
   }, [entry, hasSearch, searchFocusKey, searchOccurrenceIndex, searchText]);
 
-  const argsMatchesSearch = hasSearch && consoleArgsMatchSearch(entry.args, searchText);
+  const argsMatchesSearch = hasSearch && consoleArgsMatchSearch(entry.args, searchText, searchOptions);
   const summaryMatchesSearch =
     hasSearch &&
-    (textMatchesSearch(entry.level, searchText) ||
-      (entry.source ? textMatchesSearch(entry.source, searchText) : false) ||
-      (entry.args.length === 0 && textMatchesSearch(entry.text, searchText)));
+    (textMatchesSearch(entry.level, searchText, searchOptions) ||
+      (entry.source ? textMatchesSearch(entry.source, searchText, searchOptions) : false) ||
+      (entry.args.length === 0 && textMatchesSearch(entry.text, searchText, searchOptions)));
 
-  const stackMatchesSearch = hasSearch && entry.stack ? textMatchesSearch(entry.stack, searchText) : false;
+  const stackMatchesSearch =
+    hasSearch && entry.stack ? textMatchesSearch(entry.stack, searchText, searchOptions) : false;
 
   return (
     <aside className="console-detail-panel" ref={panelRef}>
@@ -360,18 +365,18 @@ function ConsoleDetailPanel({
         <dl className="definition-list console-detail-meta">
           <div>
             <dt>Level</dt>
-            <dd>{hasSearch ? highlightSearchText(entry.level, searchText) : entry.level}</dd>
+            <dd>{hasSearch ? highlightSearchText(entry.level, searchText, searchOptions) : entry.level}</dd>
           </div>
           {entry.args.length === 0 ? (
             <div>
               <dt>Message</dt>
-              <dd>{hasSearch ? highlightSearchText(entry.text, searchText) : entry.text}</dd>
+              <dd>{hasSearch ? highlightSearchText(entry.text, searchText, searchOptions) : entry.text}</dd>
             </div>
           ) : null}
           {entry.source ? (
             <div>
               <dt>Source</dt>
-              <dd>{hasSearch ? highlightSearchText(entry.source, searchText) : entry.source}</dd>
+              <dd>{hasSearch ? highlightSearchText(entry.source, searchText, searchOptions) : entry.source}</dd>
             </div>
           ) : null}
           {entry.repeatCount && entry.repeatCount > 1 ? (
@@ -417,7 +422,7 @@ function ConsoleDetailPanel({
           searchExpandToken={searchFocusKey}
         >
           <pre className="console-stack-trace">
-            {hasSearch ? highlightSearchText(entry.stack, searchText) : entry.stack}
+            {hasSearch ? highlightSearchText(entry.stack, searchText, searchOptions) : entry.stack}
           </pre>
         </DetailSection>
       ) : null}
@@ -438,6 +443,7 @@ function ConsoleArgBlock({
   searchText: string;
   searchFocusKey: string;
 }) {
+  const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
 
   if (shouldRenderArgInJsonViewer(value)) {
@@ -460,7 +466,7 @@ function ConsoleArgBlock({
     <div className="console-arg-block">
       <div className="console-arg-label">arg[{index}]</div>
       <pre className="console-arg-primitive">
-        {hasSearch ? highlightSearchText(display, searchText) : display}
+        {hasSearch ? highlightSearchText(display, searchText, searchOptions) : display}
       </pre>
     </div>
   );

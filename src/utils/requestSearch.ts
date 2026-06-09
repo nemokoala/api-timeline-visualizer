@@ -2,7 +2,12 @@ import { formatDateTime, formatDuration, formatLocaleDateTime } from '../compone
 import type { ApiRequest } from '../types/network';
 import { getImageSource } from './imageSource';
 import { generateCurl, generateFetch } from './requestCodeSnippets';
-import { countSearchOccurrences, getSearchTerms, textMatchesSearch } from './searchHighlight';
+import {
+  countSearchOccurrences,
+  getSearchTerms,
+  textMatchesSearch,
+  type SearchOptions,
+} from './searchHighlight';
 
 export type SearchOccurrence = {
   requestId: string;
@@ -31,10 +36,10 @@ function stringifyValue(value: unknown): string {
   return String(value);
 }
 
-export function buildRequestSearchText(request: ApiRequest): string {
+export function buildRequestSearchText(request: ApiRequest, options?: SearchOptions): string {
   const queryParams = Object.entries(request.queryParams ?? {}).flatMap(([key, value]) => [key, value]);
 
-  return [
+  const text = [
     request.method,
     request.url,
     request.path,
@@ -49,36 +54,51 @@ export function buildRequestSearchText(request: ApiRequest): string {
     stringifyValue(request.responsePreview),
     stringifyValue(request.responseContent),
     ...queryParams,
-  ]
-    .join(' ')
-    .toLowerCase();
+  ].join(' ');
+
+  return options?.matchCase ? text : text.toLowerCase();
 }
 
-export function matchesRequestSearch(request: ApiRequest, query: string): boolean {
-  if (!getSearchTerms(query).length) return true;
-  return textMatchesSearch(buildRequestSearchText(request), query);
+export function matchesRequestSearch(
+  request: ApiRequest,
+  query: string,
+  options?: SearchOptions,
+): boolean {
+  if (!getSearchTerms(query, options).length) return true;
+  return textMatchesSearch(buildRequestSearchText(request, options), query, options);
 }
 
-function countSearchOccurrencesInValue(value: unknown, searchText: string): number {
-  if (!getSearchTerms(searchText).length) return 0;
+function countSearchOccurrencesInValue(
+  value: unknown,
+  searchText: string,
+  options?: SearchOptions,
+): number {
+  if (!getSearchTerms(searchText, options).length) return 0;
 
   if (Array.isArray(value)) {
-    return value.reduce((sum, item) => sum + countSearchOccurrencesInValue(item, searchText), 0);
+    return value.reduce(
+      (sum, item) => sum + countSearchOccurrencesInValue(item, searchText, options),
+      0,
+    );
   }
 
   if (value && typeof value === 'object') {
     return Object.entries(value).reduce((sum, [key, item]) => {
-      return sum + countSearchOccurrences(key, searchText) + countSearchOccurrencesInValue(item, searchText);
+      return (
+        sum +
+        countSearchOccurrences(key, searchText, options) +
+        countSearchOccurrencesInValue(item, searchText, options)
+      );
     }, 0);
   }
 
   if (value === null) return 0;
-  if (typeof value === 'string') return countSearchOccurrences(value, searchText);
+  if (typeof value === 'string') return countSearchOccurrences(value, searchText, options);
   if (typeof value === 'number' || typeof value === 'boolean') {
-    return countSearchOccurrences(String(value), searchText);
+    return countSearchOccurrences(String(value), searchText, options);
   }
 
-  return countSearchOccurrences(String(value), searchText);
+  return countSearchOccurrences(String(value), searchText, options);
 }
 
 function summarizeImageUrl(url: string): string {
@@ -93,12 +113,13 @@ function appendPanelOccurrences(
   markIndex: { value: number },
   searchText: string,
   segments: Array<{ kind: 'text'; text: string } | { kind: 'json'; value: unknown }>,
+  options?: SearchOptions,
 ): void {
   for (const segment of segments) {
     const count =
       segment.kind === 'text'
-        ? countSearchOccurrences(segment.text, searchText)
-        : countSearchOccurrencesInValue(segment.value, searchText);
+        ? countSearchOccurrences(segment.text, searchText, options)
+        : countSearchOccurrencesInValue(segment.value, searchText, options);
 
     for (let index = 0; index < count; index += 1) {
       occurrences.push({ requestId, occurrenceIndex: markIndex.value });
@@ -107,73 +128,128 @@ function appendPanelOccurrences(
   }
 }
 
-function buildRequestPanelOccurrences(request: ApiRequest, searchText: string): SearchOccurrence[] {
+function buildRequestPanelOccurrences(
+  request: ApiRequest,
+  searchText: string,
+  options?: SearchOptions,
+): SearchOccurrence[] {
   const occurrences: SearchOccurrence[] = [];
-  if (!matchesRequestSearch(request, searchText)) return occurrences;
+  if (!matchesRequestSearch(request, searchText, options)) return occurrences;
 
-  const matchingSections = getMatchingDetailSections(request, searchText);
+  const matchingSections = getMatchingDetailSections(request, searchText, options);
   const titleImageSource =
     getImageSource(request.normalizedPath) ?? getImageSource(request.path) ?? getImageSource(request.url);
   const title = titleImageSource ? 'Image payload' : request.normalizedPath;
   const displayUrl = titleImageSource ? summarizeImageUrl(request.url) : request.url;
   const markIndex = { value: 0 };
 
-  appendPanelOccurrences(occurrences, request.id, markIndex, searchText, [
+  appendPanelOccurrences(
+    occurrences,
+    request.id,
+    markIndex,
+    searchText,
+    [
     { kind: 'text', text: title },
     { kind: 'text', text: request.host },
-  ]);
+    ],
+    options,
+  );
 
-  appendPanelOccurrences(occurrences, request.id, markIndex, searchText, [
+  appendPanelOccurrences(
+    occurrences,
+    request.id,
+    markIndex,
+    searchText,
+    [
     { kind: 'text', text: displayUrl },
     { kind: 'text', text: `${request.status || 'n/a'} ${request.statusText ?? ''}`.trim() },
     { kind: 'text', text: formatDuration(request.duration) },
     { kind: 'text', text: formatDateTime(request.startedAt) },
     { kind: 'text', text: request.type },
     { kind: 'text', text: request.mimeType ?? 'unknown' },
-  ]);
+    ],
+    options,
+  );
 
   if (matchingSections.has('headers')) {
-    appendPanelOccurrences(occurrences, request.id, markIndex, searchText, [
-      { kind: 'json', value: request.requestHeaders ?? {} },
-      { kind: 'json', value: request.responseHeaders ?? {} },
-    ]);
+    appendPanelOccurrences(
+      occurrences,
+      request.id,
+      markIndex,
+      searchText,
+      [
+        { kind: 'json', value: request.requestHeaders ?? {} },
+        { kind: 'json', value: request.responseHeaders ?? {} },
+      ],
+      options,
+    );
   }
 
   if (matchingSections.has('payload')) {
-    appendPanelOccurrences(occurrences, request.id, markIndex, searchText, [
-      { kind: 'json', value: request.queryParams ?? {} },
-      { kind: 'json', value: request.requestBody ?? 'Request payload is not available for this request.' },
-    ]);
+    appendPanelOccurrences(
+      occurrences,
+      request.id,
+      markIndex,
+      searchText,
+      [
+        { kind: 'json', value: request.queryParams ?? {} },
+        { kind: 'json', value: request.requestBody ?? 'Request payload is not available for this request.' },
+      ],
+      options,
+    );
   }
 
-  appendPanelOccurrences(occurrences, request.id, markIndex, searchText, [
-    {
-      kind: 'json',
-      value: request.responsePreview ?? request.responseContent ?? 'Response body is not available.',
-    },
-  ]);
+  appendPanelOccurrences(
+    occurrences,
+    request.id,
+    markIndex,
+    searchText,
+    [
+      {
+        kind: 'json',
+        value: request.responsePreview ?? request.responseContent ?? 'Response body is not available.',
+      },
+    ],
+    options,
+  );
 
   if (matchingSections.has('timing')) {
-    appendPanelOccurrences(occurrences, request.id, markIndex, searchText, [
-      { kind: 'text', text: formatLocaleDateTime(request.startedAt) },
-      { kind: 'text', text: formatLocaleDateTime(request.endedAt) },
-      { kind: 'text', text: `${request.duration}ms` },
-    ]);
+    appendPanelOccurrences(
+      occurrences,
+      request.id,
+      markIndex,
+      searchText,
+      [
+        { kind: 'text', text: formatLocaleDateTime(request.startedAt) },
+        { kind: 'text', text: formatLocaleDateTime(request.endedAt) },
+        { kind: 'text', text: `${request.duration}ms` },
+      ],
+      options,
+    );
   }
 
   if (matchingSections.has('replay')) {
-    appendPanelOccurrences(occurrences, request.id, markIndex, searchText, [
-      { kind: 'text', text: generateCurl(request) },
-    ]);
+    appendPanelOccurrences(
+      occurrences,
+      request.id,
+      markIndex,
+      searchText,
+      [{ kind: 'text', text: generateCurl(request) }],
+      options,
+    );
   }
 
   return occurrences;
 }
 
-export function buildSearchOccurrences(requests: ApiRequest[], searchText: string): SearchOccurrence[] {
-  if (!getSearchTerms(searchText).length) return [];
+export function buildSearchOccurrences(
+  requests: ApiRequest[],
+  searchText: string,
+  options?: SearchOptions,
+): SearchOccurrence[] {
+  if (!getSearchTerms(searchText, options).length) return [];
 
-  return requests.flatMap((request) => buildRequestPanelOccurrences(request, searchText));
+  return requests.flatMap((request) => buildRequestPanelOccurrences(request, searchText, options));
 }
 
 export function buildSearchOccurrenceSummaryByRequest(
@@ -250,11 +326,15 @@ export function getNextRequestJumpIndex(
   return jumpIndices[nextJumpPos] ?? null;
 }
 
-export function getMatchingDetailSections(request: ApiRequest, searchText: string): Set<string> {
+export function getMatchingDetailSections(
+  request: ApiRequest,
+  searchText: string,
+  options?: SearchOptions,
+): Set<string> {
   const sections = new Set<string>();
-  if (!getSearchTerms(searchText).length) return sections;
+  if (!getSearchTerms(searchText, options).length) return sections;
 
-  const matches = (text: string) => textMatchesSearch(text, searchText);
+  const matches = (text: string) => textMatchesSearch(text, searchText, options);
 
   if (
     matches(

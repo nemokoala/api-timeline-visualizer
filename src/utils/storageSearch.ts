@@ -4,7 +4,7 @@ import type {
   IndexedDbStoreSnapshot,
   StorageEntry,
 } from '../types/storage';
-import { countSearchOccurrences } from './searchHighlight';
+import { countSearchOccurrences, type SearchOptions } from './searchHighlight';
 
 export type StorageSearchTarget =
   | { kind: 'local'; key: string }
@@ -89,12 +89,13 @@ export function buildStorageSearchOccurrences(
   sessionEntries: StorageEntry[],
   indexedDatabases: IndexedDbDatabaseSnapshot[],
   searchText: string,
+  options?: SearchOptions,
 ): StorageSearchOccurrence[] {
   const occurrences: StorageSearchOccurrence[] = [];
 
   for (const target of targets) {
     const text = buildStorageSearchText(target, localEntries, sessionEntries, indexedDatabases);
-    const hitCount = countSearchOccurrences(text, searchText);
+    const hitCount = countSearchOccurrences(text, searchText, options);
 
     for (let occurrenceIndex = 0; occurrenceIndex < hitCount; occurrenceIndex += 1) {
       occurrences.push({ target, occurrenceIndex });
