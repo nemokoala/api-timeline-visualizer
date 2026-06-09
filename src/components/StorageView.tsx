@@ -145,6 +145,12 @@ export function StorageView({
     setSelectedItem(storageTargetToSelectedItem(occurrence.target));
   }, [hasSearch, onSearchMatchIndexChange, searchMatchIndex, searchOccurrences]);
 
+  const selectedDetail = useMemo(
+    () => resolveSelectedDetail(selectedItem, localEntries, sessionEntries, indexedDatabases),
+    [indexedDatabases, localEntries, selectedItem, sessionEntries],
+  );
+  const hasDetail = Boolean(selectedDetail);
+
   useEffect(() => {
     if (!activeSearchOccurrence) return;
 
@@ -153,15 +159,21 @@ export function StorageView({
         `storage-row-${storageTargetKey(activeSearchOccurrence.target)}`,
       );
       row?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+
+      document
+        .querySelectorAll('.storage-table .search-highlight.is-active')
+        .forEach((mark) => mark.classList.remove('is-active'));
+
+      if (!hasDetail) {
+        const rowMarks = row?.querySelectorAll('.search-highlight');
+        rowMarks?.forEach((mark, index) => {
+          mark.classList.toggle('is-active', index === activeSearchOccurrence.occurrenceIndex);
+        });
+      }
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [activeSearchOccurrence, searchMatchIndex]);
-
-  const selectedDetail = useMemo(
-    () => resolveSelectedDetail(selectedItem, localEntries, sessionEntries, indexedDatabases),
-    [indexedDatabases, localEntries, selectedItem, sessionEntries],
-  );
+  }, [activeSearchOccurrence, hasDetail, searchMatchIndex]);
 
   useEffect(() => {
     if (!selectedItem) return;
@@ -182,8 +194,6 @@ export function StorageView({
 
     setSelectedItem(item);
   };
-
-  const hasDetail = Boolean(selectedDetail);
 
   return (
     <section className="storage-panel">
@@ -271,6 +281,7 @@ export function StorageView({
             <StorageDetailPanel
               detail={selectedDetail}
               searchText={searchText}
+              searchOccurrenceIndex={activeSearchOccurrence?.occurrenceIndex ?? 0}
               searchFocusKey={searchFocusKey}
             />
           </>
@@ -501,13 +512,59 @@ type StorageDetail =
 function StorageDetailPanel({
   detail,
   searchText,
+  searchOccurrenceIndex,
   searchFocusKey,
 }: {
   detail: StorageDetail;
   searchText: string;
+  searchOccurrenceIndex: number;
   searchFocusKey: string;
 }) {
+  const panelRef = useRef<HTMLElement>(null);
   const hasSearch = Boolean(searchText.trim());
+
+  useEffect(() => {
+    if (!hasSearch || !detail) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      const panel = panelRef.current;
+      if (!panel) return;
+
+      document
+        .querySelectorAll('.storage-table .search-highlight.is-active')
+        .forEach((mark) => mark.classList.remove('is-active'));
+
+      const marks = panel.querySelectorAll('.search-highlight');
+      marks.forEach((mark, index) => {
+        mark.classList.toggle('is-active', index === searchOccurrenceIndex);
+      });
+
+      const target = marks[searchOccurrenceIndex] ?? marks[0];
+      if (!target) return;
+
+      target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+
+      const jsonViewer = target.closest('.json-viewer');
+      if (jsonViewer instanceof HTMLElement) {
+        jsonViewer.scrollTop = Math.max(
+          0,
+          target instanceof HTMLElement ? target.offsetTop - jsonViewer.clientHeight / 2 : 0,
+        );
+        return;
+      }
+
+      const detailValue = target.closest('.storage-detail-value');
+      if (detailValue instanceof HTMLElement) {
+        detailValue.scrollTop = Math.max(
+          0,
+          target instanceof HTMLElement ? target.offsetTop - detailValue.clientHeight / 2 : 0,
+        );
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [detail, hasSearch, searchFocusKey, searchOccurrenceIndex, searchText]);
+
   if (!detail) return null;
 
   const metaMatchesSearch =
@@ -516,7 +573,7 @@ function StorageDetailPanel({
       detail.metaRows.some(([, value]) => textMatchesSearch(value, searchText)));
 
   return (
-    <aside className="storage-detail-panel">
+    <aside className="storage-detail-panel" ref={panelRef}>
       <div className="storage-detail-title">
         <div>
           <span className="storage-detail-kicker">{detail.subtitle}</span>
