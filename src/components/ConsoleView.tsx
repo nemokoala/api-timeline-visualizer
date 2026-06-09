@@ -8,6 +8,7 @@ import {
 import { highlightSearchText, textMatchesSearch } from '../utils/searchHighlight';
 import {
   buildConsoleSearchOccurrences,
+  consoleArgsMatchSearch,
   getSearchMatchIndexForConsoleEntry,
   matchesConsoleSearch,
   type ConsoleSearchOccurrence,
@@ -329,11 +330,12 @@ function ConsoleDetailPanel({
     return () => window.cancelAnimationFrame(frameId);
   }, [entry, hasSearch, searchFocusKey, searchOccurrenceIndex, searchText]);
 
+  const argsMatchesSearch = hasSearch && consoleArgsMatchSearch(entry.args, searchText);
   const summaryMatchesSearch =
     hasSearch &&
-    (textMatchesSearch(entry.text, searchText) ||
-      textMatchesSearch(entry.level, searchText) ||
-      (entry.source ? textMatchesSearch(entry.source, searchText) : false));
+    (textMatchesSearch(entry.level, searchText) ||
+      (entry.source ? textMatchesSearch(entry.source, searchText) : false) ||
+      (entry.args.length === 0 && textMatchesSearch(entry.text, searchText)));
 
   const stackMatchesSearch = hasSearch && entry.stack ? textMatchesSearch(entry.stack, searchText) : false;
 
@@ -342,9 +344,7 @@ function ConsoleDetailPanel({
       <div className="console-detail-title">
         <div>
           <span className="console-detail-kicker">{entry.level}</span>
-          <h2 title={entry.text}>
-            {hasSearch ? highlightSearchText(entry.text, searchText) : entry.text}
-          </h2>
+          <h2 title={entry.text}>{entry.text}</h2>
         </div>
         <span className="console-detail-timestamp">{formatDateTime(entry.timestamp)}</span>
       </div>
@@ -361,10 +361,12 @@ function ConsoleDetailPanel({
             <dt>Level</dt>
             <dd>{hasSearch ? highlightSearchText(entry.level, searchText) : entry.level}</dd>
           </div>
-          <div>
-            <dt>Message</dt>
-            <dd>{hasSearch ? highlightSearchText(entry.text, searchText) : entry.text}</dd>
-          </div>
+          {entry.args.length === 0 ? (
+            <div>
+              <dt>Message</dt>
+              <dd>{hasSearch ? highlightSearchText(entry.text, searchText) : entry.text}</dd>
+            </div>
+          ) : null}
           {entry.source ? (
             <div>
               <dt>Source</dt>
@@ -384,7 +386,7 @@ function ConsoleDetailPanel({
         sectionId={`${entry.id}:args`}
         title={`Arguments (${entry.args.length})`}
         defaultOpen
-        expandForSearch={hasSearch && entry.args.length > 0}
+        expandForSearch={argsMatchesSearch}
         searchExpandToken={searchFocusKey}
       >
         <div className="console-arg-stack">
@@ -436,36 +438,41 @@ function ConsoleArgBlock({
   searchFocusKey: string;
 }) {
   const hasSearch = Boolean(searchText.trim());
-  const isPrimitive =
-    value === null ||
-    value === undefined ||
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean';
 
-  if (isPrimitive) {
-    const display = value === undefined ? 'undefined' : value === null ? 'null' : String(value);
+  if (shouldRenderArgInJsonViewer(value)) {
     return (
       <div className="console-arg-block">
         <div className="console-arg-label">arg[{index}]</div>
-        <pre className="console-arg-primitive">
-          {hasSearch ? highlightSearchText(display, searchText) : display}
-        </pre>
+        <JsonViewer
+          instanceId={`console:${entryId}:arg:${index}`}
+          value={value}
+          searchText={searchText}
+          searchFocusKey={searchFocusKey}
+          recordKey={`arg[${index}]`}
+        />
       </div>
     );
   }
 
+  const display = value === undefined ? 'undefined' : value === null ? 'null' : String(value);
   return (
     <div className="console-arg-block">
       <div className="console-arg-label">arg[{index}]</div>
-      <JsonViewer
-        instanceId={`console:${entryId}:arg:${index}`}
-        value={value}
-        searchText={searchText}
-        searchFocusKey={searchFocusKey}
-        recordKey={`arg[${index}]`}
-      />
+      <pre className="console-arg-primitive">
+        {hasSearch ? highlightSearchText(display, searchText) : display}
+      </pre>
     </div>
+  );
+}
+
+function shouldRenderArgInJsonViewer(value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'object') return true;
+  if (typeof value !== 'string') return false;
+
+  const trimmed = value.trim();
+  return (
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))
   );
 }
 
