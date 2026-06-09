@@ -24,7 +24,7 @@ type TimelineViewProps = {
 
 const COLUMN_WIDTHS: Record<TimelineColumnId, string> = {
   time: '72px',
-  request: 'minmax(260px, 1fr)',
+  request: 'minmax(220px, 1fr)',
   status: '36px',
   duration: '52px',
 };
