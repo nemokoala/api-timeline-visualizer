@@ -17,8 +17,10 @@ type ToolbarProps = {
   workspaceMode: WorkspaceMode;
   networkViewMode: NetworkViewMode;
   groupFlowByTime: boolean;
-  includeText: string;
-  excludeText: string;
+  networkIncludeText: string;
+  networkExcludeText: string;
+  storageIncludeText: string;
+  storageExcludeText: string;
   sessionNotice: string | null;
   onSearchTextChange: (searchText: string) => void;
   onSearchNext: () => void;
@@ -26,8 +28,10 @@ type ToolbarProps = {
   onSearchNextRequest: () => void;
   onSearchPreviousRequest: () => void;
   onGroupFlowByTimeChange: (groupFlowByTime: boolean) => void;
-  onIncludeTextChange: (includeText: string) => void;
-  onExcludeTextChange: (excludeText: string) => void;
+  onNetworkIncludeTextChange: (includeText: string) => void;
+  onNetworkExcludeTextChange: (excludeText: string) => void;
+  onStorageIncludeTextChange: (includeText: string) => void;
+  onStorageExcludeTextChange: (excludeText: string) => void;
   onWorkspaceModeChange: (workspaceMode: WorkspaceMode) => void;
   onNetworkViewModeChange: (networkViewMode: NetworkViewMode) => void;
   onExportSession: () => void;
@@ -48,8 +52,10 @@ export function Toolbar({
   workspaceMode,
   networkViewMode,
   groupFlowByTime,
-  includeText,
-  excludeText,
+  networkIncludeText,
+  networkExcludeText,
+  storageIncludeText,
+  storageExcludeText,
   sessionNotice,
   onSearchTextChange,
   onSearchNext,
@@ -57,8 +63,10 @@ export function Toolbar({
   onSearchNextRequest,
   onSearchPreviousRequest,
   onGroupFlowByTimeChange,
-  onIncludeTextChange,
-  onExcludeTextChange,
+  onNetworkIncludeTextChange,
+  onNetworkExcludeTextChange,
+  onStorageIncludeTextChange,
+  onStorageExcludeTextChange,
   onWorkspaceModeChange,
   onNetworkViewModeChange,
   onExportSession,
@@ -68,6 +76,10 @@ export function Toolbar({
   const [isExpanded, setIsExpanded] = useState(() => getToolbarExpanded());
   const hasSearch = Boolean(searchText.trim());
   const isNetworkMode = workspaceMode === 'network';
+  const includeText = isNetworkMode ? networkIncludeText : storageIncludeText;
+  const excludeText = isNetworkMode ? networkExcludeText : storageExcludeText;
+  const onIncludeTextChange = isNetworkMode ? onNetworkIncludeTextChange : onStorageIncludeTextChange;
+  const onExcludeTextChange = isNetworkMode ? onNetworkExcludeTextChange : onStorageExcludeTextChange;
   const hasRequestSearch = hasSearch && isNetworkMode;
   const searchPosition = hasSearch && searchOccurrenceCount > 0 ? searchMatchIndex + 1 : 0;
   const requestPosition = hasSearch && searchRequestJumpCount > 0 ? activeSearchRequestOrder : 0;
@@ -215,7 +227,7 @@ export function Toolbar({
                 type="text"
                 value={includeText}
                 onChange={(event) => onIncludeTextChange(event.currentTarget.value)}
-                placeholder="api, graphql"
+                placeholder={isNetworkMode ? 'api, graphql' : 'token, auth'}
               />
             </label>
             <label className="filter-field">
@@ -224,7 +236,7 @@ export function Toolbar({
                 type="text"
                 value={excludeText}
                 onChange={(event) => onExcludeTextChange(event.currentTarget.value)}
-                placeholder="analytics, sentry"
+                placeholder={isNetworkMode ? 'analytics, sentry' : 'analytics, cache'}
               />
             </label>
           </div>

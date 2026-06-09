@@ -22,10 +22,14 @@ import {
   matchesRequestSearch,
 } from './utils/requestSearch';
 import {
-  getExcludeText,
-  getIncludeText,
-  saveExcludeText,
-  saveIncludeText,
+  getNetworkExcludeText,
+  getNetworkIncludeText,
+  getStorageExcludeText,
+  getStorageIncludeText,
+  saveNetworkExcludeText,
+  saveNetworkIncludeText,
+  saveStorageExcludeText,
+  saveStorageIncludeText,
 } from './utils/filterPrefs';
 import { useSplitPanelLayout } from './hooks/useSplitPanelLayout';
 import { toTimelineItems } from './utils/timeline';
@@ -40,8 +44,10 @@ export default function App() {
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('network');
   const [networkViewMode, setNetworkViewMode] = useState<NetworkViewMode>('flow');
   const [groupFlowByTime, setGroupFlowByTime] = useState(true);
-  const [includeText, setIncludeText] = useState(() => getIncludeText());
-  const [excludeText, setExcludeText] = useState(() => getExcludeText());
+  const [networkIncludeText, setNetworkIncludeText] = useState(() => getNetworkIncludeText());
+  const [networkExcludeText, setNetworkExcludeText] = useState(() => getNetworkExcludeText());
+  const [storageIncludeText, setStorageIncludeText] = useState(() => getStorageIncludeText());
+  const [storageExcludeText, setStorageExcludeText] = useState(() => getStorageExcludeText());
   const [searchText, setSearchText] = useState('');
   const [searchMatchIndex, setSearchMatchIndex] = useState(0);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
@@ -60,16 +66,24 @@ export default function App() {
   const preloadInFlightRef = useRef(new Set<string>());
 
   useEffect(() => {
-    saveIncludeText(includeText);
-  }, [includeText]);
+    saveNetworkIncludeText(networkIncludeText);
+  }, [networkIncludeText]);
 
   useEffect(() => {
-    saveExcludeText(excludeText);
-  }, [excludeText]);
+    saveNetworkExcludeText(networkExcludeText);
+  }, [networkExcludeText]);
+
+  useEffect(() => {
+    saveStorageIncludeText(storageIncludeText);
+  }, [storageIncludeText]);
+
+  useEffect(() => {
+    saveStorageExcludeText(storageExcludeText);
+  }, [storageExcludeText]);
 
   const filteredRequests = useMemo(
-    () => requests.filter((request) => matchesTextFilters(request, includeText, excludeText)),
-    [excludeText, includeText, requests],
+    () => requests.filter((request) => matchesTextFilters(request, networkIncludeText, networkExcludeText)),
+    [networkExcludeText, networkIncludeText, requests],
   );
 
   const searchMatches = useMemo(() => {
@@ -353,8 +367,10 @@ export default function App() {
         workspaceMode={workspaceMode}
         networkViewMode={networkViewMode}
         groupFlowByTime={groupFlowByTime}
-        includeText={includeText}
-        excludeText={excludeText}
+        networkIncludeText={networkIncludeText}
+        networkExcludeText={networkExcludeText}
+        storageIncludeText={storageIncludeText}
+        storageExcludeText={storageExcludeText}
         sessionNotice={sessionNotice}
         onSearchTextChange={handleSearchTextChange}
         onSearchNext={() => goToSearchMatch(1)}
@@ -364,8 +380,10 @@ export default function App() {
         searchRequestJumpCount={searchRequestJumpCount}
         activeSearchRequestOrder={activeSearchRequestOrder}
         onGroupFlowByTimeChange={setGroupFlowByTime}
-        onIncludeTextChange={setIncludeText}
-        onExcludeTextChange={setExcludeText}
+        onNetworkIncludeTextChange={setNetworkIncludeText}
+        onNetworkExcludeTextChange={setNetworkExcludeText}
+        onStorageIncludeTextChange={setStorageIncludeText}
+        onStorageExcludeTextChange={setStorageExcludeText}
         onWorkspaceModeChange={setWorkspaceMode}
         onNetworkViewModeChange={setNetworkViewMode}
         onExportSession={handleExportSession}
@@ -380,7 +398,11 @@ export default function App() {
         style={workspaceMode === 'storage' ? undefined : splitLayoutStyle}
       >
         {workspaceMode === 'storage' ? (
-          <StorageView searchText={searchText} excludeText={excludeText} />
+          <StorageView
+            searchText={searchText}
+            includeText={storageIncludeText}
+            excludeText={storageExcludeText}
+          />
         ) : networkViewMode === 'flow' ? (
           <FlowChartView
             items={timelineItems}

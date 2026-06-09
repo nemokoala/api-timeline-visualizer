@@ -9,6 +9,7 @@ import type {
 import { useSplitPanelLayout } from '../hooks/useSplitPanelLayout';
 import { canInspectPageStorage, inspectPageStorage } from '../utils/storageInspector';
 import { formatStorageValuePreview } from '../utils/storageBlobValue';
+import { matchesIncludeExcludeFilters } from '../utils/textFilters';
 import { textMatchesSearch } from '../utils/searchHighlight';
 import { DetailSection } from './DetailSection';
 import { JsonViewer } from './JsonViewer';
@@ -17,6 +18,7 @@ import { formatLocaleDateTime } from './formatters';
 
 type StorageViewProps = {
   searchText: string;
+  includeText: string;
   excludeText: string;
 };
 
@@ -26,7 +28,7 @@ type SelectedStorageItem =
   | { kind: 'local' | 'session'; key: string }
   | { kind: 'indexeddb'; databaseName: string; storeName: string; recordIndex: number };
 
-export function StorageView({ searchText, excludeText }: StorageViewProps) {
+export function StorageView({ searchText, includeText, excludeText }: StorageViewProps) {
   const [snapshot, setSnapshot] = useState<PageStorageSnapshot | null>(null);
   const [activeTab, setActiveTab] = useState<StorageTab>('local');
   const [selectedItem, setSelectedItem] = useState<SelectedStorageItem | null>(null);
@@ -66,16 +68,16 @@ export function StorageView({ searchText, excludeText }: StorageViewProps) {
   }, []);
 
   const localEntries = useMemo(
-    () => filterEntries(snapshot?.localStorage ?? [], searchText, excludeText),
-    [excludeText, searchText, snapshot],
+    () => filterEntries(snapshot?.localStorage ?? [], searchText, includeText, excludeText),
+    [excludeText, includeText, searchText, snapshot],
   );
   const sessionEntries = useMemo(
-    () => filterEntries(snapshot?.sessionStorage ?? [], searchText, excludeText),
-    [excludeText, searchText, snapshot],
+    () => filterEntries(snapshot?.sessionStorage ?? [], searchText, includeText, excludeText),
+    [excludeText, includeText, searchText, snapshot],
   );
   const indexedDatabases = useMemo(
-    () => filterIndexedDB(snapshot?.indexedDB ?? [], searchText, excludeText),
-    [excludeText, searchText, snapshot],
+    () => filterIndexedDB(snapshot?.indexedDB ?? [], searchText, includeText, excludeText),
+    [excludeText, includeText, searchText, snapshot],
   );
 
   const selectedDetail = useMemo(
@@ -442,32 +444,39 @@ function resolveSelectedDetail(
   };
 }
 
-function filterEntries(entries: StorageEntry[], searchText: string, excludeText: string): StorageEntry[] {
+function filterEntries(
+  entries: StorageEntry[],
+  searchText: string,
+  includeText: string,
+  excludeText: string,
+): StorageEntry[] {
   return entries.filter((entry) => {
     const haystack = `${entry.key} ${entry.value}`;
-    if (matchesAnyExclude(haystack, excludeText)) return false;
-    if (!searchText.trim()) return true;
-    return textMatchesSearch(haystack, searchText);
+    if (!matchesStorageFilters(haystack, includeText, excludeText, searchText)) return false;
+    return true;
   });
 }
 
 function filterIndexedDB(
   databases: IndexedDbDatabaseSnapshot[],
   searchText: string,
+  includeText: string,
   excludeText: string,
 ): IndexedDbDatabaseSnapshot[] {
   return databases
-    .filter((database) => !matchesAnyExclude(database.name, excludeText))
+    .filter((database) => matchesIncludeExcludeFilters(database.name, includeText, excludeText))
     .map((database) => {
       const stores = database.stores
-        .filter((store) => !matchesAnyExclude(`${database.name} ${store.name}`, excludeText))
+        .filter((store) =>
+          matchesIncludeExcludeFilters(`${database.name} ${store.name}`, includeText, excludeText),
+        )
         .map((store) => ({
           ...store,
-          records: filterIndexedDbRecords(database, store, searchText, excludeText),
+          records: filterIndexedDbRecords(database, store, searchText, includeText, excludeText),
         }))
         .filter((store) => {
           if (store.records.length > 0) return true;
-          if (!searchText.trim()) return true;
+          if (!searchText.trim() && !includeText.trim()) return true;
           return textMatchesSearch(`${database.name} ${store.name}`, searchText);
         });
 
@@ -475,7 +484,7 @@ function filterIndexedDB(
     })
     .filter((database) => {
       if (database.stores.length > 0) return true;
-      if (!searchText.trim()) return true;
+      if (!searchText.trim() && !includeText.trim()) return true;
       return textMatchesSearch(database.name, searchText);
     });
 }
@@ -484,29 +493,24 @@ function filterIndexedDbRecords(
   database: IndexedDbDatabaseSnapshot,
   store: IndexedDbStoreSnapshot,
   searchText: string,
+  includeText: string,
   excludeText: string,
 ): IndexedDbRecord[] {
   return store.records.filter((record) => {
     const haystack = `${database.name} ${store.name} ${record.key} ${record.value}`;
-    if (matchesAnyExclude(haystack, excludeText)) return false;
-    if (!searchText.trim()) return true;
-    return textMatchesSearch(haystack, searchText);
+    return matchesStorageFilters(haystack, includeText, excludeText, searchText);
   });
 }
 
-function matchesAnyExclude(text: string, excludeText: string): boolean {
-  const terms = getFilterTerms(excludeText);
-  if (!terms.length) return false;
-  const haystack = text.toLowerCase();
-  return terms.some((term) => haystack.includes(term));
-}
-
-function getFilterTerms(value: string): string[] {
-  return value
-    .toLowerCase()
-    .split(/[,\s]+/)
-    .map((term) => term.trim())
-    .filter(Boolean);
+function matchesStorageFilters(
+  haystack: string,
+  includeText: string,
+  excludeText: string,
+  searchText: string,
+): boolean {
+  if (!matchesIncludeExcludeFilters(haystack, includeText, excludeText)) return false;
+  if (!searchText.trim()) return true;
+  return textMatchesSearch(haystack, searchText);
 }
 
 function formatBytes(bytes: number): string {
