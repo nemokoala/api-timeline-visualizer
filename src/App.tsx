@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlowChartView } from './components/FlowChartView';
 import { RequestDetailPanel } from './components/RequestDetailPanel';
+import { SplitPanelResizer } from './components/SplitPanelResizer';
 import { StorageView } from './components/StorageView';
 import { TimelineView } from './components/TimelineView';
 import { Toolbar, type NetworkViewMode, type WorkspaceMode } from './components/Toolbar';
@@ -26,6 +27,7 @@ import {
   saveExcludeText,
   saveIncludeText,
 } from './utils/filterPrefs';
+import { useSplitPanelLayout } from './hooks/useSplitPanelLayout';
 import { toTimelineItems } from './utils/timeline';
 
 const PRELOAD_CONCURRENCY = 4;
@@ -43,8 +45,15 @@ export default function App() {
   const [searchText, setSearchText] = useState('');
   const [searchMatchIndex, setSearchMatchIndex] = useState(0);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
-  const [detailPanelWidth, setDetailPanelWidth] = useState(460);
-  const [isResizingDetail, setIsResizingDetail] = useState(false);
+  const workspaceRef = useRef<HTMLElement>(null);
+  const {
+    isStacked: isSplitStacked,
+    layoutStyle: splitLayoutStyle,
+    startWidthResize,
+    startHeightResize,
+    resetWidth: resetSplitWidth,
+    resetHeight: resetSplitHeight,
+  } = useSplitPanelLayout(workspaceRef);
   const networkRequestById = useRef(new Map<string, chrome.devtools.network.Request>());
   const searchInputRef = useRef<HTMLInputElement>(null);
   const preloadQueueRef = useRef<string[]>([]);
@@ -331,29 +340,6 @@ export default function App() {
     startResponseBodyLoad(selectedRequest.id);
   }, [selectedRequest, startResponseBodyLoad]);
 
-  useEffect(() => {
-    if (!isResizingDetail) return;
-
-    const handleMouseMove = (event: MouseEvent) => {
-      const nextWidth = window.innerWidth - event.clientX;
-      setDetailPanelWidth(clamp(nextWidth, 320, Math.min(820, window.innerWidth * 0.72)));
-    };
-
-    const handleMouseUp = () => {
-      setIsResizingDetail(false);
-    };
-
-    document.body.classList.add('resizing-detail-panel');
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      document.body.classList.remove('resizing-detail-panel');
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizingDetail]);
-
   return (
     <main className="app-shell">
       <Toolbar
@@ -389,11 +375,9 @@ export default function App() {
         onClear={handleClear}
       />
       <section
-        className={`workspace ${workspaceMode === 'storage' ? 'workspace-storage' : ''}`}
-        style={{
-          gridTemplateColumns:
-            workspaceMode === 'storage' ? 'minmax(0, 1fr)' : `minmax(0, 1fr) 8px minmax(320px, ${detailPanelWidth}px)`,
-        }}
+        ref={workspaceRef}
+        className={`workspace ${workspaceMode === 'storage' ? 'workspace-storage' : ''} ${isSplitStacked ? 'split-layout-stacked' : ''}`}
+        style={workspaceMode === 'storage' ? undefined : splitLayoutStyle}
       >
         {workspaceMode === 'storage' ? (
           <StorageView searchText={searchText} excludeText={excludeText} />
@@ -421,15 +405,11 @@ export default function App() {
         )}
         {workspaceMode === 'storage' ? null : (
           <>
-            <button
-              className="detail-resizer"
-              type="button"
-              aria-label="Resize request detail panel"
-              onMouseDown={(event) => {
-                event.preventDefault();
-                setIsResizingDetail(true);
-              }}
-              onDoubleClick={() => setDetailPanelWidth(460)}
+            <SplitPanelResizer
+              orientation={isSplitStacked ? 'horizontal' : 'vertical'}
+              ariaLabel="Resize request detail panel"
+              onMouseDown={isSplitStacked ? startHeightResize : startWidthResize}
+              onDoubleClick={isSplitStacked ? resetSplitHeight : resetSplitWidth}
             />
             <RequestDetailPanel
               request={selectedRequest}
@@ -444,8 +424,4 @@ export default function App() {
       </section>
     </main>
   );
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
 }
