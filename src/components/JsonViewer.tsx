@@ -14,9 +14,10 @@ type JsonViewerProps = {
   value: unknown;
   mimeType?: string;
   searchText?: string;
+  instanceId?: string;
 };
 
-export function JsonViewer({ value, mimeType, searchText = '' }: JsonViewerProps) {
+export function JsonViewer({ value, mimeType, searchText = '', instanceId }: JsonViewerProps) {
   const renderValue = coerceJson(value);
   const output = typeof renderValue === 'string' ? renderValue : JSON.stringify(renderValue, null, 2);
   const imageSource = getImageSource(value, mimeType);
@@ -27,22 +28,36 @@ export function JsonViewer({ value, mimeType, searchText = '' }: JsonViewerProps
         <div className="image-preview-frame">
           <ImagePreview src={imageSource} alt="Base64 response preview" />
         </div>
-        <JsonBlock value={renderValue} fallback={output} searchText={searchText} />
+        <JsonBlock
+          value={renderValue}
+          fallback={output}
+          searchText={searchText}
+          instanceId={instanceId}
+        />
       </div>
     );
   }
 
-  return <JsonBlock value={renderValue} fallback={output} searchText={searchText} />;
+  return (
+    <JsonBlock
+      value={renderValue}
+      fallback={output}
+      searchText={searchText}
+      instanceId={instanceId}
+    />
+  );
 }
 
 function JsonBlock({
   value,
   fallback,
   searchText,
+  instanceId,
 }: {
   value: unknown;
   fallback: string;
   searchText: string;
+  instanceId?: string;
 }) {
   const [copied, setCopied] = useState(false);
   const [fieldMenu, setFieldMenu] = useState<ActiveFieldMenu>(null);
@@ -50,6 +65,12 @@ function JsonBlock({
   const viewerBodyRef = useRef<HTMLDivElement>(null);
   const copyText = fallback || '{}';
   const isObject = Boolean(value && typeof value === 'object');
+
+  useEffect(() => {
+    setFieldMenu(null);
+    setIsFullscreen(false);
+    setCopied(false);
+  }, [instanceId]);
 
   useEffect(() => {
     if (!isFullscreen) return;

@@ -1471,11 +1471,40 @@ button {
 
 .response-json-slot {
   position: relative;
-  min-height: 220px;
+  height: 318px;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 .response-json-slot .json-viewer-wrap {
-  min-height: 220px;
+  height: 100%;
+}
+
+.response-json-slot:not(.is-loading) .json-viewer-wrap:not(.response-json-skeleton) {
+  animation: response-body-in 140ms ease;
+}
+
+@keyframes response-body-in {
+  from {
+    opacity: 0.72;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.response-json-slot .json-viewer-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.response-json-slot .json-viewer {
+  flex: 1;
+  max-height: none;
+  min-height: 0;
 }
 
 .response-json-slot.is-loading .json-viewer-wrap {
@@ -1484,6 +1513,10 @@ button {
 
 .response-json-slot.is-loading .json-viewer {
   opacity: 0.35;
+}
+
+.response-json-skeleton .json-viewer-toolbar {
+  pointer-events: none;
 }
 
 .response-loading-overlay {
@@ -1495,7 +1528,13 @@ button {
   justify-content: center;
   color: #9aa8b9;
   font-size: 12px;
+  opacity: 0;
   pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.response-json-slot.is-loading .response-loading-overlay {
+  opacity: 1;
 }
 
 .code-snippet-block {
