@@ -3,19 +3,22 @@ import type { ApiRequest } from '../types/network';
 import { DetailSection } from './DetailSection';
 import { generateCurl, generateFetch } from '../utils/requestCodeSnippets';
 import { getMatchingDetailSections } from '../utils/requestSearch';
+import { scrollSearchHitIntoView } from '../utils/searchScroll';
 import { highlightSearchText } from '../utils/searchHighlight';
 import { getImageSource } from '../utils/imageSource';
 import { formatDateTime, formatDuration, formatLocaleDateTime } from './formatters';
 import { ImagePreview } from './ImagePreview';
+import { DetailPanelCloseButton } from './DetailPanelCloseButton';
 import { JsonViewer } from './JsonViewer';
 
 type RequestDetailPanelProps = {
-  request: ApiRequest | null;
+  request: ApiRequest;
   isBodyLoading: boolean;
   searchText: string;
   searchOccurrenceIndex: number;
   searchFocusKey: string;
   onLoadResponseBody: (requestId: string) => void;
+  onClose: () => void;
 };
 
 export function RequestDetailPanel({
@@ -25,6 +28,7 @@ export function RequestDetailPanel({
   searchOccurrenceIndex,
   searchFocusKey,
   onLoadResponseBody,
+  onClose,
 }: RequestDetailPanelProps) {
   const panelRef = useRef<HTMLElement>(null);
 
@@ -43,17 +47,7 @@ export function RequestDetailPanel({
       const target = marks[searchOccurrenceIndex] ?? marks[0];
       if (!target) return;
 
-      target.scrollIntoView({ block: 'center', behavior: 'smooth' });
-
-      const jsonViewer = target.closest('.json-viewer');
-      if (jsonViewer instanceof HTMLElement) {
-        jsonViewer.scrollTop = Math.max(
-          0,
-          target instanceof HTMLElement
-            ? target.offsetTop - jsonViewer.clientHeight / 2
-            : 0,
-        );
-      }
+      scrollSearchHitIntoView(target);
     });
 
     return () => window.cancelAnimationFrame(frameId);
@@ -66,17 +60,6 @@ export function RequestDetailPanel({
     // Body load updates should not re-open collapsed sections.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by selection/search navigation only
   }, [hasSearch, searchText, searchFocusKey, request?.id]);
-
-  if (!request) {
-    return (
-      <aside className="detail-panel">
-        <div className="detail-empty">
-          <strong>Select a request</strong>
-          <span>Headers, payload, response, and timing details appear here.</span>
-        </div>
-      </aside>
-    );
-  }
 
   const titleImageSource =
     getImageSource(request.normalizedPath) ?? getImageSource(request.path) ?? getImageSource(request.url);
@@ -101,7 +84,10 @@ export function RequestDetailPanel({
           )}
           <p>{hasSearch ? highlightSearchText(request.host, searchText) : request.host}</p>
         </div>
-        <span className={`detail-status ${request.status >= 400 ? 'bad' : 'good'}`}>{request.status || 'n/a'}</span>
+        <div className="detail-panel-title-actions">
+          <span className={`detail-status ${request.status >= 400 ? 'bad' : 'good'}`}>{request.status || 'n/a'}</span>
+          <DetailPanelCloseButton onClick={onClose} label="Close request detail" />
+        </div>
       </div>
 
       <DetailSection

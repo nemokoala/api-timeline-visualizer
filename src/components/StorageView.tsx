@@ -10,6 +10,7 @@ import { useSplitPanelLayout } from '../hooks/useSplitPanelLayout';
 import { canInspectPageStorage, inspectPageStorage } from '../utils/storageInspector';
 import { formatStorageValuePreview } from '../utils/storageBlobValue';
 import { matchesIncludeExcludeFilters } from '../utils/textFilters';
+import { scrollSearchHitIntoView } from '../utils/searchScroll';
 import { highlightSearchText, textMatchesSearch } from '../utils/searchHighlight';
 import {
   buildStorageSearchOccurrences,
@@ -22,6 +23,7 @@ import {
   type StorageSearchOccurrence,
   type StorageSearchTarget,
 } from '../utils/storageSearch';
+import { DetailPanelCloseButton } from './DetailPanelCloseButton';
 import { DetailSection } from './DetailSection';
 import { JsonViewer } from './JsonViewer';
 import { SplitPanelResizer } from './SplitPanelResizer';
@@ -158,13 +160,14 @@ export function StorageView({
       const row = document.getElementById(
         `storage-row-${storageTargetKey(activeSearchOccurrence.target)}`,
       );
-      row?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 
       document
         .querySelectorAll('.storage-table .search-highlight.is-active')
         .forEach((mark) => mark.classList.remove('is-active'));
 
       if (!hasDetail) {
+        if (row) scrollSearchHitIntoView(row);
+
         const rowMarks = row?.querySelectorAll('.search-highlight');
         rowMarks?.forEach((mark, index) => {
           mark.classList.toggle('is-active', index === activeSearchOccurrence.occurrenceIndex);
@@ -283,6 +286,7 @@ export function StorageView({
               searchText={searchText}
               searchOccurrenceIndex={activeSearchOccurrence?.occurrenceIndex ?? 0}
               searchFocusKey={searchFocusKey}
+              onClose={() => setSelectedItem(null)}
             />
           </>
         ) : null}
@@ -514,11 +518,13 @@ function StorageDetailPanel({
   searchText,
   searchOccurrenceIndex,
   searchFocusKey,
+  onClose,
 }: {
   detail: StorageDetail;
   searchText: string;
   searchOccurrenceIndex: number;
   searchFocusKey: string;
+  onClose: () => void;
 }) {
   const panelRef = useRef<HTMLElement>(null);
   const hasSearch = Boolean(searchText.trim());
@@ -542,24 +548,7 @@ function StorageDetailPanel({
       const target = marks[searchOccurrenceIndex] ?? marks[0];
       if (!target) return;
 
-      target.scrollIntoView({ block: 'center', behavior: 'smooth' });
-
-      const jsonViewer = target.closest('.json-viewer');
-      if (jsonViewer instanceof HTMLElement) {
-        jsonViewer.scrollTop = Math.max(
-          0,
-          target instanceof HTMLElement ? target.offsetTop - jsonViewer.clientHeight / 2 : 0,
-        );
-        return;
-      }
-
-      const detailValue = target.closest('.storage-detail-value');
-      if (detailValue instanceof HTMLElement) {
-        detailValue.scrollTop = Math.max(
-          0,
-          target instanceof HTMLElement ? target.offsetTop - detailValue.clientHeight / 2 : 0,
-        );
-      }
+      scrollSearchHitIntoView(target);
     });
 
     return () => window.cancelAnimationFrame(frameId);
@@ -581,6 +570,7 @@ function StorageDetailPanel({
             {hasSearch ? highlightSearchText(detail.title, searchText) : detail.title}
           </h2>
         </div>
+        <DetailPanelCloseButton onClick={onClose} label="Close storage detail" />
       </div>
       <DetailSection
         sectionId={`${detail.instanceId}:meta`}

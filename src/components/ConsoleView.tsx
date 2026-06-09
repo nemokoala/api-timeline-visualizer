@@ -5,6 +5,7 @@ import {
   clearInspectedConsoleBuffer,
   setConsolePreserveLog,
 } from '../utils/consoleInspector';
+import { scrollSearchHitIntoView } from '../utils/searchScroll';
 import { highlightSearchText, textMatchesSearch } from '../utils/searchHighlight';
 import {
   buildConsoleSearchOccurrences,
@@ -13,6 +14,7 @@ import {
   matchesConsoleSearch,
   type ConsoleSearchOccurrence,
 } from '../utils/consoleSearch';
+import { DetailPanelCloseButton } from './DetailPanelCloseButton';
 import { DetailSection } from './DetailSection';
 import { JsonViewer } from './JsonViewer';
 import { SplitPanelResizer } from './SplitPanelResizer';
@@ -128,13 +130,14 @@ export function ConsoleView({
 
     const frameId = window.requestAnimationFrame(() => {
       const row = document.getElementById(`console-log-${activeSearchOccurrence.entryId}`);
-      row?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 
       document
         .querySelectorAll('.console-log-list .search-highlight.is-active')
         .forEach((mark) => mark.classList.remove('is-active'));
 
       if (!hasDetail) {
+        if (row) scrollSearchHitIntoView(row);
+
         const rowMarks = row?.querySelectorAll('.search-highlight');
         rowMarks?.forEach((mark, index) => {
           mark.classList.toggle('is-active', index === activeSearchOccurrence.occurrenceIndex);
@@ -237,6 +240,7 @@ export function ConsoleView({
               searchText={searchText}
               searchOccurrenceIndex={activeSearchOccurrence?.occurrenceIndex ?? 0}
               searchFocusKey={searchFocusKey}
+              onClose={() => onSelectedEntryIdChange(null)}
             />
           </>
         ) : null}
@@ -288,11 +292,13 @@ function ConsoleDetailPanel({
   searchText,
   searchOccurrenceIndex,
   searchFocusKey,
+  onClose,
 }: {
   entry: ConsoleEntry;
   searchText: string;
   searchOccurrenceIndex: number;
   searchFocusKey: string;
+  onClose: () => void;
 }) {
   const panelRef = useRef<HTMLElement>(null);
   const hasSearch = Boolean(searchText.trim());
@@ -316,15 +322,7 @@ function ConsoleDetailPanel({
       const target = marks[searchOccurrenceIndex] ?? marks[0];
       if (!target) return;
 
-      target.scrollIntoView({ block: 'center', behavior: 'smooth' });
-
-      const jsonViewer = target.closest('.json-viewer');
-      if (jsonViewer instanceof HTMLElement) {
-        jsonViewer.scrollTop = Math.max(
-          0,
-          target instanceof HTMLElement ? target.offsetTop - jsonViewer.clientHeight / 2 : 0,
-        );
-      }
+      scrollSearchHitIntoView(target);
     });
 
     return () => window.cancelAnimationFrame(frameId);
@@ -346,7 +344,10 @@ function ConsoleDetailPanel({
           <span className="console-detail-kicker">{entry.level}</span>
           <h2 title={entry.text}>{entry.text}</h2>
         </div>
-        <span className="console-detail-timestamp">{formatDateTime(entry.timestamp)}</span>
+        <div className="detail-panel-title-actions">
+          <span className="console-detail-timestamp">{formatDateTime(entry.timestamp)}</span>
+          <DetailPanelCloseButton onClick={onClose} label="Close log detail" />
+        </div>
       </div>
 
       <DetailSection

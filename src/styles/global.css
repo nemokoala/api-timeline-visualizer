@@ -753,6 +753,7 @@ button {
 .storage-detail-title {
   flex-shrink: 0;
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
@@ -1185,6 +1186,7 @@ button {
   top: 0;
   z-index: 1;
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
@@ -1877,6 +1879,36 @@ button {
   scrollbar-gutter: stable;
   background: #151a21;
   padding-bottom: 30px;
+}
+
+.detail-panel-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.detail-panel-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: 1px solid #3a4656;
+  border-radius: 5px;
+  padding: 0;
+  color: #c9d5e3;
+  background: rgba(24, 31, 40, 0.92);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.detail-panel-close:hover {
+  color: #071016;
+  background: #8bd5ff;
+  border-color: #8bd5ff;
 }
 
 .detail-title {
