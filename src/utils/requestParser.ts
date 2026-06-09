@@ -1,6 +1,7 @@
 import type { ApiRequest, HeaderMap, RequestKind } from '../types/network';
 import type { DevtoolsNetworkRequest, HarHeader, HarPostData } from '../types/chrome-har';
 import { getUrlParts } from './normalizeUrl';
+import { matchesIncludeExcludeFilters } from './textFilters';
 
 const EXCLUDED_RESOURCE_TYPES = new Set(['image', 'font', 'stylesheet', 'script', 'media']);
 const INCLUDED_RESOURCE_TYPES = new Set(['fetch', 'xhr', 'document', 'websocket']);
@@ -48,20 +49,7 @@ export function matchesTextFilters(
   excludeText: string,
 ): boolean {
   const haystack = `${request.url} ${request.host} ${request.path} ${request.normalizedPath}`.toLowerCase();
-  const includePatterns = parseFilterText(includeText);
-  const excludePatterns = parseFilterText(excludeText);
-
-  if (excludePatterns.some((pattern) => haystack.includes(pattern))) return false;
-  if (!includePatterns.length) return true;
-
-  return includePatterns.some((pattern) => haystack.includes(pattern));
-}
-
-function parseFilterText(value: string): string[] {
-  return value
-    .split(',')
-    .map((pattern) => pattern.trim().toLowerCase())
-    .filter(Boolean);
+  return matchesIncludeExcludeFilters(haystack, includeText, excludeText);
 }
 
 export function parseNetworkRequest(request: DevtoolsNetworkRequest): ApiRequest {
