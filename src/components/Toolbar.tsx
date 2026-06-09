@@ -1,7 +1,7 @@
 import { useState, type KeyboardEvent, type RefObject } from 'react';
 import { getToolbarExpanded, setToolbarExpanded } from '../utils/toolbarPrefs';
 
-export type WorkspaceMode = 'network' | 'storage';
+export type WorkspaceMode = 'network' | 'storage' | 'console';
 export type NetworkViewMode = 'flow' | 'timeline';
 
 type ToolbarProps = {
@@ -76,6 +76,8 @@ export function Toolbar({
   const [isExpanded, setIsExpanded] = useState(() => getToolbarExpanded());
   const hasSearch = Boolean(searchText.trim());
   const isNetworkMode = workspaceMode === 'network';
+  const isStorageMode = workspaceMode === 'storage';
+  const isConsoleMode = workspaceMode === 'console';
   const includeText = isNetworkMode ? networkIncludeText : storageIncludeText;
   const excludeText = isNetworkMode ? networkExcludeText : storageExcludeText;
   const onIncludeTextChange = isNetworkMode ? onNetworkIncludeTextChange : onStorageIncludeTextChange;
@@ -83,13 +85,23 @@ export function Toolbar({
   const hasActiveSearch = hasSearch && searchOccurrenceCount > 0;
   const searchPosition = hasSearch && searchOccurrenceCount > 0 ? searchMatchIndex + 1 : 0;
   const scopePosition = hasSearch && searchScopeJumpCount > 0 ? activeSearchScopeOrder : 0;
-  const scopeLabel = isNetworkMode ? 'Card' : 'Row';
-  const searchScopeSummaryLabel = isNetworkMode ? 'req' : 'rows';
-  const searchPlaceholder = isNetworkMode ? 'Search path, status, body…' : 'Search key, value…';
-  const searchAriaLabel = isNetworkMode ? 'Search requests' : 'Search storage';
+  const scopeLabel = isNetworkMode ? 'Card' : isStorageMode ? 'Row' : 'Log';
+  const searchScopeSummaryLabel = isNetworkMode ? 'req' : isStorageMode ? 'rows' : 'logs';
+  const searchPlaceholder = isNetworkMode
+    ? 'Search path, status, body…'
+    : isStorageMode
+      ? 'Search key, value…'
+      : 'Search logs, objects, stack…';
+  const searchAriaLabel = isNetworkMode
+    ? 'Search requests'
+    : isStorageMode
+      ? 'Search storage'
+      : 'Search console logs';
   const searchTitle = isNetworkMode
     ? 'Enter: next hit · Shift+Enter: previous hit · Ctrl+Enter: next card · Ctrl+Shift+Enter: previous card'
-    : 'Enter: next hit · Shift+Enter: previous hit · Ctrl+Enter: next row · Ctrl+Shift+Enter: previous row';
+    : isStorageMode
+      ? 'Enter: next hit · Shift+Enter: previous hit · Ctrl+Enter: next row · Ctrl+Shift+Enter: previous row'
+      : 'Enter: next hit · Shift+Enter: previous hit · Ctrl+Enter: next log · Ctrl+Shift+Enter: previous log';
 
   const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && event.shiftKey) {
@@ -150,8 +162,10 @@ export function Toolbar({
                   <span className="toolbar-chip">{totalRequestCount} captured</span>
                 ) : null}
               </>
-            ) : (
+            ) : isStorageMode ? (
               <span className="toolbar-chip">Storage viewer</span>
+            ) : (
+              <span className="toolbar-chip">{requestCount} logs</span>
             )}
             {hasActiveSearch ? (
               <span className="toolbar-chip toolbar-chip-accent">
@@ -204,6 +218,13 @@ export function Toolbar({
             >
               Storage
             </button>
+            <button
+              className={workspaceMode === 'console' ? 'active' : ''}
+              type="button"
+              onClick={() => onWorkspaceModeChange('console')}
+            >
+              Console
+            </button>
           </div>
           {isNetworkMode ? (
             <div className="segmented-control" aria-label="Network view mode">
@@ -228,26 +249,28 @@ export function Toolbar({
 
       {isExpanded ? (
         <div className="toolbar-row toolbar-row-secondary">
-          <div className="toolbar-filters">
-            <label className="filter-field">
-              <span className="filter-label">Include</span>
-              <input
-                type="text"
-                value={includeText}
-                onChange={(event) => onIncludeTextChange(event.currentTarget.value)}
-                placeholder={isNetworkMode ? 'api, graphql' : 'token, auth'}
-              />
-            </label>
-            <label className="filter-field">
-              <span className="filter-label">Exclude</span>
-              <input
-                type="text"
-                value={excludeText}
-                onChange={(event) => onExcludeTextChange(event.currentTarget.value)}
-                placeholder={isNetworkMode ? 'analytics, sentry' : 'analytics, cache'}
-              />
-            </label>
-          </div>
+          {isConsoleMode ? null : (
+            <div className="toolbar-filters">
+              <label className="filter-field">
+                <span className="filter-label">Include</span>
+                <input
+                  type="text"
+                  value={includeText}
+                  onChange={(event) => onIncludeTextChange(event.currentTarget.value)}
+                  placeholder={isNetworkMode ? 'api, graphql' : 'token, auth'}
+                />
+              </label>
+              <label className="filter-field">
+                <span className="filter-label">Exclude</span>
+                <input
+                  type="text"
+                  value={excludeText}
+                  onChange={(event) => onExcludeTextChange(event.currentTarget.value)}
+                  placeholder={isNetworkMode ? 'analytics, sentry' : 'analytics, cache'}
+                />
+              </label>
+            </div>
+          )}
 
           <div className="toolbar-secondary-end">
             {sessionNotice ? <p className="toolbar-notice">{sessionNotice}</p> : null}
