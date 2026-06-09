@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { ApiRequest } from '../types/network';
 import { getDetailSectionOpen, setDetailSectionOpen } from '../utils/detailSectionPrefs';
 import { generateCurl, generateFetch } from '../utils/requestCodeSnippets';
@@ -59,6 +59,14 @@ export function RequestDetailPanel({
     return () => window.cancelAnimationFrame(frameId);
   }, [request, searchFocusKey, searchOccurrenceIndex, searchText]);
 
+  const hasSearch = Boolean(searchText.trim());
+  const matchingSections = useMemo(() => {
+    if (!request || !hasSearch) return new Set<string>();
+    return getMatchingDetailSections(request, searchText);
+    // Body load updates should not re-open collapsed sections.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by selection/search navigation only
+  }, [hasSearch, searchText, searchFocusKey, request?.id]);
+
   if (!request) {
     return (
       <aside className="detail-panel">
@@ -74,8 +82,6 @@ export function RequestDetailPanel({
     getImageSource(request.normalizedPath) ?? getImageSource(request.path) ?? getImageSource(request.url);
   const title = titleImageSource ? 'Image payload' : request.normalizedPath;
   const displayUrl = titleImageSource ? summarizeImageUrl(request.url) : request.url;
-  const matchingSections = getMatchingDetailSections(request, searchText);
-  const hasSearch = Boolean(searchText.trim());
 
   return (
     <aside className="detail-panel" ref={panelRef}>
@@ -95,7 +101,13 @@ export function RequestDetailPanel({
         <span className={`detail-status ${request.status >= 400 ? 'bad' : 'good'}`}>{request.status || 'n/a'}</span>
       </div>
 
-      <DetailSection sectionId="general" title="General" defaultOpen expandForSearch={matchingSections.has('general')}>
+      <DetailSection
+        sectionId="general"
+        title="General"
+        defaultOpen
+        searchExpandToken={searchFocusKey}
+        expandForSearch={matchingSections.has('general')}
+      >
         <DefinitionList
           searchText={searchText}
           rows={[
@@ -109,34 +121,64 @@ export function RequestDetailPanel({
         />
       </DetailSection>
 
-      <DetailSection sectionId="headers" title="Headers" expandForSearch={matchingSections.has('headers')}>
+      <DetailSection
+        sectionId="headers"
+        title="Headers"
+        searchExpandToken={searchFocusKey}
+        expandForSearch={matchingSections.has('headers')}
+      >
         <h3>Request</h3>
         <JsonViewer value={request.requestHeaders ?? {}} searchText={searchText} />
         <h3>Response</h3>
         <JsonViewer value={request.responseHeaders ?? {}} searchText={searchText} />
       </DetailSection>
 
-      <DetailSection sectionId="payload" title="Payload" expandForSearch={matchingSections.has('payload')}>
+      <DetailSection
+        sectionId="payload"
+        title="Payload"
+        searchExpandToken={searchFocusKey}
+        expandForSearch={matchingSections.has('payload')}
+      >
         <h3>Query Params</h3>
         <JsonViewer value={request.queryParams ?? {}} searchText={searchText} />
         <h3>Request Body</h3>
         <JsonViewer value={request.requestBody ?? 'Request payload is not available for this request.'} searchText={searchText} />
       </DetailSection>
 
-      <DetailSection sectionId="response" title="Response" defaultOpen expandForSearch={matchingSections.has('response')}>
+      <DetailSection
+        sectionId="response"
+        title="Response"
+        defaultOpen
+        searchExpandToken={searchFocusKey}
+        expandForSearch={matchingSections.has('response')}
+      >
         <div className="response-actions">
           <button type="button" onClick={() => onLoadResponseBody(request.id)} disabled={isBodyLoading}>
             {isBodyLoading ? 'Loading...' : request.responseContent === undefined ? 'Load body' : 'Reload body'}
           </button>
         </div>
-        <JsonViewer
-          value={request.responsePreview ?? request.responseContent ?? 'Response body is not available.'}
-          mimeType={request.mimeType}
-          searchText={searchText}
-        />
+        <div
+          className={`response-json-slot ${isBodyLoading && request.responseContent === undefined ? 'is-loading' : ''}`}
+        >
+          {isBodyLoading && request.responseContent === undefined ? (
+            <div className="response-loading-overlay" aria-live="polite">
+              Loading response body...
+            </div>
+          ) : null}
+          <JsonViewer
+            value={request.responsePreview ?? request.responseContent ?? 'Response body is not available.'}
+            mimeType={request.mimeType}
+            searchText={searchText}
+          />
+        </div>
       </DetailSection>
 
-      <DetailSection sectionId="timing" title="Timing" expandForSearch={matchingSections.has('timing')}>
+      <DetailSection
+        sectionId="timing"
+        title="Timing"
+        searchExpandToken={searchFocusKey}
+        expandForSearch={matchingSections.has('timing')}
+      >
         <DefinitionList
           searchText={searchText}
           rows={[
@@ -147,7 +189,12 @@ export function RequestDetailPanel({
         />
       </DetailSection>
 
-      <DetailSection sectionId="replay" title="Replay" expandForSearch={matchingSections.has('replay')}>
+      <DetailSection
+        sectionId="replay"
+        title="Replay"
+        searchExpandToken={searchFocusKey}
+        expandForSearch={matchingSections.has('replay')}
+      >
         <CodeSnippetBlock request={request} searchText={searchText} />
       </DetailSection>
     </aside>
@@ -166,15 +213,22 @@ function DetailSection({
   children,
   defaultOpen = false,
   expandForSearch = false,
+  searchExpandToken = '',
 }: {
   sectionId: string;
   title: string;
   children: ReactNode;
   defaultOpen?: boolean;
   expandForSearch?: boolean;
+  searchExpandToken?: string;
 }) {
   const [open, setOpen] = useState(() => getDetailSectionOpen(sectionId, defaultOpen));
-  const isOpen = open || expandForSearch;
+
+  useEffect(() => {
+    if (!expandForSearch) return;
+    setOpen(true);
+    setDetailSectionOpen(sectionId, true);
+  }, [searchExpandToken, sectionId]);
 
   const handleToggle = () => {
     setOpen((current) => {
@@ -185,17 +239,17 @@ function DetailSection({
   };
 
   return (
-    <section className={`detail-section ${isOpen ? 'is-open' : ''} ${expandForSearch ? 'has-search-match' : ''}`}>
+    <section className={`detail-section ${open ? 'is-open' : ''} ${expandForSearch ? 'has-search-match' : ''}`}>
       <button
         className="detail-section-toggle"
         type="button"
-        aria-expanded={isOpen}
+        aria-expanded={open}
         onClick={handleToggle}
       >
         <span className="detail-section-title">{title}</span>
         <span className="detail-section-chevron" aria-hidden="true" />
       </button>
-      {isOpen ? <div className="detail-section-body">{children}</div> : null}
+      {open ? <div className="detail-section-body">{children}</div> : null}
     </section>
   );
 }
