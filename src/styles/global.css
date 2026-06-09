@@ -745,6 +745,8 @@ button {
 }
 
 .storage-detail-value {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -752,11 +754,21 @@ button {
 }
 
 .storage-detail-value .json-viewer-wrap {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+.storage-detail-value .json-viewer-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .storage-detail-value .json-viewer {
+  flex: 1;
   max-height: none;
+  min-height: 0;
 }
 
 .storage-value-heading {
