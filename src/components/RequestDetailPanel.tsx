@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { ApiRequest } from '../types/network';
-import { getDetailSectionOpen, setDetailSectionOpen } from '../utils/detailSectionPrefs';
+import { DetailSection } from './DetailSection';
 import { generateCurl, generateFetch } from '../utils/requestCodeSnippets';
 import { getMatchingDetailSections } from '../utils/requestSearch';
 import { highlightSearchText } from '../utils/searchHighlight';
@@ -232,53 +232,6 @@ function summarizeImageUrl(url: string): string {
   const mimeMatch = url.match(/(?:data:)?(image\/[a-z0-9.+-]+);base64,/i);
   if (!mimeMatch) return url;
   return `${mimeMatch[1]} base64 image data`;
-}
-
-function DetailSection({
-  sectionId,
-  title,
-  children,
-  defaultOpen = false,
-  expandForSearch = false,
-  searchExpandToken = '',
-}: {
-  sectionId: string;
-  title: string;
-  children: ReactNode;
-  defaultOpen?: boolean;
-  expandForSearch?: boolean;
-  searchExpandToken?: string;
-}) {
-  const [open, setOpen] = useState(() => getDetailSectionOpen(sectionId, defaultOpen));
-
-  useEffect(() => {
-    if (!expandForSearch) return;
-    setOpen(true);
-    setDetailSectionOpen(sectionId, true);
-  }, [searchExpandToken, sectionId]);
-
-  const handleToggle = () => {
-    setOpen((current) => {
-      const next = !current;
-      setDetailSectionOpen(sectionId, next);
-      return next;
-    });
-  };
-
-  return (
-    <section className={`detail-section ${open ? 'is-open' : ''} ${expandForSearch ? 'has-search-match' : ''}`}>
-      <button
-        className="detail-section-toggle"
-        type="button"
-        aria-expanded={open}
-        onClick={handleToggle}
-      >
-        <span className="detail-section-title">{title}</span>
-        <span className="detail-section-chevron" aria-hidden="true" />
-      </button>
-      {open ? <div className="detail-section-body">{children}</div> : null}
-    </section>
-  );
 }
 
 function DefinitionList({
