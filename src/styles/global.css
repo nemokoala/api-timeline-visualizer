@@ -2232,6 +2232,15 @@ button {
   color: #c7d2df;
 }
 
+.json-tree .search-highlight,
+.json-key-button .search-highlight,
+.json-string .search-highlight,
+.json-number .search-highlight,
+.json-boolean .search-highlight {
+  color: #071016;
+  background: #ffd37a;
+}
+
 .json-key {
   color: #8bd5ff;
 }

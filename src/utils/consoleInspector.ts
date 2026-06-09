@@ -1,6 +1,7 @@
 import type { ConsoleEntry } from '../types/console';
 
 const POLL_INTERVAL_MS = 160;
+const MAX_SERIALIZE_DEPTH = 64;
 
 export function canInspectConsole(): boolean {
   return typeof chrome !== 'undefined' && Boolean(chrome.devtools?.inspectedWindow?.eval);
@@ -74,6 +75,8 @@ function normalizeEntries(value: unknown): ConsoleEntry[] {
 function buildInstallScript(preserveLog: boolean): string {
   return `
 (() => {
+  window.__API_FLOW_CONSOLE_MAX_DEPTH__ = ${MAX_SERIALIZE_DEPTH};
+
   if (window.__API_FLOW_CONSOLE_INSTALLED__) {
     window.__API_FLOW_CONSOLE_PRESERVE_LOG__ = ${preserveLog ? 'true' : 'false'};
     return true;
@@ -86,7 +89,8 @@ function buildInstallScript(preserveLog: boolean): string {
   let entryCounter = 0;
 
   const serializeValue = (value, depth, seen) => {
-    if (depth > 4) return '[MaxDepth]';
+    const maxSerializeDepth = window.__API_FLOW_CONSOLE_MAX_DEPTH__ ?? ${MAX_SERIALIZE_DEPTH};
+    if (depth > maxSerializeDepth) return '[MaxDepth]';
     if (value === null) return null;
     if (value === undefined) return undefined;
 
