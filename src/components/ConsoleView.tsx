@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import type { ConsoleEntry, ConsoleLevelFilter } from '../types/console';
 import { useSplitPanelLayout } from '../hooks/useSplitPanelLayout';
 import {
@@ -20,6 +20,7 @@ import { DetailSection } from './DetailSection';
 import { JsonViewer } from './JsonViewer';
 import { SplitPanelResizer } from './SplitPanelResizer';
 import { formatDateTime } from './formatters';
+import { ColumnMenu } from './ColumnMenu';
 
 type ConsoleViewProps = {
   entries: ConsoleEntry[];
@@ -41,6 +42,39 @@ const LEVEL_FILTERS: Array<{ value: ConsoleLevelFilter; label: string }> = [
   { value: 'debug', label: 'Debug' },
 ];
 
+type ConsoleColumnId = 'level' | 'timestamp' | 'source';
+type ColumnVisibility = Record<ConsoleColumnId, boolean>;
+
+const CONSOLE_COLUMNS: Array<{ id: ConsoleColumnId; label: string }> = [
+  { id: 'level', label: 'Level' },
+  { id: 'timestamp', label: 'Timestamp' },
+  { id: 'source', label: 'Source' },
+];
+
+const COLUMNS_STORAGE_KEY = 'console-column-visibility';
+const DEFAULT_COLUMN_VISIBILITY: ColumnVisibility = { level: true, timestamp: true, source: true };
+
+function loadColumnVisibility(): ColumnVisibility {
+  try {
+    const raw = localStorage.getItem(COLUMNS_STORAGE_KEY);
+    if (!raw) return DEFAULT_COLUMN_VISIBILITY;
+    const parsed = JSON.parse(raw) as Partial<ColumnVisibility>;
+    return { ...DEFAULT_COLUMN_VISIBILITY, ...parsed };
+  } catch {
+    return DEFAULT_COLUMN_VISIBILITY;
+  }
+}
+
+function buildGridStyle(vis: ColumnVisibility): { gridTemplateColumns: string } {
+  const tracks: string[] = [];
+  if (vis.level) tracks.push('56px');
+  if (vis.timestamp) tracks.push('88px');
+  tracks.push('minmax(0, 1fr)');
+  tracks.push('auto');
+  if (vis.source) tracks.push('auto');
+  return { gridTemplateColumns: tracks.join(' ') };
+}
+
 export function ConsoleView({
   entries,
   selectedEntryId,
@@ -55,8 +89,25 @@ export function ConsoleView({
   const [levelFilter, setLevelFilter] = useState<ConsoleLevelFilter>('all');
   const [preserveLog, setPreserveLog] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(loadColumnVisibility);
+  const [columnMenu, setColumnMenu] = useState<{ x: number; y: number } | null>(null);
   const consoleWorkspaceRef = useRef<HTMLDivElement>(null);
   const logListRef = useRef<HTMLDivElement>(null);
+
+  const gridStyle = buildGridStyle(columnVisibility);
+
+  const handleColumnToggle = (col: ConsoleColumnId) => {
+    setColumnVisibility((prev) => {
+      const next = { ...prev, [col]: !prev[col] };
+      localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const handleColumnContextMenu = (event: ReactMouseEvent) => {
+    event.preventDefault();
+    setColumnMenu({ x: event.clientX, y: event.clientY });
+  };
   const {
     isStacked: isSplitStacked,
     layoutStyle: splitLayoutStyle,
@@ -214,6 +265,18 @@ export function ConsoleView({
         style={hasDetail ? splitLayoutStyle : undefined}
       >
         <div className="console-log-list" ref={logListRef}>
+          <div
+            className="console-log-header"
+            style={gridStyle}
+            onContextMenu={handleColumnContextMenu}
+            title="우클릭: 열 표시 설정"
+          >
+            {columnVisibility.level && <span className="console-log-header-cell">Level</span>}
+            {columnVisibility.timestamp && <span className="console-log-header-cell">Timestamp</span>}
+            <span className="console-log-header-cell">Message</span>
+            <span />
+            {columnVisibility.source && <span className="console-log-header-cell">Source</span>}
+          </div>
           {!displayEntries.length ? (
             <div className="console-empty">No console output yet. Logs appear after the panel opens.</div>
           ) : (
@@ -223,6 +286,8 @@ export function ConsoleView({
                 entry={entry}
                 selected={selectedEntryId === entry.id}
                 searchText={searchText}
+                columnVisibility={columnVisibility}
+                gridStyle={gridStyle}
                 onSelect={() => handleSelectEntry(entry.id)}
               />
             ))
@@ -247,6 +312,17 @@ export function ConsoleView({
           </>
         ) : null}
       </div>
+
+      {columnMenu ? (
+        <ColumnMenu
+          columns={CONSOLE_COLUMNS}
+          visibility={columnVisibility}
+          position={columnMenu}
+          minVisible={0}
+          onToggle={handleColumnToggle}
+          onClose={() => setColumnMenu(null)}
+        />
+      ) : null}
     </section>
   );
 }
@@ -255,11 +331,15 @@ function ConsoleLogRow({
   entry,
   selected,
   searchText,
+  columnVisibility,
+  gridStyle,
   onSelect,
 }: {
   entry: ConsoleEntry;
   selected: boolean;
   searchText: string;
+  columnVisibility: ColumnVisibility;
+  gridStyle: { gridTemplateColumns: string };
   onSelect: () => void;
 }) {
   const searchOptions = useSearchOptions();
@@ -271,21 +351,32 @@ function ConsoleLogRow({
       id={`console-log-${entry.id}`}
       type="button"
       className={`console-log-row ${levelClass} ${selected ? 'selected' : ''}`}
+      style={gridStyle}
       onClick={onSelect}
     >
-      <span className={`console-level-badge ${levelClass}`}>{entry.level}</span>
-      <span className="console-log-timestamp">{formatDateTime(entry.timestamp)}</span>
+      {columnVisibility.level && (
+        <span className={`console-level-badge ${levelClass}`}>{entry.level}</span>
+      )}
+      {columnVisibility.timestamp && (
+        <span className="console-log-timestamp">{formatDateTime(entry.timestamp)}</span>
+      )}
       <span className="console-log-message" title={entry.text}>
         {hasSearch ? highlightSearchText(entry.text, searchText, searchOptions) : entry.text}
       </span>
-      {entry.repeatCount && entry.repeatCount > 1 ? (
-        <span className="console-repeat-badge">{entry.repeatCount}</span>
-      ) : null}
-      {entry.source ? (
-        <span className="console-log-source" title={entry.source}>
-          {hasSearch ? highlightSearchText(entry.source, searchText, searchOptions) : entry.source}
+      <span>
+        {entry.repeatCount && entry.repeatCount > 1 ? (
+          <span className="console-repeat-badge">{entry.repeatCount}</span>
+        ) : null}
+      </span>
+      {columnVisibility.source && (
+        <span className="console-log-source" title={entry.source ?? ''}>
+          {entry.source
+            ? hasSearch
+              ? highlightSearchText(entry.source, searchText, searchOptions)
+              : entry.source
+            : null}
         </span>
-      ) : null}
+      )}
     </button>
   );
 }

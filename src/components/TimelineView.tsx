@@ -11,6 +11,7 @@ import {
 import type { RequestSearchSummary } from '../utils/requestSearch';
 import { formatDuration, formatOffset, getStatusTone } from './formatters';
 import { SearchHitBadge } from './SearchHitBadge';
+import { ColumnMenu } from './ColumnMenu';
 
 type TimelineViewProps = {
   items: TimelineItem[];
@@ -68,7 +69,6 @@ export function TimelineView({
 }: TimelineViewProps) {
   const [prefs, setPrefs] = useState<TimelinePrefs>(getTimelinePrefs);
   const [columnMenu, setColumnMenu] = useState<{ x: number; y: number } | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
   const requestById = useMemo(
     () => new Map(requests.map((request) => [request.id, request])),
     [requests],
@@ -124,26 +124,6 @@ export function TimelineView({
   };
 
   useEffect(() => {
-    if (!columnMenu) return;
-
-    const handlePointerDown = (event: MouseEvent) => {
-      if (menuRef.current?.contains(event.target as Node)) return;
-      setColumnMenu(null);
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setColumnMenu(null);
-    };
-
-    window.addEventListener('mousedown', handlePointerDown);
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('mousedown', handlePointerDown);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [columnMenu]);
-
-  useEffect(() => {
     if (!selectedRequestId) return;
     rowRefs.current.get(selectedRequestId)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [sortedItems, selectedRequestId]);
@@ -176,36 +156,13 @@ export function TimelineView({
       </div>
 
       {columnMenu ? (
-        <div
-          ref={menuRef}
-          className="timeline-column-menu"
-          style={{ top: columnMenu.y, left: columnMenu.x }}
-          role="menu"
-          aria-label="열 표시 설정"
-        >
-          {TIMELINE_COLUMNS.map((column) => {
-            const isVisible = prefs.columnVisibility[column];
-            const isLastVisible =
-              isVisible && TIMELINE_COLUMNS.filter((id) => prefs.columnVisibility[id]).length <= 1;
-
-            return (
-              <button
-                key={column}
-                type="button"
-                role="menuitemcheckbox"
-                aria-checked={isVisible}
-                className={`timeline-column-menu-item ${isVisible ? 'checked' : ''}`}
-                disabled={isLastVisible}
-                onClick={() => toggleColumnVisibility(column)}
-              >
-                <span className="timeline-column-menu-check" aria-hidden="true">
-                  {isVisible ? '✓' : ''}
-                </span>
-                <span>{TIMELINE_COLUMN_LABELS[column]}</span>
-              </button>
-            );
-          })}
-        </div>
+        <ColumnMenu
+          columns={TIMELINE_COLUMNS.map((id) => ({ id, label: TIMELINE_COLUMN_LABELS[id] }))}
+          visibility={prefs.columnVisibility}
+          position={columnMenu}
+          onToggle={toggleColumnVisibility}
+          onClose={() => setColumnMenu(null)}
+        />
       ) : null}
 
       {sortedItems.length === 0 ? (
