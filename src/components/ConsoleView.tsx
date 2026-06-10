@@ -15,7 +15,7 @@ import {
   matchesConsoleSearch,
   type ConsoleSearchOccurrence,
 } from '../utils/consoleSearch';
-import { DetailPanelCloseButton } from './DetailPanelCloseButton';
+import { DetailPanelCloseButton, SplitLayoutToggleButton } from './DetailPanelCloseButton';
 import { DetailSection } from './DetailSection';
 import { JsonViewer } from './JsonViewer';
 import { SplitPanelResizer } from './SplitPanelResizer';
@@ -115,6 +115,7 @@ export function ConsoleView({
     startHeightResize,
     resetWidth: resetSplitWidth,
     resetHeight: resetSplitHeight,
+    toggleSplitLayout,
   } = useSplitPanelLayout(consoleWorkspaceRef);
 
   const hasSearch = Boolean(searchText.trim());
@@ -307,6 +308,8 @@ export function ConsoleView({
               searchText={searchText}
               searchOccurrenceIndex={activeSearchOccurrence?.occurrenceIndex ?? 0}
               searchFocusKey={searchFocusKey}
+              isStacked={isSplitStacked}
+              onToggleLayout={toggleSplitLayout}
               onClose={() => onSelectedEntryIdChange(null)}
             />
           </>
@@ -386,12 +389,16 @@ function ConsoleDetailPanel({
   searchText,
   searchOccurrenceIndex,
   searchFocusKey,
+  isStacked,
+  onToggleLayout,
   onClose,
 }: {
   entry: ConsoleEntry;
   searchText: string;
   searchOccurrenceIndex: number;
   searchFocusKey: string;
+  isStacked: boolean;
+  onToggleLayout: () => void;
   onClose: () => void;
 }) {
   const searchOptions = useSearchOptions();
@@ -442,6 +449,7 @@ function ConsoleDetailPanel({
         </div>
         <div className="detail-panel-title-actions">
           <span className="console-detail-timestamp">{formatDateTime(entry.timestamp)}</span>
+          <SplitLayoutToggleButton isStacked={isStacked} onClick={onToggleLayout} />
           <DetailPanelCloseButton onClick={onClose} label="Close log detail" />
         </div>
       </div>
