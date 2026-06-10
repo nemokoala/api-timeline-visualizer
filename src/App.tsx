@@ -291,22 +291,26 @@ export default function App() {
   }, [sessionNotice]);
 
   useEffect(() => {
-    if (!isConsoleMode || !canInspectConsole()) return;
+    if (!canInspectConsole()) return;
 
     let cancelled = false;
-
-    void installConsoleCapture(true).catch(() => undefined);
+    let captureInstalled = false;
 
     const poll = async () => {
       if (cancelled) return;
 
       try {
+        if (!captureInstalled) {
+          await installConsoleCapture(true);
+          captureInstalled = true;
+        }
         const drained = await drainConsoleEntries();
         if (drained.length) {
           setConsoleEntries((current) => [...current, ...drained]);
         }
       } catch {
-        // Ignore transient eval failures while the inspected page reloads.
+        // Page reloading — reset flag so capture is reinstalled on next poll.
+        captureInstalled = false;
       }
     };
 
@@ -319,7 +323,7 @@ export default function App() {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [isConsoleMode]);
+  }, []);
 
   useEffect(() => {
     if (typeof chrome === 'undefined' || !chrome.devtools?.network) return;
