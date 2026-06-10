@@ -108,6 +108,7 @@ export default function App() {
     startHeightResize,
     resetWidth: resetSplitWidth,
     resetHeight: resetSplitHeight,
+    toggleSplitLayout,
   } = useSplitPanelLayout(workspaceRef);
   const networkRequestById = useRef(new Map<string, chrome.devtools.network.Request>());
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -727,7 +728,9 @@ export default function App() {
               searchText={networkSearchText}
               searchOccurrenceIndex={activeSearchOccurrence?.occurrenceIndex ?? 0}
               searchFocusKey={`${networkSearchMatchIndex}:${activeSearchOccurrence?.requestId ?? ''}:${activeSearchOccurrence?.occurrenceIndex ?? 0}`}
+              isStacked={isSplitStacked}
               onLoadResponseBody={loadResponseBody}
+              onToggleLayout={toggleSplitLayout}
               onClose={() => setSelectedRequestId(null)}
             />
           </>

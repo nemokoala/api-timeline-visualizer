@@ -24,7 +24,7 @@ import {
   type StorageSearchOccurrence,
   type StorageSearchTarget,
 } from '../utils/storageSearch';
-import { DetailPanelCloseButton } from './DetailPanelCloseButton';
+import { DetailPanelCloseButton, SplitLayoutToggleButton } from './DetailPanelCloseButton';
 import { DetailSection } from './DetailSection';
 import { JsonViewer } from './JsonViewer';
 import { SplitPanelResizer } from './SplitPanelResizer';
@@ -65,6 +65,7 @@ export function StorageView({
     startHeightResize,
     resetWidth: resetSplitWidth,
     resetHeight: resetSplitHeight,
+    toggleSplitLayout,
   } = useSplitPanelLayout(storageWorkspaceRef);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -302,6 +303,8 @@ export function StorageView({
               searchText={searchText}
               searchOccurrenceIndex={activeSearchOccurrence?.occurrenceIndex ?? 0}
               searchFocusKey={searchFocusKey}
+              isStacked={isSplitStacked}
+              onToggleLayout={toggleSplitLayout}
               onClose={() => setSelectedItem(null)}
             />
           </>
@@ -537,12 +540,16 @@ function StorageDetailPanel({
   searchText,
   searchOccurrenceIndex,
   searchFocusKey,
+  isStacked,
+  onToggleLayout,
   onClose,
 }: {
   detail: StorageDetail;
   searchText: string;
   searchOccurrenceIndex: number;
   searchFocusKey: string;
+  isStacked: boolean;
+  onToggleLayout: () => void;
   onClose: () => void;
 }) {
   const searchOptions = useSearchOptions();
@@ -590,7 +597,10 @@ function StorageDetailPanel({
             {hasSearch ? highlightSearchText(detail.title, searchText, searchOptions) : detail.title}
           </h2>
         </div>
-        <DetailPanelCloseButton onClick={onClose} label="Close storage detail" />
+        <div className="detail-panel-title-actions">
+          <SplitLayoutToggleButton isStacked={isStacked} onClick={onToggleLayout} />
+          <DetailPanelCloseButton onClick={onClose} label="Close storage detail" />
+        </div>
       </div>
       <DetailSection
         sectionId={`${detail.instanceId}:meta`}

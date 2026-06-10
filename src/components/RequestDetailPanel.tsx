@@ -9,7 +9,7 @@ import { highlightSearchText } from '../utils/searchHighlight';
 import { getImageSource } from '../utils/imageSource';
 import { formatDateTime, formatDuration, formatLocaleDateTime } from './formatters';
 import { ImagePreview } from './ImagePreview';
-import { DetailPanelCloseButton } from './DetailPanelCloseButton';
+import { DetailPanelCloseButton, SplitLayoutToggleButton } from './DetailPanelCloseButton';
 import { JsonViewer } from './JsonViewer';
 
 type RequestDetailPanelProps = {
@@ -18,7 +18,9 @@ type RequestDetailPanelProps = {
   searchText: string;
   searchOccurrenceIndex: number;
   searchFocusKey: string;
+  isStacked: boolean;
   onLoadResponseBody: (requestId: string) => void;
+  onToggleLayout: () => void;
   onClose: () => void;
 };
 
@@ -28,7 +30,9 @@ export function RequestDetailPanel({
   searchText,
   searchOccurrenceIndex,
   searchFocusKey,
+  isStacked,
   onLoadResponseBody,
+  onToggleLayout,
   onClose,
 }: RequestDetailPanelProps) {
   const searchOptions = useSearchOptions();
@@ -88,6 +92,7 @@ export function RequestDetailPanel({
         </div>
         <div className="detail-panel-title-actions">
           <span className={`detail-status ${request.status >= 400 ? 'bad' : 'good'}`}>{request.status || 'n/a'}</span>
+          <SplitLayoutToggleButton isStacked={isStacked} onClick={onToggleLayout} />
           <DetailPanelCloseButton onClick={onClose} label="Close request detail" />
         </div>
       </div>

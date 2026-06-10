@@ -4,8 +4,11 @@ import {
   getDefaultStackedPrimaryHeight,
   getDetailPanelWidth,
   getStackedPrimaryHeight,
+  getSplitLayoutOverride,
   saveDetailPanelWidth,
   saveStackedPrimaryHeight,
+  saveSplitLayoutOverride,
+  type SplitLayoutOverride,
 } from '../utils/panelLayoutPrefs';
 
 const STACKED_LAYOUT_QUERY = '(max-width: 820px)';
@@ -33,10 +36,14 @@ function useMediaQuery(query: string): boolean {
 }
 
 export function useSplitPanelLayout(workspaceRef: RefObject<HTMLElement | null>) {
-  const isStacked = useMediaQuery(STACKED_LAYOUT_QUERY);
+  const isStackedFromMedia = useMediaQuery(STACKED_LAYOUT_QUERY);
+  const [splitLayoutOverride, setSplitLayoutOverride] = useState<SplitLayoutOverride>(() => getSplitLayoutOverride());
   const [detailPanelWidth, setDetailPanelWidth] = useState(() => getDetailPanelWidth());
   const [stackedPrimaryHeight, setStackedPrimaryHeight] = useState(() => getStackedPrimaryHeight());
   const [resizeAxis, setResizeAxis] = useState<'width' | 'height' | null>(null);
+
+  const isStacked =
+    splitLayoutOverride === 'vertical' ? true : splitLayoutOverride === 'horizontal' ? false : isStackedFromMedia;
 
   useEffect(() => {
     if (!resizeAxis) return;
@@ -104,6 +111,12 @@ export function useSplitPanelLayout(workspaceRef: RefObject<HTMLElement | null>)
     saveStackedPrimaryHeight(nextHeight);
   };
 
+  const toggleSplitLayout = () => {
+    const next: SplitLayoutOverride = isStacked ? 'horizontal' : 'vertical';
+    setSplitLayoutOverride(next);
+    saveSplitLayoutOverride(next);
+  };
+
   return {
     isStacked,
     layoutStyle,
@@ -111,5 +124,6 @@ export function useSplitPanelLayout(workspaceRef: RefObject<HTMLElement | null>)
     startHeightResize,
     resetWidth,
     resetHeight,
+    toggleSplitLayout,
   };
 }
