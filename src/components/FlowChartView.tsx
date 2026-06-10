@@ -11,6 +11,7 @@ import {
 } from "@xyflow/react";
 import type { ReactFlowInstance } from "@xyflow/react";
 import type { ApiRequest, TimelineItem } from "../types/network";
+import { useTheme } from "../hooks/useTheme";
 import { exportFlowChartToPng } from "../utils/exportFlowImage";
 import { getImageSource } from "../utils/imageSource";
 import type { RequestSearchSummary } from "../utils/requestSearch";
@@ -39,6 +40,11 @@ const MIN_ZOOM = 0.12;
 const MAX_ZOOM = 1.6;
 const WHEEL_ZOOM_SENSITIVITY = 0.00065;
 
+const EDGE_COLORS = {
+  light: { normal: "#b0b8c1", error: "#f04452", dot: "#d9dee3" },
+  dark: { normal: "#4a4d57", error: "#ff6b70", dot: "#2f2f3a" },
+} as const;
+
 export function FlowChartView({
   items,
   requests,
@@ -53,6 +59,7 @@ export function FlowChartView({
   const flowPanelRef = useRef<HTMLElement | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const { theme } = useTheme();
   const requestById = new Map(requests.map((request) => [request.id, request]));
   const groups = groupByTime ? toTimeGroups(items) : [];
   const nodes = toFlowNodes(
@@ -64,7 +71,7 @@ export function FlowChartView({
     searchOccurrenceByRequest,
     activeGlobalSearchIndex,
   );
-  const edges = toFlowEdges(items, groupByTime, groups);
+  const edges = toFlowEdges(items, groupByTime, groups, theme);
 
   useEffect(() => {
     if (!searchText.trim() || !selectedRequestId) return;
@@ -168,7 +175,7 @@ export function FlowChartView({
               onSelectRequest(String(node.data.requestId))
             }
           >
-            <Background color="#27313d" gap={22} />
+            <Background color={EDGE_COLORS[theme].dot} gap={22} />
             <Controls showInteractive={false} />
             <Panel position="top-right" className="flow-export-panel">
               <div className="flow-export-controls">
@@ -292,6 +299,7 @@ function toFlowEdges(
   items: TimelineItem[],
   groupByTime: boolean,
   groups: TimelineItem[][],
+  theme: keyof typeof EDGE_COLORS,
 ): Edge[] {
   if (groupByTime) {
     return groups.slice(1).map((group, index) => {
@@ -299,13 +307,13 @@ function toFlowEdges(
       const next = group[0];
       const isError = group.some((item) => item.isError);
 
-      return createEdge(previous, next, isError);
+      return createEdge(previous, next, isError, theme);
     });
   }
 
   return items.slice(1).map((item, index) => {
     const previous = items[index];
-    return createEdge(previous, item, item.isError);
+    return createEdge(previous, item, item.isError, theme);
   });
 }
 
@@ -313,7 +321,10 @@ function createEdge(
   source: TimelineItem,
   target: TimelineItem,
   isError: boolean,
+  theme: keyof typeof EDGE_COLORS,
 ): Edge {
+  const color = isError ? EDGE_COLORS[theme].error : EDGE_COLORS[theme].normal;
+
   return {
     id: `${source.requestId}-${target.requestId}`,
     source: source.requestId,
@@ -322,10 +333,10 @@ function createEdge(
     animated: false,
     markerEnd: {
       type: MarkerType.ArrowClosed,
-      color: isError ? "#ff6b6b" : "#5e6c7f",
+      color,
     },
     style: {
-      stroke: isError ? "#ff6b6b" : "#5e6c7f",
+      stroke: color,
       strokeWidth: isError ? 2.4 : 1.8,
     },
   };

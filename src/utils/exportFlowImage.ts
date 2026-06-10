@@ -90,7 +90,8 @@ export async function exportFlowChartToPng(
   );
 
   const dataUrl = await toPng(viewportElement, {
-    backgroundColor: '#11151b',
+    backgroundColor:
+      getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#f2f4f6',
     width: imageWidth,
     height: imageHeight,
     pixelRatio: 1,
