@@ -95,7 +95,6 @@ button {
 .toolbar-row-secondary {
   justify-content: space-between;
   gap: 12px;
-  min-height: 30px;
 }
 
 .toolbar-brand {
@@ -224,6 +223,13 @@ button {
   align-items: center;
   gap: 8px;
   flex: 0 0 auto;
+}
+
+.toolbar-cluster-sep {
+  width: 1px;
+  height: 18px;
+  background: #2a313b;
+  flex-shrink: 0;
 }
 
 .toolbar-button-group {
@@ -366,6 +372,7 @@ button {
   }
 
   .toolbar-cluster {
+    flex: 0 0 auto;
     margin-left: auto;
   }
 
@@ -381,9 +388,13 @@ button {
 }
 
 @media (max-width: 720px) {
+  .toolbar-stats {
+    display: none;
+  }
+
   .filter-field {
-    width: 168px;
-    flex-basis: 168px;
+    flex: 1 1 140px;
+    width: auto;
   }
 
   .toolbar-secondary-end {
