@@ -21,6 +21,8 @@ type ToolbarProps = {
   networkExcludeText: string;
   storageIncludeText: string;
   storageExcludeText: string;
+  consoleIncludeText: string;
+  consoleExcludeText: string;
   sessionNotice: string | null;
   onSearchTextChange: (searchText: string) => void;
   onSearchNext: () => void;
@@ -32,6 +34,8 @@ type ToolbarProps = {
   onNetworkExcludeTextChange: (excludeText: string) => void;
   onStorageIncludeTextChange: (includeText: string) => void;
   onStorageExcludeTextChange: (excludeText: string) => void;
+  onConsoleIncludeTextChange: (includeText: string) => void;
+  onConsoleExcludeTextChange: (excludeText: string) => void;
   onWorkspaceModeChange: (workspaceMode: WorkspaceMode) => void;
   onNetworkViewModeChange: (networkViewMode: NetworkViewMode) => void;
   onExportSession: () => void;
@@ -59,6 +63,8 @@ export function Toolbar({
   networkExcludeText,
   storageIncludeText,
   storageExcludeText,
+  consoleIncludeText,
+  consoleExcludeText,
   sessionNotice,
   onSearchTextChange,
   onSearchNext,
@@ -70,6 +76,8 @@ export function Toolbar({
   onNetworkExcludeTextChange,
   onStorageIncludeTextChange,
   onStorageExcludeTextChange,
+  onConsoleIncludeTextChange,
+  onConsoleExcludeTextChange,
   onWorkspaceModeChange,
   onNetworkViewModeChange,
   onExportSession,
@@ -85,10 +93,26 @@ export function Toolbar({
   const isNetworkMode = workspaceMode === 'network';
   const isStorageMode = workspaceMode === 'storage';
   const isConsoleMode = workspaceMode === 'console';
-  const includeText = isNetworkMode ? networkIncludeText : storageIncludeText;
-  const excludeText = isNetworkMode ? networkExcludeText : storageExcludeText;
-  const onIncludeTextChange = isNetworkMode ? onNetworkIncludeTextChange : onStorageIncludeTextChange;
-  const onExcludeTextChange = isNetworkMode ? onNetworkExcludeTextChange : onStorageExcludeTextChange;
+  const includeText = isNetworkMode
+    ? networkIncludeText
+    : isStorageMode
+      ? storageIncludeText
+      : consoleIncludeText;
+  const excludeText = isNetworkMode
+    ? networkExcludeText
+    : isStorageMode
+      ? storageExcludeText
+      : consoleExcludeText;
+  const onIncludeTextChange = isNetworkMode
+    ? onNetworkIncludeTextChange
+    : isStorageMode
+      ? onStorageIncludeTextChange
+      : onConsoleIncludeTextChange;
+  const onExcludeTextChange = isNetworkMode
+    ? onNetworkExcludeTextChange
+    : isStorageMode
+      ? onStorageExcludeTextChange
+      : onConsoleExcludeTextChange;
   const hasActiveSearch = hasSearch && searchOccurrenceCount > 0;
   const searchPosition = hasSearch && searchOccurrenceCount > 0 ? searchMatchIndex + 1 : 0;
   const scopePosition = hasSearch && searchScopeJumpCount > 0 ? activeSearchScopeOrder : 0;
@@ -272,30 +296,28 @@ export function Toolbar({
         </div>
       </div>
 
-      {isExpanded && (!isConsoleMode || !!sessionNotice) ? (
+      {isExpanded ? (
         <div className="toolbar-row toolbar-row-secondary">
-          {isConsoleMode ? null : (
-            <div className="toolbar-filters">
-              <label className="filter-field">
-                <span className="filter-label">Include</span>
-                <input
-                  type="text"
-                  value={includeText}
-                  onChange={(event) => onIncludeTextChange(event.currentTarget.value)}
-                  placeholder={isNetworkMode ? 'api, graphql' : 'token, auth'}
-                />
-              </label>
-              <label className="filter-field">
-                <span className="filter-label">Exclude</span>
-                <input
-                  type="text"
-                  value={excludeText}
-                  onChange={(event) => onExcludeTextChange(event.currentTarget.value)}
-                  placeholder={isNetworkMode ? 'analytics, sentry' : 'analytics, cache'}
-                />
-              </label>
-            </div>
-          )}
+          <div className="toolbar-filters">
+            <label className="filter-field">
+              <span className="filter-label">Include</span>
+              <input
+                type="text"
+                value={includeText}
+                onChange={(event) => onIncludeTextChange(event.currentTarget.value)}
+                placeholder={isNetworkMode ? 'api, graphql' : isStorageMode ? 'token, auth' : 'error, warn'}
+              />
+            </label>
+            <label className="filter-field">
+              <span className="filter-label">Exclude</span>
+              <input
+                type="text"
+                value={excludeText}
+                onChange={(event) => onExcludeTextChange(event.currentTarget.value)}
+                placeholder={isNetworkMode ? 'analytics, sentry' : isStorageMode ? 'analytics, cache' : 'debug, vite'}
+              />
+            </label>
+          </div>
 
           <div className="toolbar-secondary-end">
             {sessionNotice ? <p className="toolbar-notice">{sessionNotice}</p> : null}

@@ -5,6 +5,8 @@ const NETWORK_INCLUDE_TEXT_KEY = 'api-flow-filter-network-include';
 const NETWORK_EXCLUDE_TEXT_KEY = 'api-flow-filter-network-exclude';
 const STORAGE_INCLUDE_TEXT_KEY = 'api-flow-filter-storage-include';
 const STORAGE_EXCLUDE_TEXT_KEY = 'api-flow-filter-storage-exclude';
+const CONSOLE_INCLUDE_TEXT_KEY = 'api-flow-filter-console-include';
+const CONSOLE_EXCLUDE_TEXT_KEY = 'api-flow-filter-console-exclude';
 
 export const DEFAULT_NETWORK_INCLUDE_TEXT = 'api';
 export const DEFAULT_NETWORK_EXCLUDE_TEXT =
@@ -12,6 +14,8 @@ export const DEFAULT_NETWORK_EXCLUDE_TEXT =
 export const DEFAULT_STORAGE_INCLUDE_TEXT = '';
 export const DEFAULT_STORAGE_EXCLUDE_TEXT =
   'google-analytics,sentry,datadog,amplitude,hotjar,segment';
+export const DEFAULT_CONSOLE_INCLUDE_TEXT = '';
+export const DEFAULT_CONSOLE_EXCLUDE_TEXT = '';
 
 function readStoredText(key: string, legacyKey: string | null, defaultValue: string): string {
   try {
@@ -67,4 +71,20 @@ export function saveStorageIncludeText(value: string): void {
 
 export function saveStorageExcludeText(value: string): void {
   saveStoredText(STORAGE_EXCLUDE_TEXT_KEY, value);
+}
+
+export function getConsoleIncludeText(defaultValue = DEFAULT_CONSOLE_INCLUDE_TEXT): string {
+  return readStoredText(CONSOLE_INCLUDE_TEXT_KEY, null, defaultValue);
+}
+
+export function getConsoleExcludeText(defaultValue = DEFAULT_CONSOLE_EXCLUDE_TEXT): string {
+  return readStoredText(CONSOLE_EXCLUDE_TEXT_KEY, null, defaultValue);
+}
+
+export function saveConsoleIncludeText(value: string): void {
+  saveStoredText(CONSOLE_INCLUDE_TEXT_KEY, value);
+}
+
+export function saveConsoleExcludeText(value: string): void {
+  saveStoredText(CONSOLE_EXCLUDE_TEXT_KEY, value);
 }
