@@ -8,6 +8,7 @@ import {
 import { scrollSearchHitIntoView } from '../utils/searchScroll';
 import { useSearchOptions } from '../contexts/SearchOptionsContext';
 import { highlightSearchText, textMatchesSearch } from '../utils/searchHighlight';
+import { matchesIncludeExcludeFilters } from '../utils/textFilters';
 import {
   buildConsoleSearchOccurrences,
   consoleArgsMatchSearch,
@@ -26,6 +27,8 @@ type ConsoleViewProps = {
   entries: ConsoleEntry[];
   selectedEntryId: string | null;
   searchText: string;
+  includeText: string;
+  excludeText: string;
   searchMatchIndex: number;
   onEntriesChange: (entries: ConsoleEntry[]) => void;
   onSelectedEntryIdChange: (entryId: string | null) => void;
@@ -79,6 +82,8 @@ export function ConsoleView({
   entries,
   selectedEntryId,
   searchText,
+  includeText,
+  excludeText,
   searchMatchIndex,
   onEntriesChange,
   onSelectedEntryIdChange,
@@ -119,17 +124,22 @@ export function ConsoleView({
   } = useSplitPanelLayout(consoleWorkspaceRef);
 
   const hasSearch = Boolean(searchText.trim());
+  const hasIncludeExclude = Boolean(includeText.trim() || excludeText.trim());
 
   const displayEntries = useMemo(() => {
     const filtered = entries.filter((entry) => {
       if (entry.level === 'clear') return false;
       if (levelFilter !== 'all' && entry.level !== levelFilter) return false;
+      if (hasIncludeExclude) {
+        const haystack = `${entry.text} ${entry.source ?? ''} ${entry.stack ?? ''}`;
+        if (!matchesIncludeExcludeFilters(haystack, includeText, excludeText)) return false;
+      }
       if (!hasSearch) return true;
       return matchesConsoleSearch(entry, searchText, searchOptions);
     });
 
     return groupRepeatedEntries(filtered);
-  }, [entries, hasSearch, levelFilter, searchOptions, searchText]);
+  }, [entries, excludeText, hasIncludeExclude, hasSearch, includeText, levelFilter, searchOptions, searchText]);
 
   const searchOccurrences = useMemo(() => {
     if (!hasSearch) return [];
