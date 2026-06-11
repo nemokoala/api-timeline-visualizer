@@ -33,7 +33,6 @@ import {
   buildSearchOccurrences,
   getNextRequestJumpIndex,
   getSearchMatchIndexForRequest,
-  matchesRequestSearch,
 } from './utils/requestSearch';
 import {
   getConsoleExcludeText,
@@ -201,17 +200,10 @@ export default function App() {
     [networkExcludeText, networkIncludeText, requests],
   );
 
-  const searchMatches = useMemo(() => {
-    if (!networkSearchText.trim()) return filteredRequests;
-    return filteredRequests.filter((request) =>
-      matchesRequestSearch(request, networkSearchText, searchOptions),
-    );
-  }, [filteredRequests, networkSearchText, searchOptions]);
-
   const searchOccurrences = useMemo(() => {
     if (!networkSearchText.trim()) return [];
-    return buildSearchOccurrences(searchMatches, networkSearchText, searchOptions);
-  }, [searchMatches, networkSearchText, searchOptions]);
+    return buildSearchOccurrences(filteredRequests, networkSearchText, searchOptions);
+  }, [filteredRequests, networkSearchText, searchOptions]);
 
   const activeSearchOccurrence = searchOccurrences[networkSearchMatchIndex] ?? null;
   const searchOccurrenceByRequest = useMemo(
@@ -246,7 +238,7 @@ export default function App() {
     () => consoleEntries.filter((entry) => entry.level !== 'clear'),
     [consoleEntries],
   );
-  const displayedRequests = searchMatches;
+  const displayedRequests = filteredRequests;
   const selectedRequest = displayedRequests.find((request) => request.id === selectedRequestId) ?? null;
   const timelineItems = useMemo(() => toTimelineItems(displayedRequests), [displayedRequests]);
 

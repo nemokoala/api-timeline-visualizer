@@ -13,7 +13,6 @@ import {
   buildConsoleSearchOccurrences,
   consoleArgsMatchSearch,
   getSearchMatchIndexForConsoleEntry,
-  matchesConsoleSearch,
   type ConsoleSearchOccurrence,
 } from '../utils/consoleSearch';
 import { DetailPanelCloseButton, SplitLayoutToggleButton } from './DetailPanelCloseButton';
@@ -134,12 +133,11 @@ export function ConsoleView({
         const haystack = `${entry.text} ${entry.source ?? ''} ${entry.stack ?? ''}`;
         if (!matchesIncludeExcludeFilters(haystack, includeText, excludeText)) return false;
       }
-      if (!hasSearch) return true;
-      return matchesConsoleSearch(entry, searchText, searchOptions);
+      return true;
     });
 
     return groupRepeatedEntries(filtered);
-  }, [entries, excludeText, hasIncludeExclude, hasSearch, includeText, levelFilter, searchOptions, searchText]);
+  }, [entries, excludeText, hasIncludeExclude, includeText, levelFilter]);
 
   const searchOccurrences = useMemo(() => {
     if (!hasSearch) return [];
@@ -166,17 +164,14 @@ export function ConsoleView({
   useEffect(() => {
     if (!hasSearch || !searchOccurrences.length) return;
 
+    // Keep the active match index in range, but don't force the detail panel
+    // open — searching should highlight and scroll the row in context, letting
+    // the user click in to inspect when they want the detail view.
     const clampedIndex = searchMatchIndex % searchOccurrences.length;
     if (clampedIndex !== searchMatchIndex) {
       onSearchMatchIndexChange(clampedIndex);
-      return;
     }
-
-    const occurrence = searchOccurrences[clampedIndex];
-    if (!occurrence) return;
-
-    onSelectedEntryIdChange(occurrence.entryId);
-  }, [hasSearch, onSearchMatchIndexChange, onSelectedEntryIdChange, searchMatchIndex, searchOccurrences]);
+  }, [hasSearch, onSearchMatchIndexChange, searchMatchIndex, searchOccurrences]);
 
   useEffect(() => {
     if (!selectedEntryId) return;
