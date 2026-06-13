@@ -15,11 +15,33 @@ export async function installConsoleCapture(preserveLog = true): Promise<void> {
   await evalInInspectedPage(buildInstallScript(preserveLog));
 }
 
-export async function drainConsoleEntries(): Promise<ConsoleEntry[]> {
-  if (!canInspectConsole()) return [];
+export type ConsoleDrainResult = {
+  /**
+   * 검사 대상 페이지에 캡처 훅이 실제로 살아있는지. 페이지가 새로고침/이동되면
+   * window 전역이 통째로 날아가므로 false가 되며, 이때 호출부가 재설치해야 한다.
+   */
+  installed: boolean;
+  entries: ConsoleEntry[];
+};
 
-  const raw = await evalInInspectedPage('window.__API_FLOW_CONSOLE_DRAIN__?.() ?? []');
-  return normalizeEntries(raw);
+export async function drainConsoleEntries(): Promise<ConsoleDrainResult> {
+  if (!canInspectConsole()) return { installed: false, entries: [] };
+
+  const raw = await evalInInspectedPage(
+    `window.__API_FLOW_CONSOLE_INSTALLED__
+      ? { installed: true, entries: window.__API_FLOW_CONSOLE_DRAIN__() }
+      : { installed: false, entries: [] }`,
+  );
+
+  const result = (raw && typeof raw === 'object' ? raw : {}) as {
+    installed?: unknown;
+    entries?: unknown;
+  };
+
+  return {
+    installed: result.installed === true,
+    entries: normalizeEntries(result.entries),
+  };
 }
 
 export async function clearInspectedConsoleBuffer(): Promise<void> {
