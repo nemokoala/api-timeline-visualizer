@@ -311,7 +311,14 @@ export default function App() {
           await installConsoleCapture(true);
           captureInstalled = true;
         }
-        const drained = await drainConsoleEntries();
+        const { installed, entries: drained } = await drainConsoleEntries();
+        // 페이지가 새로고침/이동되면 주입한 훅이 사라진다. 이 경우 drain은 예외 없이
+        // installed=false를 돌려주므로, 플래그를 리셋해 다음 틱에 재설치한다.
+        // (이 처리가 없으면 콘솔이 조용히 영영 비어버린다.)
+        if (!installed) {
+          captureInstalled = false;
+          return;
+        }
         if (drained.length) {
           setConsoleEntries((current) => [...current, ...drained]);
         }
