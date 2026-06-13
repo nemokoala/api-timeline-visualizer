@@ -33,13 +33,16 @@ import {
   buildSearchOccurrences,
   getNextRequestJumpIndex,
   getSearchMatchIndexForRequest,
-  matchesRequestSearch,
 } from './utils/requestSearch';
 import {
+  getConsoleExcludeText,
+  getConsoleIncludeText,
   getNetworkExcludeText,
   getNetworkIncludeText,
   getStorageExcludeText,
   getStorageIncludeText,
+  saveConsoleExcludeText,
+  saveConsoleIncludeText,
   saveNetworkExcludeText,
   saveNetworkIncludeText,
   saveStorageExcludeText,
@@ -87,6 +90,8 @@ export default function App() {
   const [networkExcludeText, setNetworkExcludeText] = useState(() => getNetworkExcludeText());
   const [storageIncludeText, setStorageIncludeText] = useState(() => getStorageIncludeText());
   const [storageExcludeText, setStorageExcludeText] = useState(() => getStorageExcludeText());
+  const [consoleIncludeText, setConsoleIncludeText] = useState(() => getConsoleIncludeText());
+  const [consoleExcludeText, setConsoleExcludeText] = useState(() => getConsoleExcludeText());
   const [networkSearchText, setNetworkSearchText] = useState(() => getNetworkSearchText());
   const [storageSearchText, setStorageSearchText] = useState(() => getStorageSearchText());
   const [consoleSearchText, setConsoleSearchText] = useState(() => getConsoleSearchText());
@@ -130,6 +135,14 @@ export default function App() {
   useEffect(() => {
     saveStorageExcludeText(storageExcludeText);
   }, [storageExcludeText]);
+
+  useEffect(() => {
+    saveConsoleIncludeText(consoleIncludeText);
+  }, [consoleIncludeText]);
+
+  useEffect(() => {
+    saveConsoleExcludeText(consoleExcludeText);
+  }, [consoleExcludeText]);
 
   useEffect(() => {
     saveNetworkSearchText(networkSearchText);
@@ -187,17 +200,10 @@ export default function App() {
     [networkExcludeText, networkIncludeText, requests],
   );
 
-  const searchMatches = useMemo(() => {
-    if (!networkSearchText.trim()) return filteredRequests;
-    return filteredRequests.filter((request) =>
-      matchesRequestSearch(request, networkSearchText, searchOptions),
-    );
-  }, [filteredRequests, networkSearchText, searchOptions]);
-
   const searchOccurrences = useMemo(() => {
     if (!networkSearchText.trim()) return [];
-    return buildSearchOccurrences(searchMatches, networkSearchText, searchOptions);
-  }, [searchMatches, networkSearchText, searchOptions]);
+    return buildSearchOccurrences(filteredRequests, networkSearchText, searchOptions);
+  }, [filteredRequests, networkSearchText, searchOptions]);
 
   const activeSearchOccurrence = searchOccurrences[networkSearchMatchIndex] ?? null;
   const searchOccurrenceByRequest = useMemo(
@@ -232,7 +238,7 @@ export default function App() {
     () => consoleEntries.filter((entry) => entry.level !== 'clear'),
     [consoleEntries],
   );
-  const displayedRequests = searchMatches;
+  const displayedRequests = filteredRequests;
   const selectedRequest = displayedRequests.find((request) => request.id === selectedRequestId) ?? null;
   const timelineItems = useMemo(() => toTimelineItems(displayedRequests), [displayedRequests]);
 
@@ -610,6 +616,8 @@ export default function App() {
         networkExcludeText={networkExcludeText}
         storageIncludeText={storageIncludeText}
         storageExcludeText={storageExcludeText}
+        consoleIncludeText={consoleIncludeText}
+        consoleExcludeText={consoleExcludeText}
         sessionNotice={sessionNotice}
         onSearchTextChange={handleSearchTextChange}
         onSearchNext={() => {
@@ -651,6 +659,8 @@ export default function App() {
         onNetworkExcludeTextChange={setNetworkExcludeText}
         onStorageIncludeTextChange={setStorageIncludeText}
         onStorageExcludeTextChange={setStorageExcludeText}
+        onConsoleIncludeTextChange={setConsoleIncludeText}
+        onConsoleExcludeTextChange={setConsoleExcludeText}
         onWorkspaceModeChange={setWorkspaceMode}
         onNetworkViewModeChange={setNetworkViewMode}
         onExportSession={handleExportSession}
@@ -677,6 +687,8 @@ export default function App() {
             entries={consoleEntries}
             selectedEntryId={selectedConsoleEntryId}
             searchText={consoleSearchText}
+            includeText={consoleIncludeText}
+            excludeText={consoleExcludeText}
             searchMatchIndex={consoleSearchMatchIndex}
             onEntriesChange={setConsoleEntries}
             onSelectedEntryIdChange={setSelectedConsoleEntryId}
