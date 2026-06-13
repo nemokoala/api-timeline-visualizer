@@ -1,26 +1,15 @@
+/** 활성 워크스페이스 탭(network / storage / console)을 저장합니다. */
 import type { WorkspaceMode } from '../components/Toolbar';
+import { readEnum, writeString } from './localStoragePrefs';
 
 const WORKSPACE_MODE_KEY = 'api-flow-workspace-mode';
 
-function isWorkspaceMode(value: string): value is WorkspaceMode {
-  return value === 'network' || value === 'storage' || value === 'console';
-}
+const WORKSPACE_MODES: WorkspaceMode[] = ['network', 'storage', 'console'];
 
 export function getWorkspaceMode(): WorkspaceMode {
-  try {
-    const stored = localStorage.getItem(WORKSPACE_MODE_KEY);
-    if (stored && isWorkspaceMode(stored)) return stored;
-  } catch {
-    // Ignore storage errors.
-  }
-
-  return 'network';
+  return readEnum(WORKSPACE_MODE_KEY, WORKSPACE_MODES, 'network');
 }
 
 export function saveWorkspaceMode(mode: WorkspaceMode): void {
-  try {
-    localStorage.setItem(WORKSPACE_MODE_KEY, mode);
-  } catch {
-    // Ignore storage errors.
-  }
+  writeString(WORKSPACE_MODE_KEY, mode);
 }

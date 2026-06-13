@@ -1,22 +1,16 @@
+/** 스토리지 패널의 이미지 blob 레이아웃(stack / grid)을 저장합니다. */
+import { readEnum, writeString } from './localStoragePrefs';
+
 export type StorageImageLayoutMode = 'stack' | 'grid';
 
 const STORAGE_IMAGE_LAYOUT_KEY = 'api-flow-storage-image-layout';
 
-export function getStorageImageLayoutMode(): StorageImageLayoutMode {
-  try {
-    const stored = localStorage.getItem(STORAGE_IMAGE_LAYOUT_KEY);
-    if (stored === 'grid' || stored === 'stack') return stored;
-  } catch {
-    // Ignore storage errors.
-  }
+const LAYOUT_MODES: StorageImageLayoutMode[] = ['stack', 'grid'];
 
-  return 'stack';
+export function getStorageImageLayoutMode(): StorageImageLayoutMode {
+  return readEnum(STORAGE_IMAGE_LAYOUT_KEY, LAYOUT_MODES, 'stack');
 }
 
 export function saveStorageImageLayoutMode(mode: StorageImageLayoutMode): void {
-  try {
-    localStorage.setItem(STORAGE_IMAGE_LAYOUT_KEY, mode);
-  } catch {
-    // Ignore storage errors.
-  }
+  writeString(STORAGE_IMAGE_LAYOUT_KEY, mode);
 }
