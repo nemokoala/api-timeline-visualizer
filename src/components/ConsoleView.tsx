@@ -8,11 +8,11 @@ import {
 import { scrollSearchHitIntoView } from '../utils/searchScroll';
 import { useSearchOptions } from '../contexts/SearchOptionsContext';
 import { highlightSearchText, textMatchesSearch } from '../utils/searchHighlight';
+import { matchesIncludeExcludeFilters } from '../utils/textFilters';
 import {
   buildConsoleSearchOccurrences,
   consoleArgsMatchSearch,
   getSearchMatchIndexForConsoleEntry,
-  matchesConsoleSearch,
   type ConsoleSearchOccurrence,
 } from '../utils/consoleSearch';
 import { DetailPanelCloseButton, SplitLayoutToggleButton } from './DetailPanelCloseButton';
@@ -26,6 +26,8 @@ type ConsoleViewProps = {
   entries: ConsoleEntry[];
   selectedEntryId: string | null;
   searchText: string;
+  includeText: string;
+  excludeText: string;
   searchMatchIndex: number;
   onEntriesChange: (entries: ConsoleEntry[]) => void;
   onSelectedEntryIdChange: (entryId: string | null) => void;
@@ -79,6 +81,8 @@ export function ConsoleView({
   entries,
   selectedEntryId,
   searchText,
+  includeText,
+  excludeText,
   searchMatchIndex,
   onEntriesChange,
   onSelectedEntryIdChange,
@@ -119,17 +123,21 @@ export function ConsoleView({
   } = useSplitPanelLayout(consoleWorkspaceRef);
 
   const hasSearch = Boolean(searchText.trim());
+  const hasIncludeExclude = Boolean(includeText.trim() || excludeText.trim());
 
   const displayEntries = useMemo(() => {
     const filtered = entries.filter((entry) => {
       if (entry.level === 'clear') return false;
       if (levelFilter !== 'all' && entry.level !== levelFilter) return false;
-      if (!hasSearch) return true;
-      return matchesConsoleSearch(entry, searchText, searchOptions);
+      if (hasIncludeExclude) {
+        const haystack = `${entry.text} ${entry.source ?? ''} ${entry.stack ?? ''}`;
+        if (!matchesIncludeExcludeFilters(haystack, includeText, excludeText)) return false;
+      }
+      return true;
     });
 
     return groupRepeatedEntries(filtered);
-  }, [entries, hasSearch, levelFilter, searchOptions, searchText]);
+  }, [entries, excludeText, hasIncludeExclude, includeText, levelFilter]);
 
   const searchOccurrences = useMemo(() => {
     if (!hasSearch) return [];
@@ -162,10 +170,12 @@ export function ConsoleView({
       return;
     }
 
+    // Follow the active hit with the selected entry so the detail panel reveals
+    // matches that only live there (arguments, stack) — these aren't rendered in
+    // the list row, so navigation would otherwise look frozen on them. The list
+    // still shows every entry in context; nothing is filtered out.
     const occurrence = searchOccurrences[clampedIndex];
-    if (!occurrence) return;
-
-    onSelectedEntryIdChange(occurrence.entryId);
+    if (occurrence) onSelectedEntryIdChange(occurrence.entryId);
   }, [hasSearch, onSearchMatchIndexChange, onSelectedEntryIdChange, searchMatchIndex, searchOccurrences]);
 
   useEffect(() => {
@@ -175,9 +185,11 @@ export function ConsoleView({
   }, [displayEntries, onSelectedEntryIdChange, selectedEntryId]);
 
   useEffect(() => {
-    if (!autoScroll || !logListRef.current) return;
+    // Don't auto-scroll to the bottom while searching — it would fight the
+    // scroll-to-hit navigation and pull the user away from the active match.
+    if (!autoScroll || hasSearch || !logListRef.current) return;
     logListRef.current.scrollTop = logListRef.current.scrollHeight;
-  }, [autoScroll, displayEntries.length]);
+  }, [autoScroll, hasSearch, displayEntries.length]);
 
   useEffect(() => {
     if (!activeSearchOccurrence) return;
@@ -185,13 +197,16 @@ export function ConsoleView({
     const frameId = window.requestAnimationFrame(() => {
       const row = document.getElementById(`console-log-${activeSearchOccurrence.entryId}`);
 
+      // Always scroll the list to the active hit, even while a detail panel is
+      // open — otherwise navigating hits leaves the list (and the detail panel,
+      // which stays on the clicked entry) frozen in place.
+      if (row) scrollSearchHitIntoView(row);
+
       document
         .querySelectorAll('.console-log-list .search-highlight.is-active')
         .forEach((mark) => mark.classList.remove('is-active'));
 
       if (!hasDetail) {
-        if (row) scrollSearchHitIntoView(row);
-
         const rowMarks = row?.querySelectorAll('.search-highlight');
         rowMarks?.forEach((mark, index) => {
           mark.classList.toggle('is-active', index === activeSearchOccurrence.occurrenceIndex);
