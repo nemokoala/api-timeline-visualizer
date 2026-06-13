@@ -1,3 +1,9 @@
+/**
+ * 타임라인 테이블 설정: 정렬 기준 열/방향 및 열별 표시 여부를 저장합니다.
+ * 읽은 값은 알려진 열 목록으로 검증하며, 모든 열이 숨겨지지 않도록 정규화합니다.
+ */
+import { readJson, writeJson } from './localStoragePrefs';
+
 export type TimelineColumnId = 'time' | 'request' | 'status' | 'duration';
 export type SortDirection = 'asc' | 'desc';
 
@@ -30,25 +36,14 @@ const DEFAULT_PREFS: TimelinePrefs = {
 };
 
 function readPrefs(): Partial<TimelinePrefs> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return {};
-    return parsed as Partial<TimelinePrefs>;
-  } catch {
-    return {};
-  }
+  return readJson<Partial<TimelinePrefs>>(STORAGE_KEY) ?? {};
 }
 
 function writePrefs(prefs: TimelinePrefs): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-  } catch {
-    // Ignore storage failures in extension context.
-  }
+  writeJson(STORAGE_KEY, prefs);
 }
 
+// 저장된 표시 설정을 기본값에 병합하고, 모두 숨김이면 기본값으로 초기화.
 function normalizeVisibility(
   visibility: Partial<Record<TimelineColumnId, boolean>> | undefined,
 ): Record<TimelineColumnId, boolean> {

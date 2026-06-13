@@ -1,21 +1,12 @@
+/** 메인 툴바의 펼침/접힘 상태를 저장합니다. */
+import { readFlag, writeFlag } from './localStoragePrefs';
+
 const TOOLBAR_EXPANDED_KEY = 'api-flow-toolbar-expanded';
 
 export function getToolbarExpanded(defaultValue = true): boolean {
-  try {
-    const stored = localStorage.getItem(TOOLBAR_EXPANDED_KEY);
-    if (stored === 'false') return false;
-    if (stored === 'true') return true;
-  } catch {
-    // Ignore storage errors.
-  }
-
-  return defaultValue;
+  return readFlag(TOOLBAR_EXPANDED_KEY, defaultValue);
 }
 
 export function setToolbarExpanded(expanded: boolean): void {
-  try {
-    localStorage.setItem(TOOLBAR_EXPANDED_KEY, String(expanded));
-  } catch {
-    // Ignore storage errors.
-  }
+  writeFlag(TOOLBAR_EXPANDED_KEY, expanded);
 }
