@@ -1,6 +1,14 @@
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { useSearchOptions } from '../contexts/SearchOptionsContext';
 import { highlightSearchText, textMatchesSearch, type SearchOptions } from '../utils/searchHighlight';
+import { scrollSearchHitIntoView } from '../utils/searchScroll';
 import { getImagePreviews, mergeBlobPreviewItems, type ImagePreviewItem } from '../utils/imageSource';
 import { fetchStorageRecordBlobPreviews } from '../utils/storageInspector';
 import { findStorageBlobPreviews, sanitizeStorageBlobsForDisplay } from '../utils/storageBlobValue';
@@ -153,15 +161,114 @@ function JsonBlock({
   const [copied, setCopied] = useState(false);
   const [fieldMenu, setFieldMenu] = useState<ActiveFieldMenu>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [localSearch, setLocalSearch] = useState('');
+  const [localActiveIndex, setLocalActiveIndex] = useState(0);
+  const [localHitCount, setLocalHitCount] = useState(0);
+  const [localMatchCase, setLocalMatchCase] = useState(false);
+  const [localWholeWord, setLocalWholeWord] = useState(false);
+  const [customHeight, setCustomHeight] = useState<number | null>(null);
   const viewerBodyRef = useRef<HTMLDivElement>(null);
+  const preRef = useRef<HTMLPreElement>(null);
   const copyText = fallback || '{}';
   const isObject = Boolean(value && typeof value === 'object');
+
+  // 뷰어 내부 전용 검색. 비어 있으면 기존 전역 검색(searchText)으로 동작한다.
+  const localTerm = localSearch.trim();
+  const localActive = localTerm.length > 0;
+  const effectiveSearch = localActive ? localSearch : searchText;
+  // 로컬 검색은 자체 대소문자/단어단위 옵션을, 전역 검색은 컨텍스트 옵션을 따른다.
+  const effectiveOptions: Required<SearchOptions> = localActive
+    ? { matchCase: localMatchCase, matchWholeWord: localWholeWord }
+    : searchOptions;
+  // 전역 검색 하이라이트와 충돌하지 않도록 로컬 검색은 별도 클래스를 사용한다.
+  const markClassName = localActive ? 'json-local-hit' : 'search-highlight';
 
   useEffect(() => {
     setFieldMenu(null);
     setIsFullscreen(false);
     setCopied(false);
+    setLocalSearch('');
+    setLocalActiveIndex(0);
+    setLocalMatchCase(false);
+    setLocalWholeWord(false);
+    setCustomHeight(null);
   }, [instanceId]);
+
+  // 검색어나 옵션이 바뀌면 활성 히트를 처음으로 되돌린다.
+  useEffect(() => {
+    setLocalActiveIndex(0);
+  }, [localTerm, localMatchCase, localWholeWord]);
+
+  // 렌더링된 로컬 히트를 세고, 활성 히트를 표시한 뒤 화면에 보이도록 스크롤한다.
+  useEffect(() => {
+    if (!localActive) {
+      setLocalHitCount(0);
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      const body = viewerBodyRef.current;
+      if (!body) return;
+
+      const marks = body.querySelectorAll('.json-local-hit');
+      setLocalHitCount(marks.length);
+      if (!marks.length) return;
+
+      const activeIndex = Math.min(localActiveIndex, marks.length - 1);
+      marks.forEach((mark, index) => {
+        mark.classList.toggle('is-active', index === activeIndex);
+      });
+
+      scrollSearchHitIntoView(marks[activeIndex]);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [localActive, localTerm, localActiveIndex, value, localMatchCase, localWholeWord, searchOptions]);
+
+  const goToLocalHit = (delta: number) => {
+    setLocalActiveIndex((current) => {
+      if (localHitCount === 0) return 0;
+      return (current + delta + localHitCount) % localHitCount;
+    });
+  };
+
+  const handleLocalSearchKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      goToLocalHit(event.shiftKey ? -1 : 1);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setLocalSearch('');
+    }
+  };
+
+  const shownHitOrder = localHitCount > 0 ? Math.min(localActiveIndex, localHitCount - 1) + 1 : 0;
+
+  // 하단 핸들을 드래그해 뷰어 높이를 조절한다. 더블클릭하면 기본 높이로 되돌린다.
+  const handleResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const startY = event.clientY;
+    const startHeight = customHeight ?? preRef.current?.clientHeight ?? 280;
+    const maxHeight = Math.max(160, window.innerHeight - 120);
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      const next = clamp(startHeight + (moveEvent.clientY - startY), 80, maxHeight);
+      setCustomHeight(next);
+    };
+    const handleUp = () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.userSelect = 'none';
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+  };
+
+  // 전체화면에서는 고정 높이를 적용하지 않고 화면을 가득 채운다.
+  const appliedHeight = !isFullscreen && customHeight != null ? customHeight : undefined;
+  const preStyle = appliedHeight != null ? { height: appliedHeight, maxHeight: appliedHeight } : undefined;
 
   useEffect(() => {
     if (!isFullscreen) return;
@@ -250,6 +357,64 @@ function JsonBlock({
         aria-label={isFullscreen ? 'JSON fullscreen' : undefined}
       >
         <div className="json-viewer-toolbar">
+          <div className="json-viewer-local-search">
+            <input
+              type="search"
+              className="json-local-search-input"
+              placeholder="Search in this viewer"
+              value={localSearch}
+              onChange={(event) => setLocalSearch(event.target.value)}
+              onKeyDown={handleLocalSearchKeyDown}
+              spellCheck={false}
+            />
+            <div className="json-local-search-options" aria-label="검색 옵션">
+              <button
+                type="button"
+                className={`search-option-button ${localMatchCase ? 'active' : ''}`}
+                aria-pressed={localMatchCase}
+                title="대소문자 구분"
+                onClick={() => setLocalMatchCase((current) => !current)}
+              >
+                Aa
+              </button>
+              <button
+                type="button"
+                className={`search-option-button search-option-whole-word ${localWholeWord ? 'active' : ''}`}
+                aria-pressed={localWholeWord}
+                title="단어 단위 검색"
+                onClick={() => setLocalWholeWord((current) => !current)}
+              >
+                ab
+              </button>
+            </div>
+            {localActive ? (
+              <>
+                <span className="json-local-search-count">
+                  {shownHitOrder}/{localHitCount}
+                </span>
+                <button
+                  type="button"
+                  className="json-local-search-nav"
+                  onClick={() => goToLocalHit(-1)}
+                  disabled={localHitCount === 0}
+                  aria-label="이전 검색 결과"
+                  title="이전 (Shift+Enter)"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  className="json-local-search-nav"
+                  onClick={() => goToLocalHit(1)}
+                  disabled={localHitCount === 0}
+                  aria-label="다음 검색 결과"
+                  title="다음 (Enter)"
+                >
+                  ↓
+                </button>
+              </>
+            ) : null}
+          </div>
           <div className="json-viewer-actions">
             <button
               className="json-fullscreen-button"
@@ -281,13 +446,26 @@ function JsonBlock({
             </div>
           ) : null}
           {isObject ? (
-            <pre className="json-viewer json-tree">
-              {renderJsonValue(value, 0, 'root', handleFieldClick, searchText, searchOptions)}
+            <pre className="json-viewer json-tree" ref={preRef} style={preStyle}>
+              {renderJsonValue(value, 0, 'root', handleFieldClick, effectiveSearch, effectiveOptions, markClassName)}
             </pre>
           ) : (
-            <pre className="json-viewer">{highlightSearchText(copyText, searchText, searchOptions)}</pre>
+            <pre className="json-viewer" ref={preRef} style={preStyle}>
+              {highlightSearchText(copyText, effectiveSearch, effectiveOptions, markClassName)}
+            </pre>
           )}
         </div>
+        {!isFullscreen ? (
+          <div
+            className="json-viewer-resize-handle"
+            onPointerDown={handleResizeStart}
+            onDoubleClick={() => setCustomHeight(null)}
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label="뷰어 높이 조절 (더블클릭 시 기본값)"
+            title="드래그로 높이 조절 · 더블클릭으로 기본값"
+          />
+        ) : null}
       </div>
     </>
   );
@@ -300,6 +478,7 @@ function renderJsonValue(
   onFieldClick: (id: string, value: unknown, event: MouseEvent<HTMLButtonElement>) => void,
   searchText: string,
   searchOptions: Required<SearchOptions>,
+  markClassName: string,
 ): React.ReactNode {
   if (Array.isArray(value)) {
     if (value.length === 0) return <span className="json-punctuation">[]</span>;
@@ -311,7 +490,7 @@ function renderJsonValue(
           <span key={index}>
             {'\n'}
             {indent(depth + 1)}
-            {renderJsonValue(item, depth + 1, `${path}.${index}`, onFieldClick, searchText, searchOptions)}
+            {renderJsonValue(item, depth + 1, `${path}.${index}`, onFieldClick, searchText, searchOptions, markClassName)}
             {index < value.length - 1 ? <span className="json-punctuation">,</span> : null}
           </span>
         ))}
@@ -339,10 +518,10 @@ function renderJsonValue(
               onClick={(event) => onFieldClick(`${path}.${key}`, item, event)}
               title="Copy field value"
             >
-              "{highlightSearchText(key, searchText, searchOptions)}"
+              "{highlightSearchText(key, searchText, searchOptions, markClassName)}"
             </button>
             <span className="json-punctuation">: </span>
-            {renderJsonValue(item, depth + 1, `${path}.${key}`, onFieldClick, searchText, searchOptions)}
+            {renderJsonValue(item, depth + 1, `${path}.${key}`, onFieldClick, searchText, searchOptions, markClassName)}
             {index < entries.length - 1 ? <span className="json-punctuation">,</span> : null}
           </span>
         ))}
@@ -356,20 +535,20 @@ function renderJsonValue(
   if (typeof value === 'string') {
     return (
       <span className="json-string">
-        "{highlightSearchText(value, searchText, searchOptions)}"
+        "{highlightSearchText(value, searchText, searchOptions, markClassName)}"
       </span>
     );
   }
 
   if (typeof value === 'number') {
     return (
-      <span className="json-number">{highlightSearchText(String(value), searchText, searchOptions)}</span>
+      <span className="json-number">{highlightSearchText(String(value), searchText, searchOptions, markClassName)}</span>
     );
   }
 
   if (typeof value === 'boolean') {
     return (
-      <span className="json-boolean">{highlightSearchText(String(value), searchText, searchOptions)}</span>
+      <span className="json-boolean">{highlightSearchText(String(value), searchText, searchOptions, markClassName)}</span>
     );
   }
 
@@ -379,7 +558,7 @@ function renderJsonValue(
 
   return (
     <span className="json-string">
-      "{highlightSearchText(String(value), searchText, searchOptions)}"
+      "{highlightSearchText(String(value), searchText, searchOptions, markClassName)}"
     </span>
   );
 }

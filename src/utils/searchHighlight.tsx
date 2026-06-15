@@ -73,6 +73,7 @@ export function highlightSearchText(
   text: string,
   searchText: string,
   options?: SearchOptions,
+  markClassName = 'search-highlight',
 ): ReactNode {
   const terms = getSearchTerms(searchText, options);
   if (!terms.length) return text;
@@ -86,7 +87,7 @@ export function highlightSearchText(
   return parts.map((part, index) => {
     if (partMatchesSearch(part, searchText, options)) {
       return (
-        <mark key={`${part}-${index}`} className="search-highlight">
+        <mark key={`${part}-${index}`} className={markClassName}>
           {part}
         </mark>
       );
