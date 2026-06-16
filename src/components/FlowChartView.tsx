@@ -13,6 +13,7 @@ import {
   Controls,
   Handle,
   MarkerType,
+  NodeResizer,
   Panel,
   Position,
   ReactFlow,
@@ -36,6 +37,7 @@ import {
   saveFlowLayout,
   type FlowLayout,
   type FlowManualEdge,
+  type FlowShape,
   type FlowTextNote,
 } from "../utils/flowLayoutPrefs";
 import { getFlowShowQuery, saveFlowShowQuery } from "../utils/networkFlowPrefs";
@@ -77,10 +79,49 @@ const EDGE_COLORS = {
 
 const TEXT_NODE_PREFIX = "text-note-";
 const MANUAL_EDGE_PREFIX = "manual-edge-";
+const SHAPE_NODE_PREFIX = "shape-";
+
+const SHAPE_DEFAULT_WIDTH = 220;
+const SHAPE_DEFAULT_HEIGHT = 140;
+const SHAPE_MIN_SIZE = 60;
+
+const TEXT_NOTE_DEFAULT_WIDTH = 200;
+const TEXT_NOTE_DEFAULT_HEIGHT = 72;
+const TEXT_NOTE_MIN_WIDTH = 100;
+const TEXT_NOTE_MIN_HEIGHT = 48;
+const TEXT_NOTE_DEFAULT_FONT_SIZE = 12;
+const TEXT_NOTE_MIN_FONT_SIZE = 10;
+const TEXT_NOTE_MAX_FONT_SIZE = 36;
+const TEXT_NOTE_FONT_STEP = 2;
+
+// 도형에 적용할 수 있는 색상 팔레트.
+const SHAPE_COLORS = [
+  "#3182f6",
+  "#f04452",
+  "#00c389",
+  "#f5a623",
+  "#9b59f6",
+  "#868b94",
+] as const;
 
 type TextNoteData = {
   text: string;
+  color?: string;
+  background: boolean;
+  fontSize: number;
   onTextChange: (id: string, text: string) => void;
+  onStyleChange: (
+    id: string,
+    patch: Partial<Pick<FlowTextNote, "color" | "background" | "fontSize">>
+  ) => void;
+  onZOrder: (id: string, toFront: boolean) => void;
+};
+
+type ShapeData = {
+  color: string;
+  filled: boolean;
+  onChange: (id: string, patch: Partial<Pick<FlowShape, "color" | "filled">>) => void;
+  onZOrder: (id: string, toFront: boolean) => void;
 };
 
 type RequestNodeData = {
@@ -95,6 +136,103 @@ const HANDLE_SIDES = [
   { id: "bottom", position: Position.Bottom },
   { id: "left", position: Position.Left },
 ] as const;
+
+// 하단 도구막대용 아이콘들. currentColor로 그려 버튼 상태에 따라 색이 따라온다.
+function TextIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M5 6.5V5h14v1.5M12 5v14M9.5 19h5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function SquareIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect
+        x="4"
+        y="5"
+        width="16"
+        height="14"
+        rx="2.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+function ResetIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M5 5v5h5M5.5 14a7 7 0 1 0 1.8-7.2L5 10"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+// 맨 앞으로(위 레이어가 강조된 두 장).
+function BringToFrontIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="4" y="4" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="9" y="9" width="11" height="11" rx="2" fill="currentColor" />
+    </svg>
+  );
+}
+
+// 맨 뒤로(아래 레이어가 강조된 두 장).
+function SendToBackIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="4" y="4" width="11" height="11" rx="2" fill="currentColor" />
+      <rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.8" fill="var(--surface)" />
+    </svg>
+  );
+}
+
+// 도형/메모 툴바에 공통으로 들어가는 레이어 순서 버튼 한 쌍.
+function ZOrderButtons({
+  id,
+  onZOrder,
+}: {
+  id: string;
+  onZOrder: (id: string, toFront: boolean) => void;
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        className="flow-shape-icon-button"
+        title="맨 앞으로"
+        aria-label="맨 앞으로"
+        onClick={() => onZOrder(id, true)}
+      >
+        <BringToFrontIcon />
+      </button>
+      <button
+        type="button"
+        className="flow-shape-icon-button"
+        title="맨 뒤로"
+        aria-label="맨 뒤로"
+        onClick={() => onZOrder(id, false)}
+      >
+        <SendToBackIcon />
+      </button>
+    </>
+  );
+}
 
 // API 요청 카드 노드. 라벨 + 사방 연결 핸들을 렌더한다.
 function RequestNodeView({ data }: NodeProps) {
@@ -115,7 +253,7 @@ function RequestNodeView({ data }: NodeProps) {
 }
 
 // 사용자가 자유롭게 메모를 적을 수 있는 커스텀 텍스트 노드.
-function TextNoteNodeView({ id, data }: NodeProps) {
+function TextNoteNodeView({ id, data, selected }: NodeProps) {
   const noteData = data as TextNoteData;
   // textarea를 로컬 상태로 제어한다. 부모 리렌더가 입력값을 되돌려 적용하지
   // 않으므로 한글 IME 조합 중 자모가 분리되지 않는다.
@@ -128,14 +266,22 @@ function TextNoteNodeView({ id, data }: NodeProps) {
     setValue(noteData.text);
   }, [noteData.text]);
 
+  const fontSize = noteData.fontSize;
   return (
-    <div className="flow-text-note">
+    <div className={`flow-text-note ${noteData.background ? "" : "no-bg"}`}>
+      <NodeResizer
+        isVisible={selected}
+        minWidth={TEXT_NOTE_MIN_WIDTH}
+        minHeight={TEXT_NOTE_MIN_HEIGHT}
+        lineClassName="flow-shape-resize-line"
+        handleClassName="flow-shape-resize-handle"
+      />
       <textarea
         className="nodrag flow-text-note-input"
         value={value}
         placeholder="메모 입력..."
-        rows={2}
         autoFocus={isInitialEmpty.current}
+        style={{ fontSize, ...(noteData.color ? { color: noteData.color } : {}) }}
         onChange={(event) => {
           setValue(event.target.value);
           noteData.onTextChange(id, event.target.value);
@@ -144,14 +290,153 @@ function TextNoteNodeView({ id, data }: NodeProps) {
         // 입력 중 키 입력이 React Flow(삭제 단축키 등)로 전파되지 않도록 막는다.
         onKeyDown={(event) => event.stopPropagation()}
       />
+      {selected ? (
+        <div
+          className="nodrag flow-shape-toolbar"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          {SHAPE_COLORS.map((color) => (
+            <button
+              key={color}
+              type="button"
+              className={`flow-shape-swatch ${
+                noteData.color === color ? "active" : ""
+              }`}
+              style={{ background: color }}
+              title="글자 색 변경"
+              aria-label={`글자 색 ${color}`}
+              onClick={() => noteData.onStyleChange(id, { color })}
+            />
+          ))}
+          <span className="flow-shape-toolbar-divider" />
+          <button
+            type="button"
+            className="flow-shape-icon-button flow-shape-font-button"
+            title="글자 작게"
+            aria-label="글자 작게"
+            disabled={fontSize <= TEXT_NOTE_MIN_FONT_SIZE}
+            onClick={() =>
+              noteData.onStyleChange(id, {
+                fontSize: Math.max(
+                  TEXT_NOTE_MIN_FONT_SIZE,
+                  fontSize - TEXT_NOTE_FONT_STEP
+                ),
+              })
+            }
+          >
+            A−
+          </button>
+          <button
+            type="button"
+            className="flow-shape-icon-button flow-shape-font-button"
+            title="글자 크게"
+            aria-label="글자 크게"
+            disabled={fontSize >= TEXT_NOTE_MAX_FONT_SIZE}
+            onClick={() =>
+              noteData.onStyleChange(id, {
+                fontSize: Math.min(
+                  TEXT_NOTE_MAX_FONT_SIZE,
+                  fontSize + TEXT_NOTE_FONT_STEP
+                ),
+              })
+            }
+          >
+            A+
+          </button>
+          <span className="flow-shape-toolbar-divider" />
+          <button
+            type="button"
+            className={`flow-shape-fill-toggle ${
+              noteData.background ? "active" : ""
+            }`}
+            title={noteData.background ? "배경 없애기" : "배경 표시"}
+            onClick={() =>
+              noteData.onStyleChange(id, { background: !noteData.background })
+            }
+          >
+            BG
+          </button>
+          <span className="flow-shape-toolbar-divider" />
+          <ZOrderButtons id={id} onZOrder={noteData.onZOrder} />
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+// 사각형 도형 노드. 색 채움/테두리만 토글과 색상 선택을 지원한다.
+function ShapeNodeView({ id, data, selected }: NodeProps) {
+  const shapeData = data as ShapeData;
+  return (
+    <>
+      <NodeResizer
+        isVisible={selected}
+        minWidth={SHAPE_MIN_SIZE}
+        minHeight={SHAPE_MIN_SIZE}
+        lineClassName="flow-shape-resize-line"
+        handleClassName="flow-shape-resize-handle"
+      />
+      <div
+        className="flow-shape"
+        style={{
+          borderColor: shapeData.color,
+          background: shapeData.filled
+            ? hexWithAlpha(shapeData.color, 0.18)
+            : "transparent",
+        }}
+      />
+      {selected ? (
+        <div
+          className="nodrag flow-shape-toolbar"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          {SHAPE_COLORS.map((color) => (
+            <button
+              key={color}
+              type="button"
+              className={`flow-shape-swatch ${
+                shapeData.color === color ? "active" : ""
+              }`}
+              style={{ background: color }}
+              title="색상 변경"
+              aria-label={`색상 ${color}`}
+              onClick={() => shapeData.onChange(id, { color })}
+            />
+          ))}
+          <span className="flow-shape-toolbar-divider" />
+          <button
+            type="button"
+            className={`flow-shape-fill-toggle ${
+              shapeData.filled ? "active" : ""
+            }`}
+            title={shapeData.filled ? "테두리만 표시" : "색 채우기"}
+            onClick={() => shapeData.onChange(id, { filled: !shapeData.filled })}
+          >
+            {shapeData.filled ? "Fill" : "Line"}
+          </button>
+          <span className="flow-shape-toolbar-divider" />
+          <ZOrderButtons id={id} onZOrder={shapeData.onZOrder} />
+        </div>
+      ) : null}
+    </>
   );
 }
 
 const NODE_TYPES: NodeTypes = {
   requestNode: RequestNodeView,
   textNote: TextNoteNodeView,
+  shape: ShapeNodeView,
 };
+
+// #rrggbb 색에 알파를 더해 반투명 채움 색을 만든다.
+function hexWithAlpha(hex: string, alpha: number): string {
+  const normalized = hex.replace("#", "");
+  if (normalized.length !== 6) return hex;
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 export function FlowChartView({
   items,
@@ -181,6 +466,7 @@ export function FlowChartView({
   const [textNotes, setTextNotes] = useState<FlowTextNote[]>(
     () => layoutSnapshot.notes
   );
+  const [shapes, setShapes] = useState<FlowShape[]>(() => layoutSnapshot.shapes);
   // 삭제한 자동 연결선 id, 수동으로 추가한 연결선.
   const [deletedEdgeIds, setDeletedEdgeIds] = useState<Set<string>>(
     () => new Set(layoutSnapshot.deletedEdges)
@@ -209,6 +495,9 @@ export function FlowChartView({
   // 동기화 effect가 텍스트 한 글자마다 재실행되지 않도록 메모 최신값을 ref로 읽는다.
   const textNotesRef = useRef(textNotes);
   textNotesRef.current = textNotes;
+  // 도형 동기화 effect가 색/크기 변경마다 재실행되지 않도록 ref로 최신값을 읽는다.
+  const shapesRef = useRef(shapes);
+  shapesRef.current = shapes;
   const [autoPositions, setAutoPositions] = useState<
     Map<string, { x: number; y: number }>
   >(new Map());
@@ -241,6 +530,77 @@ export function FlowChartView({
     [setRfNodes]
   );
 
+  const handleShapeChange = useCallback(
+    (id: string, patch: Partial<Pick<FlowShape, "color" | "filled">>) => {
+      // 영속 상태 갱신(저장용).
+      setShapes((prev) =>
+        prev.map((shape) => (shape.id === id ? { ...shape, ...patch } : shape))
+      );
+      // React Flow 노드 data를 제자리에서 갱신해 노드 재생성을 피한다.
+      setRfNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === id ? { ...node, data: { ...node.data, ...patch } } : node
+        )
+      );
+    },
+    [setRfNodes]
+  );
+
+  const handleNoteStyleChange = useCallback(
+    (
+      id: string,
+      patch: Partial<Pick<FlowTextNote, "color" | "background" | "fontSize">>
+    ) => {
+      setTextNotes((prev) =>
+        prev.map((note) => (note.id === id ? { ...note, ...patch } : note))
+      );
+      setRfNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === id ? { ...node, data: { ...node.data, ...patch } } : node
+        )
+      );
+    },
+    [setRfNodes]
+  );
+
+  // 선택한 도형/메모를 다른 모든 도형·메모보다 맨 앞 또는 맨 뒤로 보낸다.
+  // 음수 zIndex는 요청 카드(기본 0) 뒤로, 양수는 앞으로 가게 된다.
+  const handleZOrderChange = useCallback(
+    (id: string, toFront: boolean) => {
+      const zIndexes = [
+        ...shapesRef.current.map((shape) => shape.zIndex ?? 0),
+        ...textNotesRef.current.map((note) => note.zIndex ?? 0),
+      ];
+      const nextZIndex = zIndexes.length
+        ? toFront
+          ? Math.max(...zIndexes) + 1
+          : Math.min(...zIndexes) - 1
+        : toFront
+        ? 1
+        : -1;
+
+      if (id.startsWith(SHAPE_NODE_PREFIX)) {
+        setShapes((prev) =>
+          prev.map((shape) =>
+            shape.id === id ? { ...shape, zIndex: nextZIndex } : shape
+          )
+        );
+      } else {
+        setTextNotes((prev) =>
+          prev.map((note) =>
+            note.id === id ? { ...note, zIndex: nextZIndex } : note
+          )
+        );
+      }
+      setRfNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === id ? { ...node, zIndex: nextZIndex } : node
+        )
+      );
+    },
+    [setRfNodes]
+  );
+
   // 편집이 바뀔 때마다 위치/삭제/수동 연결선은 localStorage에 저장한다.
   // 텍스트 메모는 onLayoutChange를 통해 export/import 스냅샷에만 유지한다.
   // positionOverrides는 드래그가 끝났을 때만 갱신되므로 매 프레임 저장되지 않는다.
@@ -251,6 +611,7 @@ export function FlowChartView({
       notes: textNotes,
       deletedEdges: [...deletedEdgeIds],
       manualEdges,
+      shapes,
     };
     saveFlowLayout(layout);
     onLayoutChange(layout);
@@ -260,6 +621,7 @@ export function FlowChartView({
     textNotes,
     deletedEdgeIds,
     manualEdges,
+    shapes,
     onLayoutChange,
   ]);
 
@@ -270,6 +632,7 @@ export function FlowChartView({
     setTextNotes(layoutSnapshot.notes);
     setDeletedEdgeIds(new Set(layoutSnapshot.deletedEdges));
     setManualEdges(layoutSnapshot.manualEdges);
+    setShapes(layoutSnapshot.shapes);
   }, [layoutRevision]);
 
   // 노드 라벨(JSX)과 엣지는 드래그(위치 변경)와 무관한 입력에만 의존하도록 메모이즈한다.
@@ -380,6 +743,11 @@ export function FlowChartView({
     () => textNotes.map((note) => note.id).join("|"),
     [textNotes]
   );
+  // 도형도 추가/삭제(구조 변화)만 감지한다. 색/크기 변경은 ref·in-place 갱신으로 처리.
+  const shapeIdsKey = useMemo(
+    () => shapes.map((shape) => shape.id).join("|"),
+    [shapes]
+  );
 
   // 삭제/노드 라벨/메모 추가·삭제 시에만 React Flow 노드 상태를 다시 만든다.
   // positionOverrides·텍스트 내용은 의존성에 넣지 않고 ref로 읽어, 불필요한
@@ -388,6 +756,23 @@ export function FlowChartView({
     const overrides = positionOverridesRef.current;
     const requestPositions = mergeNodePositions(overrides, autoPositions);
     const nextNodes: Node[] = [
+      // 도형은 가장 먼저 추가해 요청 카드/메모 뒤에 깔리도록 한다.
+      ...shapesRef.current.map<Node>((shape) => ({
+        id: shape.id,
+        type: "shape",
+        position: overrides.get(shape.id) ?? shape.position,
+        width: shape.width,
+        height: shape.height,
+        draggable: true,
+        zIndex: shape.zIndex ?? 0,
+        style: { width: shape.width, height: shape.height },
+        data: {
+          color: shape.color,
+          filled: shape.filled,
+          onChange: handleShapeChange,
+          onZOrder: handleZOrderChange,
+        },
+      })),
       ...baseNodes
         .filter((node) => !deletedIds.has(node.id))
         .map((node) => ({
@@ -395,13 +780,29 @@ export function FlowChartView({
           position: requestPositions.get(node.id) ?? node.position,
           draggable: true,
         })),
-      ...textNotesRef.current.map<Node>((note) => ({
-        id: note.id,
-        type: "textNote",
-        position: overrides.get(note.id) ?? note.position,
-        draggable: true,
-        data: { text: note.text, onTextChange: handleTextChange },
-      })),
+      ...textNotesRef.current.map<Node>((note) => {
+        const width = note.width ?? TEXT_NOTE_DEFAULT_WIDTH;
+        const height = note.height ?? TEXT_NOTE_DEFAULT_HEIGHT;
+        return {
+          id: note.id,
+          type: "textNote",
+          position: overrides.get(note.id) ?? note.position,
+          draggable: true,
+          zIndex: note.zIndex ?? 0,
+          width,
+          height,
+          style: { width, height },
+          data: {
+            text: note.text,
+            color: note.color,
+            background: note.background ?? true,
+            fontSize: note.fontSize ?? TEXT_NOTE_DEFAULT_FONT_SIZE,
+            onTextChange: handleTextChange,
+            onStyleChange: handleNoteStyleChange,
+            onZOrder: handleZOrderChange,
+          },
+        };
+      }),
     ];
     // 재생성 시 React Flow가 추적하던 선택 상태를 유지한다(Delete 키 대상 보존).
     setRfNodes((prev) => {
@@ -418,7 +819,11 @@ export function FlowChartView({
     autoPositions,
     deletedIds,
     noteIdsKey,
+    shapeIdsKey,
     handleTextChange,
+    handleShapeChange,
+    handleNoteStyleChange,
+    handleZOrderChange,
     setRfNodes,
   ]);
 
@@ -467,7 +872,8 @@ export function FlowChartView({
     deletedIds.size > 0 ||
     textNotes.length > 0 ||
     deletedEdgeIds.size > 0 ||
-    manualEdges.length > 0;
+    manualEdges.length > 0 ||
+    shapes.length > 0;
 
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -481,12 +887,46 @@ export function FlowChartView({
           Boolean(change.position) &&
           change.dragging !== true
       );
+      // 도형 리사이즈가 끝났을 때(resizing === false) 크기를 영속 상태에 커밋한다.
+      const resized = changes.filter(
+        (change): change is Extract<NodeChange, { type: "dimensions" }> =>
+          change.type === "dimensions" &&
+          Boolean(change.dimensions) &&
+          change.resizing === false
+      );
       const removedIds = changes
         .filter(
           (change): change is Extract<NodeChange, { type: "remove" }> =>
             change.type === "remove"
         )
         .map((change) => change.id);
+
+      if (resized.length) {
+        setShapes((prev) =>
+          prev.map((shape) => {
+            const change = resized.find((item) => item.id === shape.id);
+            return change && change.dimensions
+              ? {
+                  ...shape,
+                  width: change.dimensions.width,
+                  height: change.dimensions.height,
+                }
+              : shape;
+          })
+        );
+        setTextNotes((prev) =>
+          prev.map((note) => {
+            const change = resized.find((item) => item.id === note.id);
+            return change && change.dimensions
+              ? {
+                  ...note,
+                  width: change.dimensions.width,
+                  height: change.dimensions.height,
+                }
+              : note;
+          })
+        );
+      }
 
       if (committed.length) {
         setPositionOverrides((prev) => {
@@ -518,10 +958,19 @@ export function FlowChartView({
         setTextNotes((prev) =>
           prev.filter((note) => !removedIds.includes(note.id))
         );
+        setShapes((prev) =>
+          prev.filter((shape) => !removedIds.includes(shape.id))
+        );
         setDeletedIds((prev) => {
           const next = new Set(prev);
           for (const id of removedIds) {
-            if (!id.startsWith(TEXT_NODE_PREFIX)) next.add(id);
+            // 텍스트/도형은 합성 노드라 삭제 목록(자동 노드 숨김용)에 넣지 않는다.
+            if (
+              !id.startsWith(TEXT_NODE_PREFIX) &&
+              !id.startsWith(SHAPE_NODE_PREFIX)
+            ) {
+              next.add(id);
+            }
           }
           return next;
         });
@@ -595,12 +1044,41 @@ export function FlowChartView({
     setTextNotes((prev) => [...prev, { id, position, text: "" }]);
   }, []);
 
+  const handleAddShape = useCallback(() => {
+    const instance = flowInstanceRef.current;
+    const panel = flowPanelRef.current;
+    let center = { x: 0, y: 0 };
+    if (instance && panel) {
+      const rect = panel.getBoundingClientRect();
+      center = instance.screenToFlowPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      });
+    }
+    const id = `${SHAPE_NODE_PREFIX}${Date.now()}`;
+    setShapes((prev) => [
+      ...prev,
+      {
+        id,
+        position: {
+          x: center.x - SHAPE_DEFAULT_WIDTH / 2,
+          y: center.y - SHAPE_DEFAULT_HEIGHT / 2,
+        },
+        width: SHAPE_DEFAULT_WIDTH,
+        height: SHAPE_DEFAULT_HEIGHT,
+        color: SHAPE_COLORS[0],
+        filled: false,
+      },
+    ]);
+  }, []);
+
   const handleResetLayout = useCallback(() => {
     setPositionOverrides(new Map());
     setDeletedIds(new Set());
     setTextNotes([]);
     setDeletedEdgeIds(new Set());
     setManualEdges([]);
+    setShapes([]);
   }, []);
 
   useEffect(() => {
@@ -697,6 +1175,9 @@ export function FlowChartView({
             maxZoom={MAX_ZOOM}
             nodesDraggable
             nodesConnectable
+            // 선택해도 노드를 위로 끌어올리지 않는다. 그래야 맨 앞/맨 뒤
+            // 버튼으로 바꾼 z-index가 선택 중에도 그대로 보인다.
+            elevateNodesOnSelect={false}
             connectionMode={ConnectionMode.Loose}
             deleteKeyCode={["Delete"]}
             // 빈 캔버스를 좌클릭 드래그하면 여러 요소를 박스로 선택한다.
@@ -747,30 +1228,6 @@ export function FlowChartView({
                     onPointerDown={(event) => event.stopPropagation()}
                     onClick={(event) => {
                       event.stopPropagation();
-                      handleAddTextNote();
-                    }}
-                  >
-                    Add text
-                  </button>
-                  {hasEdits ? (
-                    <button
-                      className="flow-export-button"
-                      type="button"
-                      onPointerDown={(event) => event.stopPropagation()}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleResetLayout();
-                      }}
-                    >
-                      Reset
-                    </button>
-                  ) : null}
-                  <button
-                    className="flow-export-button"
-                    type="button"
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onClick={(event) => {
-                      event.stopPropagation();
                       void handleDownloadImage();
                     }}
                     disabled={isExporting}
@@ -780,6 +1237,54 @@ export function FlowChartView({
                 </div>
                 {exportError ? (
                   <span className="flow-export-error">{exportError}</span>
+                ) : null}
+              </div>
+            </Panel>
+            <Panel position="bottom-center" className="flow-tool-panel">
+              <div className="flow-toolbar">
+                <button
+                  className="flow-tool-button"
+                  type="button"
+                  title="텍스트 메모 추가"
+                  aria-label="텍스트 메모 추가"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleAddTextNote();
+                  }}
+                >
+                  <TextIcon />
+                </button>
+                <button
+                  className="flow-tool-button"
+                  type="button"
+                  title="사각형 도형 추가"
+                  aria-label="사각형 도형 추가"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleAddShape();
+                  }}
+                >
+                  <SquareIcon />
+                </button>
+                {hasEdits ? (
+                  <>
+                    <span className="flow-toolbar-divider" />
+                    <button
+                      className="flow-tool-button flow-tool-button-danger"
+                      type="button"
+                      title="편집 초기화"
+                      aria-label="편집 초기화"
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleResetLayout();
+                      }}
+                    >
+                      <ResetIcon />
+                    </button>
+                  </>
                 ) : null}
               </div>
             </Panel>

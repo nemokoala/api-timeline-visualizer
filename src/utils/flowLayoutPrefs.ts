@@ -13,6 +13,17 @@ export type FlowTextNote = {
   id: string;
   position: FlowNotePosition;
   text: string;
+  /** 글자 색(CSS 색). 없으면 기본 텍스트색. */
+  color?: string;
+  /** false면 배경/테두리를 없애고 글자만 띄운다. 기본 true. */
+  background?: boolean;
+  /** 노드 쌓임 순서. 없으면 0. */
+  zIndex?: number;
+  /** 메모 박스 크기(px). 없으면 기본값. */
+  width?: number;
+  height?: number;
+  /** 글자 크기(px). 없으면 기본값. */
+  fontSize?: number;
 };
 
 export type FlowManualEdge = {
@@ -24,6 +35,19 @@ export type FlowManualEdge = {
   targetHandle?: string | null;
 };
 
+export type FlowShape = {
+  id: string;
+  position: FlowNotePosition;
+  width: number;
+  height: number;
+  /** 테두리/채움에 사용할 색상(CSS 색). */
+  color: string;
+  /** true면 색을 채우고, false면 테두리만 남긴다. */
+  filled: boolean;
+  /** 노드 쌓임 순서. 없으면 0. */
+  zIndex?: number;
+};
+
 export type FlowLayout = {
   positions: Record<string, FlowNotePosition>;
   deleted: string[];
@@ -32,6 +56,8 @@ export type FlowLayout = {
   deletedEdges: string[];
   /** 사용자가 수동으로 추가한 연결선. */
   manualEdges: FlowManualEdge[];
+  /** 사용자가 추가한 도형(사각형 등). */
+  shapes: FlowShape[];
 };
 
 export const EMPTY_FLOW_LAYOUT: FlowLayout = {
@@ -40,6 +66,7 @@ export const EMPTY_FLOW_LAYOUT: FlowLayout = {
   notes: [],
   deletedEdges: [],
   manualEdges: [],
+  shapes: [],
 };
 
 export function isEmptyFlowLayout(layout: FlowLayout): boolean {
@@ -48,7 +75,8 @@ export function isEmptyFlowLayout(layout: FlowLayout): boolean {
     layout.deleted.length === 0 &&
     layout.notes.length === 0 &&
     layout.deletedEdges.length === 0 &&
-    layout.manualEdges.length === 0
+    layout.manualEdges.length === 0 &&
+    layout.shapes.length === 0
   );
 }
 
@@ -93,6 +121,22 @@ export function normalizeFlowLayout(value: unknown): FlowLayout {
           id: note.id,
           position: { x: note.position.x, y: note.position.y },
           text: note.text,
+          ...(typeof note.color === 'string' ? { color: note.color } : {}),
+          ...(typeof note.background === 'boolean'
+            ? { background: note.background }
+            : {}),
+          ...(typeof note.zIndex === 'number' && Number.isFinite(note.zIndex)
+            ? { zIndex: note.zIndex }
+            : {}),
+          ...(typeof note.width === 'number' && Number.isFinite(note.width)
+            ? { width: note.width }
+            : {}),
+          ...(typeof note.height === 'number' && Number.isFinite(note.height)
+            ? { height: note.height }
+            : {}),
+          ...(typeof note.fontSize === 'number' && Number.isFinite(note.fontSize)
+            ? { fontSize: note.fontSize }
+            : {}),
         }))
     : [];
 
@@ -121,17 +165,45 @@ export function normalizeFlowLayout(value: unknown): FlowLayout {
         }))
     : [];
 
-  return { positions, deleted, notes, deletedEdges, manualEdges };
+  const shapes = Array.isArray(candidate.shapes)
+    ? candidate.shapes
+        .filter(
+          (shape): shape is FlowShape =>
+            Boolean(shape) &&
+            typeof shape === 'object' &&
+            typeof (shape as FlowShape).id === 'string' &&
+            isPosition((shape as FlowShape).position) &&
+            typeof (shape as FlowShape).width === 'number' &&
+            Number.isFinite((shape as FlowShape).width) &&
+            typeof (shape as FlowShape).height === 'number' &&
+            Number.isFinite((shape as FlowShape).height) &&
+            typeof (shape as FlowShape).color === 'string' &&
+            typeof (shape as FlowShape).filled === 'boolean',
+        )
+        .map((shape) => ({
+          id: shape.id,
+          position: { x: shape.position.x, y: shape.position.y },
+          width: shape.width,
+          height: shape.height,
+          color: shape.color,
+          filled: shape.filled,
+          ...(typeof shape.zIndex === 'number' && Number.isFinite(shape.zIndex)
+            ? { zIndex: shape.zIndex }
+            : {}),
+        }))
+    : [];
+
+  return { positions, deleted, notes, deletedEdges, manualEdges, shapes };
 }
 
 export function loadFlowLayout(): FlowLayout {
   const stored = readJson<unknown>(FLOW_LAYOUT_KEY);
   if (stored === null) return { ...EMPTY_FLOW_LAYOUT };
-  return { ...normalizeFlowLayout(stored), notes: [] };
+  return { ...normalizeFlowLayout(stored), notes: [], shapes: [] };
 }
 
 export function saveFlowLayout(layout: FlowLayout): void {
-  const storedLayout: FlowLayout = { ...layout, notes: [] };
+  const storedLayout: FlowLayout = { ...layout, notes: [], shapes: [] };
   if (isEmptyFlowLayout(storedLayout)) {
     removeKey(FLOW_LAYOUT_KEY);
     return;
