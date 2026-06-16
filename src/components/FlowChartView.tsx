@@ -363,6 +363,18 @@ function TextNoteNodeView({ id, data, selected }: NodeProps) {
   );
 }
 
+// 모든 도형/메모보다 한 단계 위(맨 앞) zIndex를 구한다. 비어 있으면 1.
+function getNextFrontZIndex(
+  shapes: FlowShape[],
+  notes: FlowTextNote[]
+): number {
+  const zIndexes = [
+    ...shapes.map((shape) => shape.zIndex ?? 0),
+    ...notes.map((note) => note.zIndex ?? 0),
+  ];
+  return zIndexes.length ? Math.max(...zIndexes) + 1 : 1;
+}
+
 // 사각형 도형 노드. 색 채움/테두리만 토글과 색상 선택을 지원한다.
 function ShapeNodeView({ id, data, selected }: NodeProps) {
   const shapeData = data as ShapeData;
@@ -570,12 +582,10 @@ export function FlowChartView({
         ...shapesRef.current.map((shape) => shape.zIndex ?? 0),
         ...textNotesRef.current.map((note) => note.zIndex ?? 0),
       ];
-      const nextZIndex = zIndexes.length
-        ? toFront
-          ? Math.max(...zIndexes) + 1
-          : Math.min(...zIndexes) - 1
-        : toFront
-        ? 1
+      const nextZIndex = toFront
+        ? getNextFrontZIndex(shapesRef.current, textNotesRef.current)
+        : zIndexes.length
+        ? Math.min(...zIndexes) - 1
         : -1;
 
       if (id.startsWith(SHAPE_NODE_PREFIX)) {
@@ -1040,7 +1050,9 @@ export function FlowChartView({
       });
     }
     const id = `${TEXT_NODE_PREFIX}${Date.now()}`;
-    setTextNotes((prev) => [...prev, { id, position, text: "" }]);
+    // 새로 추가한 메모는 기존 도형/메모보다 맨 앞에 보이게 한다.
+    const zIndex = getNextFrontZIndex(shapesRef.current, textNotesRef.current);
+    setTextNotes((prev) => [...prev, { id, position, text: "", zIndex }]);
   }, []);
 
   const handleAddShape = useCallback(() => {
@@ -1055,6 +1067,8 @@ export function FlowChartView({
       });
     }
     const id = `${SHAPE_NODE_PREFIX}${Date.now()}`;
+    // 새로 추가한 도형은 기존 도형/메모보다 맨 앞에 보이게 한다.
+    const zIndex = getNextFrontZIndex(shapesRef.current, textNotesRef.current);
     setShapes((prev) => [
       ...prev,
       {
@@ -1067,6 +1081,7 @@ export function FlowChartView({
         height: SHAPE_DEFAULT_HEIGHT,
         color: SHAPE_COLORS[0],
         filled: false,
+        zIndex,
       },
     ]);
   }, []);
