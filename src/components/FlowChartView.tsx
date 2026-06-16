@@ -16,6 +16,7 @@ import {
   Panel,
   Position,
   ReactFlow,
+  SelectionMode,
   useEdgesState,
   useNodesState,
   type Connection,
@@ -698,7 +699,13 @@ export function FlowChartView({
             nodesConnectable
             connectionMode={ConnectionMode.Loose}
             deleteKeyCode={["Delete"]}
-            panOnDrag
+            // 빈 캔버스를 좌클릭 드래그하면 여러 요소를 박스로 선택한다.
+            // 패닝은 가운데/오른쪽 버튼 드래그 또는 Space+드래그로 한다.
+            selectionOnDrag
+            selectionMode={SelectionMode.Partial}
+            panOnDrag={[1, 2]}
+            panActivationKeyCode="Space"
+            multiSelectionKeyCode={["Meta", "Shift", "Control"]}
             panOnScroll={false}
             zoomOnScroll={false}
             zoomOnPinch

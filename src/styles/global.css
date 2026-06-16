@@ -1827,6 +1827,12 @@ button:not(:disabled) {
   border-style: solid;
 }
 
+/* 다중 선택(박스/Shift)된 요청 카드 강조. */
+.flow-panel .react-flow__node.selected .flow-node {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px rgba(49, 130, 246, 0.35);
+}
+
 .flow-text-note-input {
   width: 100%;
   min-height: 44px;
