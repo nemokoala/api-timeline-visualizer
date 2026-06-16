@@ -34,7 +34,6 @@ import { useTheme } from "../hooks/useTheme";
 import { exportFlowChartToPng } from "../utils/exportFlowImage";
 import { getImageSource } from "../utils/imageSource";
 import {
-  saveFlowLayout,
   type FlowLayout,
   type FlowManualEdge,
   type FlowShape,
@@ -601,9 +600,10 @@ export function FlowChartView({
     [setRfNodes]
   );
 
-  // 편집이 바뀔 때마다 위치/삭제/수동 연결선은 localStorage에 저장한다.
-  // 텍스트 메모는 onLayoutChange를 통해 export/import 스냅샷에만 유지한다.
-  // positionOverrides는 드래그가 끝났을 때만 갱신되므로 매 프레임 저장되지 않는다.
+  // 편집이 바뀔 때마다 onLayoutChange로 부모(App)의 flowLayoutRef에 반영한다.
+  // 이 ref가 세션 동안(뷰 전환 포함) 레이아웃을 유지하고, export/import 스냅샷의
+  // 소스가 된다. localStorage에는 저장하지 않는다(requestId가 세션마다 달라
+  // reopen 시 복원이 불가능하므로 stale 데이터만 쌓였다).
   useEffect(() => {
     const layout = {
       positions: Object.fromEntries(positionOverrides),
@@ -613,7 +613,6 @@ export function FlowChartView({
       manualEdges,
       shapes,
     };
-    saveFlowLayout(layout);
     onLayoutChange(layout);
   }, [
     positionOverrides,

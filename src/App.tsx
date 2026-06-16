@@ -24,8 +24,6 @@ import {
 import { exportSession, parseSession, pickSessionFile } from './utils/sessionIO';
 import {
   EMPTY_FLOW_LAYOUT,
-  loadFlowLayout,
-  saveFlowLayout,
   type FlowLayout,
 } from './utils/flowLayoutPrefs';
 import {
@@ -114,7 +112,10 @@ export default function App() {
   const [consoleSearchOccurrences, setConsoleSearchOccurrences] = useState<ConsoleSearchOccurrence[]>([]);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const workspaceRef = useRef<HTMLElement>(null);
-  const flowLayoutRef = useRef<FlowLayout>(loadFlowLayout());
+  // 레이아웃은 세션 동안만 이 ref로 유지한다(뷰 전환 시 복원). DevTools를 다시 열면
+  // requestId가 새로 찍혀 이전 좌표와 맞지 않으므로 localStorage 영속은 하지 않는다.
+  // 진짜 영속이 필요하면 세션 export/import(JSON)를 쓴다.
+  const flowLayoutRef = useRef<FlowLayout>(EMPTY_FLOW_LAYOUT);
   const {
     isStacked: isSplitStacked,
     layoutStyle: splitLayoutStyle,
@@ -374,7 +375,6 @@ export default function App() {
     setNetworkSearchText('');
     setNetworkSearchMatchIndex(0);
     flowLayoutRef.current = EMPTY_FLOW_LAYOUT;
-    saveFlowLayout(EMPTY_FLOW_LAYOUT);
     setFlowLayoutRevision((revision) => revision + 1);
   }, []);
 
@@ -601,7 +601,6 @@ export default function App() {
       setNetworkSearchMatchIndex(0);
       const nextFlowLayout = flowLayout ?? EMPTY_FLOW_LAYOUT;
       flowLayoutRef.current = nextFlowLayout;
-      saveFlowLayout(nextFlowLayout);
       setFlowLayoutRevision((revision) => revision + 1);
       setSessionNotice(`Imported ${importedRequests.length} requests.`);
     } catch (error) {

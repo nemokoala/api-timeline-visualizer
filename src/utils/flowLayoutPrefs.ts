@@ -1,12 +1,9 @@
 /**
- * 플로우차트 사용자 편집을 localStorage에 저장합니다.
- * 텍스트 메모(notes)는 새로고침 자동 복원 대상에서 제외하고,
- * 세션 JSON export/import에만 포함합니다.
+ * 플로우차트 사용자 편집(FlowLayout)의 타입과 정규화 로직입니다.
+ * requestId가 세션마다 새로 생성되어 localStorage 영속은 의미가 없으므로,
+ * 레이아웃은 세션 동안 App의 ref로만 유지하고 영속은 세션 JSON
+ * export/import로 처리합니다. normalizeFlowLayout은 import한 JSON 검증에 쓰입니다.
  */
-import { readJson, writeJson, removeKey } from './localStoragePrefs';
-
-const FLOW_LAYOUT_KEY = 'api-flow-layout';
-
 export type FlowNotePosition = { x: number; y: number };
 
 export type FlowTextNote = {
@@ -194,19 +191,4 @@ export function normalizeFlowLayout(value: unknown): FlowLayout {
     : [];
 
   return { positions, deleted, notes, deletedEdges, manualEdges, shapes };
-}
-
-export function loadFlowLayout(): FlowLayout {
-  const stored = readJson<unknown>(FLOW_LAYOUT_KEY);
-  if (stored === null) return { ...EMPTY_FLOW_LAYOUT };
-  return { ...normalizeFlowLayout(stored), notes: [], shapes: [] };
-}
-
-export function saveFlowLayout(layout: FlowLayout): void {
-  const storedLayout: FlowLayout = { ...layout, notes: [], shapes: [] };
-  if (isEmptyFlowLayout(storedLayout)) {
-    removeKey(FLOW_LAYOUT_KEY);
-    return;
-  }
-  writeJson(FLOW_LAYOUT_KEY, storedLayout);
 }
