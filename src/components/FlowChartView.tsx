@@ -61,8 +61,8 @@ type FlowChartViewProps = {
 
 const NODE_WIDTH = 240;
 const NODE_HEIGHT = 152;
-const COLUMN_GAP = 40;
-const ROW_GAP = 42;
+const COLUMN_GAP = 45;
+const ROW_GAP = 55;
 const NODES_PER_ROW = 3;
 const AUTO_CONTINUATION_COLUMNS = 4;
 const PARALLEL_GROUP_THRESHOLD_MS = 120;
