@@ -1,4 +1,9 @@
 import type { ApiRequest } from '../types/network';
+import {
+  isEmptyFlowLayout,
+  normalizeFlowLayout,
+  type FlowLayout,
+} from './flowLayoutPrefs';
 
 const SESSION_VERSION = 1;
 
@@ -6,6 +11,12 @@ type ExportedSession = {
   version: typeof SESSION_VERSION;
   exportedAt: string;
   requests: ApiRequest[];
+  flowLayout?: FlowLayout;
+};
+
+export type ParsedSession = {
+  requests: ApiRequest[];
+  flowLayout: FlowLayout | null;
 };
 
 function isApiRequest(value: unknown): value is ApiRequest {
@@ -32,24 +43,31 @@ function downloadJson(content: string, filename: string): void {
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
 }
 
-export function serializeSession(requests: ApiRequest[]): string {
+export function serializeSession(
+  requests: ApiRequest[],
+  flowLayout?: FlowLayout | null,
+): string {
   const payload: ExportedSession = {
     version: SESSION_VERSION,
     exportedAt: new Date().toISOString(),
     requests,
   };
 
+  if (flowLayout && !isEmptyFlowLayout(flowLayout)) {
+    payload.flowLayout = flowLayout;
+  }
+
   return JSON.stringify(payload, null, 2);
 }
 
-export function parseSession(content: string): ApiRequest[] {
+export function parseSession(content: string): ParsedSession {
   const parsed: unknown = JSON.parse(content);
 
   if (Array.isArray(parsed)) {
     if (!parsed.every(isApiRequest)) {
       throw new Error('Invalid request list in session file.');
     }
-    return parsed;
+    return { requests: parsed, flowLayout: null };
   }
 
   if (
@@ -62,15 +80,25 @@ export function parseSession(content: string): ApiRequest[] {
     if (!requests.every(isApiRequest)) {
       throw new Error('Invalid request entries in session file.');
     }
-    return requests;
+    const rawLayout = (parsed as ExportedSession).flowLayout;
+    return {
+      requests,
+      flowLayout: rawLayout ? normalizeFlowLayout(rawLayout) : null,
+    };
   }
 
   throw new Error('Unsupported session file format.');
 }
 
-export function exportSession(requests: ApiRequest[]): void {
+export function exportSession(
+  requests: ApiRequest[],
+  flowLayout?: FlowLayout | null,
+): void {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  downloadJson(serializeSession(requests), `api-flow-session-${timestamp}.json`);
+  downloadJson(
+    serializeSession(requests, flowLayout),
+    `api-flow-session-${timestamp}.json`,
+  );
 }
 
 export function pickSessionFile(): Promise<string> {

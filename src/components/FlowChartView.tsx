@@ -1,19 +1,46 @@
-import { useCallback, useEffect, useRef, useState, type WheelEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type WheelEvent,
+} from "react";
 import {
   Background,
+  ConnectionMode,
   Controls,
+  Handle,
   MarkerType,
   Panel,
   Position,
   ReactFlow,
+  useEdgesState,
+  useNodesState,
+  type Connection,
   type Edge,
+  type EdgeChange,
   type Node,
+  type NodeChange,
+  type NodeProps,
+  type NodeTypes,
 } from "@xyflow/react";
 import type { ReactFlowInstance } from "@xyflow/react";
 import type { ApiRequest, TimelineItem } from "../types/network";
 import { useTheme } from "../hooks/useTheme";
 import { exportFlowChartToPng } from "../utils/exportFlowImage";
 import { getImageSource } from "../utils/imageSource";
+import {
+  loadFlowLayout,
+  saveFlowLayout,
+  type FlowManualEdge,
+  type FlowTextNote,
+} from "../utils/flowLayoutPrefs";
+import {
+  getFlowShowQuery,
+  saveFlowShowQuery,
+} from "../utils/networkFlowPrefs";
 import type { RequestSearchSummary } from "../utils/requestSearch";
 import { formatDuration, formatOffset, getStatusTone } from "./formatters";
 import { ImagePreview } from "./ImagePreview";
@@ -27,6 +54,8 @@ type FlowChartViewProps = {
   searchText: string;
   searchOccurrenceByRequest: Map<string, RequestSearchSummary>;
   activeGlobalSearchIndex: number | null;
+  // import 등으로 외부에서 레이아웃을 갈아끼웠을 때 localStorage에서 다시 읽어오기 위한 신호.
+  layoutRevision: number;
   onSelectRequest: (requestId: string) => void;
 };
 
@@ -45,6 +74,84 @@ const EDGE_COLORS = {
   dark: { normal: "#4a4d57", error: "#ff6b70", dot: "#2f2f3a" },
 } as const;
 
+const TEXT_NODE_PREFIX = "text-note-";
+const MANUAL_EDGE_PREFIX = "manual-edge-";
+
+type TextNoteData = {
+  text: string;
+  onTextChange: (id: string, text: string) => void;
+};
+
+type RequestNodeData = {
+  requestId: string;
+  label: ReactNode;
+};
+
+// 상/하/좌/우 네 방향 핸들. loose 모드라 각 핸들이 연결 시작/끝 모두 가능하다.
+const HANDLE_SIDES = [
+  { id: "top", position: Position.Top },
+  { id: "right", position: Position.Right },
+  { id: "bottom", position: Position.Bottom },
+  { id: "left", position: Position.Left },
+] as const;
+
+// API 요청 카드 노드. 라벨 + 사방 연결 핸들을 렌더한다.
+function RequestNodeView({ data }: NodeProps) {
+  const nodeData = data as RequestNodeData;
+  return (
+    <>
+      {HANDLE_SIDES.map((side) => (
+        <Handle
+          key={side.id}
+          type="source"
+          id={side.id}
+          position={side.position}
+        />
+      ))}
+      {nodeData.label}
+    </>
+  );
+}
+
+// 사용자가 자유롭게 메모를 적을 수 있는 커스텀 텍스트 노드.
+function TextNoteNodeView({ id, data }: NodeProps) {
+  const noteData = data as TextNoteData;
+  // textarea를 로컬 상태로 제어한다. 부모 리렌더가 입력값을 되돌려 적용하지
+  // 않으므로 한글 IME 조합 중 자모가 분리되지 않는다.
+  const [value, setValue] = useState(noteData.text);
+  const isInitialEmpty = useRef(noteData.text === "");
+
+  // import/reset 등 외부에서 텍스트가 바뀌면 로컬 값도 맞춘다.
+  // 타이핑 중에는 noteData.text가 로컬 value와 같아 no-op이 된다.
+  useEffect(() => {
+    setValue(noteData.text);
+  }, [noteData.text]);
+
+  return (
+    <div className="flow-text-note">
+      <textarea
+        className="nodrag flow-text-note-input"
+        value={value}
+        placeholder="메모 입력..."
+        rows={2}
+        autoFocus={isInitialEmpty.current}
+        onChange={(event) => {
+          setValue(event.target.value);
+          noteData.onTextChange(id, event.target.value);
+        }}
+        onPointerDown={(event) => event.stopPropagation()}
+        // 입력 중 키 입력이 React Flow(삭제 단축키 등)로 전파되지 않도록 막는다.
+        onKeyDown={(event) => event.stopPropagation()}
+      />
+    </div>
+  );
+}
+
+const NODE_TYPES: NodeTypes = {
+  requestNode: RequestNodeView,
+  textNote: TextNoteNodeView,
+};
+
 export function FlowChartView({
   items,
   requests,
@@ -53,25 +160,342 @@ export function FlowChartView({
   searchText,
   searchOccurrenceByRequest,
   activeGlobalSearchIndex,
+  layoutRevision,
   onSelectRequest,
 }: FlowChartViewProps) {
   const flowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const flowPanelRef = useRef<HTMLElement | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-  const { theme } = useTheme();
-  const requestById = new Map(requests.map((request) => [request.id, request]));
-  const groups = groupByTime ? toTimeGroups(items) : [];
-  const nodes = toFlowNodes(
-    items,
-    requestById,
-    selectedRequestId,
-    groupByTime,
-    groups,
-    searchOccurrenceByRequest,
-    activeGlobalSearchIndex,
+  // 사용자가 직접 옮긴 위치, 삭제한 노드, 추가한 텍스트 메모를 로컬 상태로 보관한다.
+  // 초기값은 localStorage에 저장된 레이아웃에서 복원한다.
+  const [positionOverrides, setPositionOverrides] = useState<
+    Map<string, { x: number; y: number }>
+  >(() => new Map(Object.entries(loadFlowLayout().positions)));
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(
+    () => new Set(loadFlowLayout().deleted),
   );
-  const edges = toFlowEdges(items, groupByTime, groups, theme);
+  const [textNotes, setTextNotes] = useState<FlowTextNote[]>(
+    () => loadFlowLayout().notes,
+  );
+  // 삭제한 자동 연결선 id, 수동으로 추가한 연결선.
+  const [deletedEdgeIds, setDeletedEdgeIds] = useState<Set<string>>(
+    () => new Set(loadFlowLayout().deletedEdges),
+  );
+  const [manualEdges, setManualEdges] = useState<FlowManualEdge[]>(
+    () => loadFlowLayout().manualEdges,
+  );
+  // 카드 타이틀에 쿼리 문자열 표시 여부(localStorage에 저장).
+  const [showQuery, setShowQuery] = useState(() => getFlowShowQuery());
+  useEffect(() => {
+    saveFlowShowQuery(showQuery);
+  }, [showQuery]);
+  const { theme } = useTheme();
+  // React Flow가 노드 상태를 직접 소유한다. 드래그 중에는 applyNodeChanges로
+  // 움직이는 노드의 위치만 갱신되어 다른 노드/엣지의 내부 측정값이 보존되고,
+  // 그래서 선이 깜빡이지 않는다. 우리의 영속 상태(positionOverrides 등)에는
+  // 드래그가 끝났을 때만 위치를 커밋한다.
+  const [rfNodes, setRfNodes, onNodesChange] = useNodesState<Node>([]);
+  const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  // 동기화 effect가 positionOverrides 변경마다 재실행되지 않도록 ref로 최신값을 읽는다.
+  const positionOverridesRef = useRef(positionOverrides);
+  positionOverridesRef.current = positionOverrides;
+  // 현재 표시 중인 연결선(중복 연결 방지에 사용).
+  const rfEdgesRef = useRef(rfEdges);
+  rfEdgesRef.current = rfEdges;
+  // 동기화 effect가 텍스트 한 글자마다 재실행되지 않도록 메모 최신값을 ref로 읽는다.
+  const textNotesRef = useRef(textNotes);
+  textNotesRef.current = textNotes;
+
+  const requestById = useMemo(
+    () => new Map(requests.map((request) => [request.id, request])),
+    [requests],
+  );
+  const groups = useMemo(
+    () => (groupByTime ? toTimeGroups(items) : []),
+    [items, groupByTime],
+  );
+
+  const handleTextChange = useCallback(
+    (id: string, text: string) => {
+      // 영속 상태 갱신(저장용).
+      setTextNotes((prev) =>
+        prev.map((note) => (note.id === id ? { ...note, text } : note)),
+      );
+      // React Flow 노드 data를 제자리에서 갱신한다. 전체 재생성을 피해
+      // textarea가 리마운트되지 않으므로 입력 중 포커스가 유지된다.
+      setRfNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === id
+            ? { ...node, data: { ...node.data, text } }
+            : node,
+        ),
+      );
+    },
+    [setRfNodes],
+  );
+
+  // 편집이 바뀔 때마다 localStorage에 저장 → 새로고침/재마운트 시 자동 복원.
+  // positionOverrides는 드래그가 끝났을 때만 갱신되므로 매 프레임 저장되지 않는다.
+  useEffect(() => {
+    saveFlowLayout({
+      positions: Object.fromEntries(positionOverrides),
+      deleted: [...deletedIds],
+      notes: textNotes,
+      deletedEdges: [...deletedEdgeIds],
+      manualEdges,
+    });
+  }, [positionOverrides, deletedIds, textNotes, deletedEdgeIds, manualEdges]);
+
+  // 세션 import 등 외부에서 레이아웃이 교체되면 저장소에서 다시 읽어 상태에 반영.
+  useEffect(() => {
+    const layout = loadFlowLayout();
+    setPositionOverrides(new Map(Object.entries(layout.positions)));
+    setDeletedIds(new Set(layout.deleted));
+    setTextNotes(layout.notes);
+    setDeletedEdgeIds(new Set(layout.deletedEdges));
+    setManualEdges(layout.manualEdges);
+  }, [layoutRevision]);
+
+  // 노드 라벨(JSX)과 엣지는 드래그(위치 변경)와 무관한 입력에만 의존하도록 메모이즈한다.
+  // 이렇게 해야 드래그 중에 data/엣지 객체의 참조가 유지되어 React Flow가 재렌더하지 않는다.
+  const baseNodes = useMemo(
+    () =>
+      toFlowNodes(
+        items,
+        requestById,
+        selectedRequestId,
+        groupByTime,
+        groups,
+        searchOccurrenceByRequest,
+        activeGlobalSearchIndex,
+        showQuery,
+      ),
+    [
+      items,
+      requestById,
+      selectedRequestId,
+      groupByTime,
+      groups,
+      searchOccurrenceByRequest,
+      activeGlobalSearchIndex,
+      showQuery,
+    ],
+  );
+  const baseEdges = useMemo(
+    () => toFlowEdges(items, groupByTime, groups, theme),
+    [items, groupByTime, groups, theme],
+  );
+
+  // 텍스트 메모 노드의 data는 텍스트가 바뀔 때만 새로 만든다(위치 이동과 분리).
+  // 메모의 추가/삭제(구조 변화)만 감지하는 키. 텍스트 내용이 바뀌어도 동일하다.
+  // → 타이핑 중에는 아래 동기화 effect가 재실행되지 않아 노드가 재생성되지 않는다.
+  const noteIdsKey = useMemo(
+    () => textNotes.map((note) => note.id).join("|"),
+    [textNotes],
+  );
+
+  // 삭제/노드 라벨/메모 추가·삭제 시에만 React Flow 노드 상태를 다시 만든다.
+  // positionOverrides·텍스트 내용은 의존성에 넣지 않고 ref로 읽어, 불필요한
+  // 전체 재생성(과 그로 인한 포커스 손실/깜빡임)을 피한다.
+  useEffect(() => {
+    const overrides = positionOverridesRef.current;
+    const nextNodes: Node[] = [
+      ...baseNodes
+        .filter((node) => !deletedIds.has(node.id))
+        .map((node) => ({
+          ...node,
+          position: overrides.get(node.id) ?? node.position,
+          draggable: true,
+        })),
+      ...textNotesRef.current.map<Node>((note) => ({
+        id: note.id,
+        type: "textNote",
+        position: overrides.get(note.id) ?? note.position,
+        draggable: true,
+        data: { text: note.text, onTextChange: handleTextChange },
+      })),
+    ];
+    // 재생성 시 React Flow가 추적하던 선택 상태를 유지한다(Delete 키 대상 보존).
+    setRfNodes((prev) => {
+      const selectedIds = new Set(
+        prev.filter((node) => node.selected).map((node) => node.id),
+      );
+      if (selectedIds.size === 0) return nextNodes;
+      return nextNodes.map((node) =>
+        selectedIds.has(node.id) ? { ...node, selected: true } : node,
+      );
+    });
+  }, [
+    baseNodes,
+    deletedIds,
+    noteIdsKey,
+    handleTextChange,
+    setRfNodes,
+  ]);
+
+  // 표시할 연결선 = (자동 연결선 − 삭제한 노드/연결선) + 수동 연결선.
+  // 노드와 동일하게 React Flow가 상태를 소유하고, 삭제/연결은 onEdgesChange/onConnect로 처리한다.
+  useEffect(() => {
+    const isNodeVisible = (id: string) => !deletedIds.has(id);
+    const visibleAuto = baseEdges.filter(
+      (edge) =>
+        isNodeVisible(edge.source) &&
+        isNodeVisible(edge.target) &&
+        !deletedEdgeIds.has(edge.id),
+    );
+    const manual = manualEdges
+      .filter(
+        (edge) => isNodeVisible(edge.source) && isNodeVisible(edge.target),
+      )
+      .map((edge) =>
+        styledEdge(
+          edge.id,
+          edge.source,
+          edge.target,
+          false,
+          theme,
+          // 핸들 정보가 없는(예전) 연결선은 우측/좌측 핸들로 폴백.
+          edge.sourceHandle ?? "right",
+          edge.targetHandle ?? "left",
+        ),
+      );
+    const nextEdges = [...visibleAuto, ...manual];
+
+    // 재생성 시 선택 상태 유지(Delete 키 대상 보존).
+    setRfEdges((prev) => {
+      const selectedIds = new Set(
+        prev.filter((edge) => edge.selected).map((edge) => edge.id),
+      );
+      if (selectedIds.size === 0) return nextEdges;
+      return nextEdges.map((edge) =>
+        selectedIds.has(edge.id) ? { ...edge, selected: true } : edge,
+      );
+    });
+  }, [baseEdges, deletedIds, deletedEdgeIds, manualEdges, theme, setRfEdges]);
+
+  const hasEdits =
+    positionOverrides.size > 0 ||
+    deletedIds.size > 0 ||
+    textNotes.length > 0 ||
+    deletedEdgeIds.size > 0 ||
+    manualEdges.length > 0;
+
+  const handleNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      // 라이브 반영: 드래그 중 움직이는 노드 위치만 갱신(내부 측정값 보존).
+      onNodesChange(changes);
+
+      // 드래그가 끝난(dragging !== true) 위치 변경만 영속 상태에 커밋한다.
+      const committed = changes.filter(
+        (change): change is Extract<NodeChange, { type: "position" }> =>
+          change.type === "position" &&
+          Boolean(change.position) &&
+          change.dragging !== true,
+      );
+      const removedIds = changes
+        .filter(
+          (change): change is Extract<NodeChange, { type: "remove" }> =>
+            change.type === "remove",
+        )
+        .map((change) => change.id);
+
+      if (committed.length) {
+        setPositionOverrides((prev) => {
+          const next = new Map(prev);
+          for (const change of committed) {
+            if (change.position) next.set(change.id, change.position);
+          }
+          return next;
+        });
+      }
+
+      if (removedIds.length) {
+        setTextNotes((prev) =>
+          prev.filter((note) => !removedIds.includes(note.id)),
+        );
+        setDeletedIds((prev) => {
+          const next = new Set(prev);
+          for (const id of removedIds) {
+            if (!id.startsWith(TEXT_NODE_PREFIX)) next.add(id);
+          }
+          return next;
+        });
+      }
+    },
+    [onNodesChange],
+  );
+
+  const handleEdgesChange = useCallback(
+    (changes: EdgeChange[]) => {
+      // 라이브 반영(선택 등). 삭제는 영속 상태에도 기록한다.
+      onEdgesChange(changes);
+
+      const removedIds = changes
+        .filter(
+          (change): change is Extract<EdgeChange, { type: "remove" }> =>
+            change.type === "remove",
+        )
+        .map((change) => change.id);
+
+      if (removedIds.length) {
+        setManualEdges((prev) =>
+          prev.filter((edge) => !removedIds.includes(edge.id)),
+        );
+        setDeletedEdgeIds((prev) => {
+          const next = new Set(prev);
+          for (const id of removedIds) {
+            if (!id.startsWith(MANUAL_EDGE_PREFIX)) next.add(id);
+          }
+          return next;
+        });
+      }
+    },
+    [onEdgesChange],
+  );
+
+  // 핸들에서 다른 노드로 끌어 놓으면 수동 연결선을 추가한다.
+  const handleConnect = useCallback((connection: Connection) => {
+    const { source, target, sourceHandle, targetHandle } = connection;
+    if (!source || !target || source === target) return;
+    // 같은 두 노드를 같은 핸들로 잇는 연결선이 이미 있으면 중복 추가하지 않는다.
+    const alreadyConnected = rfEdgesRef.current.some(
+      (edge) =>
+        edge.source === source &&
+        edge.target === target &&
+        (edge.sourceHandle ?? null) === (sourceHandle ?? null) &&
+        (edge.targetHandle ?? null) === (targetHandle ?? null),
+    );
+    if (alreadyConnected) return;
+    const id = `${MANUAL_EDGE_PREFIX}${source}.${sourceHandle ?? ""}__${target}.${targetHandle ?? ""}`;
+    setManualEdges((prev) => {
+      if (prev.some((edge) => edge.id === id)) return prev;
+      return [...prev, { id, source, target, sourceHandle, targetHandle }];
+    });
+  }, []);
+
+  const handleAddTextNote = useCallback(() => {
+    const instance = flowInstanceRef.current;
+    const panel = flowPanelRef.current;
+    let position = { x: 0, y: 0 };
+    if (instance && panel) {
+      const rect = panel.getBoundingClientRect();
+      position = instance.screenToFlowPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      });
+    }
+    const id = `${TEXT_NODE_PREFIX}${Date.now()}`;
+    setTextNotes((prev) => [...prev, { id, position, text: "" }]);
+  }, []);
+
+  const handleResetLayout = useCallback(() => {
+    setPositionOverrides(new Map());
+    setDeletedIds(new Set());
+    setTextNotes([]);
+    setDeletedEdgeIds(new Set());
+    setManualEdges([]);
+  }, []);
 
   useEffect(() => {
     if (!searchText.trim() || !selectedRequestId) return;
@@ -157,40 +581,88 @@ export function FlowChartView({
       ) : (
         <>
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={rfNodes}
+            edges={rfEdges}
+            nodeTypes={NODE_TYPES}
             fitView
             fitViewOptions={{ padding: 0.12 }}
             minZoom={MIN_ZOOM}
             maxZoom={MAX_ZOOM}
-            nodesDraggable={false}
+            nodesDraggable
+            nodesConnectable
+            connectionMode={ConnectionMode.Loose}
+            deleteKeyCode={["Delete"]}
             panOnDrag
             panOnScroll={false}
             zoomOnScroll={false}
             zoomOnPinch
+            onNodesChange={handleNodesChange}
+            onEdgesChange={handleEdgesChange}
+            onConnect={handleConnect}
             onInit={(instance) => {
               flowInstanceRef.current = instance;
             }}
-            onNodeClick={(_, node) =>
-              onSelectRequest(String(node.data.requestId))
-            }
+            onNodeClick={(_, node) => {
+              if (node.data.requestId) {
+                onSelectRequest(String(node.data.requestId));
+              }
+            }}
           >
             <Background color={EDGE_COLORS[theme].dot} gap={22} />
             <Controls showInteractive={false} />
             <Panel position="top-right" className="flow-export-panel">
               <div className="flow-export-controls">
-                <button
-                  className="flow-export-button"
-                  type="button"
-                  onPointerDown={(event) => event.stopPropagation()}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    void handleDownloadImage();
-                  }}
-                  disabled={isExporting}
-                >
-                  {isExporting ? "Exporting..." : "Download PNG"}
-                </button>
+                <div className="flow-export-buttons">
+                  <button
+                    className={`flow-export-button ${showQuery ? "active" : ""}`}
+                    type="button"
+                    aria-pressed={showQuery}
+                    title="카드 타이틀에 쿼리 문자열 표시"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setShowQuery((value) => !value);
+                    }}
+                  >
+                    {showQuery ? "Query ✓" : "Query"}
+                  </button>
+                  <button
+                    className="flow-export-button"
+                    type="button"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleAddTextNote();
+                    }}
+                  >
+                    Add text
+                  </button>
+                  {hasEdits ? (
+                    <button
+                      className="flow-export-button"
+                      type="button"
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleResetLayout();
+                      }}
+                    >
+                      Reset
+                    </button>
+                  ) : null}
+                  <button
+                    className="flow-export-button"
+                    type="button"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void handleDownloadImage();
+                    }}
+                    disabled={isExporting}
+                  >
+                    {isExporting ? "Exporting..." : "Download PNG"}
+                  </button>
+                </div>
                 {exportError ? <span className="flow-export-error">{exportError}</span> : null}
               </div>
             </Panel>
@@ -213,11 +685,13 @@ function toFlowNodes(
   groups: TimelineItem[][],
   searchOccurrenceByRequest: Map<string, RequestSearchSummary>,
   activeGlobalSearchIndex: number | null,
+  showQuery: boolean,
 ): Node[] {
   return items.map((item, index) => {
     const request = requestById.get(item.requestId);
     const searchSummary = searchOccurrenceByRequest.get(item.requestId);
     const statusTone = getStatusTone(item.status);
+    const query = showQuery ? getQueryString(request) : "";
     const imageSource =
       getImageSource(item.path) ??
       getImageSource(item.normalizedPath) ??
@@ -229,12 +703,9 @@ function toFlowNodes(
 
     return {
       id: item.requestId,
-      type: "default",
+      type: "requestNode",
       position,
       width: NODE_WIDTH,
-      height: NODE_HEIGHT,
-      sourcePosition: Position.Right,
-      targetPosition: Position.Left,
       data: {
         requestId: item.requestId,
         label: (
@@ -263,7 +734,10 @@ function toFlowNodes(
                 <strong title={item.path}>Image payload</strong>
               </div>
             ) : (
-              <strong title={item.path}>{getNodeTitle(item)}</strong>
+              <strong title={`${item.path}${query}`}>
+                {getNodeTitle(item)}
+                {query ? <span className="flow-node-query">{query}</span> : null}
+              </strong>
             )}
             <div className="flow-node-summary">
               {bodySummary.map((summary) => (
@@ -281,7 +755,6 @@ function toFlowNodes(
       },
       style: {
         width: NODE_WIDTH,
-        height: NODE_HEIGHT,
         border: "0",
         padding: 0,
         background: "transparent",
@@ -293,6 +766,16 @@ function toFlowNodes(
 function getNodeTitle(item: TimelineItem): string {
   if (item.normalizedPath === "/") return "Root document";
   return item.normalizedPath;
+}
+
+// 요청 URL에서 쿼리 문자열(선행 '?' 포함)을 추출한다. 없으면 빈 문자열.
+function getQueryString(request?: ApiRequest): string {
+  if (!request) return "";
+  try {
+    return new URL(request.url).search;
+  } catch {
+    return "";
+  }
 }
 
 function toFlowEdges(
@@ -323,12 +806,35 @@ function createEdge(
   isError: boolean,
   theme: keyof typeof EDGE_COLORS,
 ): Edge {
+  // 자동 연결선은 왼쪽→오른쪽 흐름에 맞춰 우측/좌측 핸들에 붙인다.
+  return styledEdge(
+    `${source.requestId}-${target.requestId}`,
+    source.requestId,
+    target.requestId,
+    isError,
+    theme,
+    "right",
+    "left",
+  );
+}
+
+function styledEdge(
+  id: string,
+  source: string,
+  target: string,
+  isError: boolean,
+  theme: keyof typeof EDGE_COLORS,
+  sourceHandle?: string | null,
+  targetHandle?: string | null,
+): Edge {
   const color = isError ? EDGE_COLORS[theme].error : EDGE_COLORS[theme].normal;
 
   return {
-    id: `${source.requestId}-${target.requestId}`,
-    source: source.requestId,
-    target: target.requestId,
+    id,
+    source,
+    target,
+    sourceHandle: sourceHandle ?? null,
+    targetHandle: targetHandle ?? null,
     type: "straight",
     animated: false,
     markerEnd: {

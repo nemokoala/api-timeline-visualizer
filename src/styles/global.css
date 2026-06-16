@@ -1740,18 +1740,40 @@ button:not(:disabled) {
 }
 
 .flow-panel .react-flow__handle {
-  width: 7px;
-  height: 7px;
-  border: 1px solid var(--text-faint);
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--text-faint);
+  border-radius: 50%;
   background: var(--surface);
 }
 
 .flow-panel .react-flow__handle-left {
-  left: -4px;
+  left: -6px;
 }
 
 .flow-panel .react-flow__handle-right {
-  right: -4px;
+  right: -6px;
+}
+
+.flow-panel .react-flow__handle-top {
+  top: -6px;
+}
+
+.flow-panel .react-flow__handle-bottom {
+  bottom: -6px;
+}
+
+.flow-panel .react-flow__handle.connectingfrom,
+.flow-panel .react-flow__handle.connectingto,
+.flow-panel .react-flow__handle:hover {
+  border-color: var(--blue);
+  background: var(--blue);
+}
+
+/* 연결선은 인라인 stroke를 쓰므로 선택 강조는 !important로 덮어쓴다. */
+.flow-panel .react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--blue) !important;
+  stroke-width: 2.8 !important;
 }
 
 .flow-panel .react-flow__controls {
@@ -1780,6 +1802,47 @@ button:not(:disabled) {
   gap: 6px;
   justify-items: end;
   max-width: min(280px, calc(100vw - 48px));
+}
+
+.flow-export-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.flow-text-note {
+  width: 200px;
+  min-height: 56px;
+  border: 1px dashed var(--border-weak);
+  border-radius: 12px;
+  padding: 6px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.flow-panel .react-flow__node.selected .flow-text-note,
+.flow-panel .react-flow__node:focus .flow-text-note {
+  border-color: var(--blue);
+  border-style: solid;
+}
+
+.flow-text-note-input {
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  padding: 2px 4px;
+  color: var(--text);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  resize: vertical;
+  outline: none;
+}
+
+.flow-text-note-input::placeholder {
+  color: var(--text-faint);
 }
 
 .flow-export-error {
@@ -1812,6 +1875,11 @@ button:not(:disabled) {
   background: var(--blue);
 }
 
+.flow-export-button.active {
+  color: #ffffff;
+  background: var(--blue);
+}
+
 .flow-export-button:disabled {
   opacity: 0.6;
   cursor: wait;
@@ -1819,11 +1887,11 @@ button:not(:disabled) {
 
 .flow-node {
   display: grid;
-  grid-template-rows: auto minmax(34px, auto) minmax(34px, 1fr) auto;
+  grid-template-rows: auto minmax(34px, auto) minmax(34px, auto) auto;
   align-content: start;
   gap: 5px;
   width: 240px;
-  height: 152px;
+  min-height: 152px;
   border: 1px solid var(--border-weak);
   border-radius: 16px;
   padding: 11px 12px 14px;
@@ -1878,17 +1946,19 @@ button:not(:disabled) {
 }
 
 .flow-node strong {
-  display: -webkit-box;
-  overflow: hidden;
+  display: block;
   color: var(--text-strong);
   font-size: 14px;
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.35;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
   text-align: left;
   overflow-wrap: anywhere;
+}
+
+.flow-node-query {
+  color: var(--text-sub);
+  font-weight: 500;
 }
 
 .flow-node-image-title {

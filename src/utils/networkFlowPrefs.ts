@@ -6,6 +6,7 @@ import { readEnum, readFlag, writeFlag, writeString } from './localStoragePrefs'
 
 const GROUP_FLOW_BY_TIME_KEY = 'api-flow-group-flow-by-time';
 const NETWORK_VIEW_MODE_KEY = 'api-flow-network-view-mode';
+const FLOW_SHOW_QUERY_KEY = 'api-flow-show-query';
 
 export type NetworkViewMode = 'flow' | 'timeline';
 
@@ -25,4 +26,13 @@ export function getNetworkViewMode(defaultValue: NetworkViewMode = 'timeline'): 
 
 export function saveNetworkViewMode(value: NetworkViewMode): void {
   writeString(NETWORK_VIEW_MODE_KEY, value);
+}
+
+/** 플로우 카드 타이틀에 쿼리 문자열을 표시할지 여부. */
+export function getFlowShowQuery(defaultValue = false): boolean {
+  return readFlag(FLOW_SHOW_QUERY_KEY, defaultValue);
+}
+
+export function saveFlowShowQuery(value: boolean): void {
+  writeFlag(FLOW_SHOW_QUERY_KEY, value);
 }

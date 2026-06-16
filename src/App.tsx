@@ -23,6 +23,11 @@ import {
 } from './utils/consoleSearch';
 import { exportSession, parseSession, pickSessionFile } from './utils/sessionIO';
 import {
+  EMPTY_FLOW_LAYOUT,
+  loadFlowLayout,
+  saveFlowLayout,
+} from './utils/flowLayoutPrefs';
+import {
   matchesTextFilters,
   parseNetworkRequest,
   parseResponseContent,
@@ -81,6 +86,8 @@ const PRELOAD_MAX = 100;
 
 export default function App() {
   const [requests, setRequests] = useState<ApiRequest[]>([]);
+  // 세션 import 후 FlowChartView가 저장된 레이아웃을 다시 읽도록 알리는 신호값.
+  const [flowLayoutRevision, setFlowLayoutRevision] = useState(0);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [bodyLoadingId, setBodyLoadingId] = useState<string | null>(null);
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(() => getWorkspaceMode());
@@ -364,6 +371,8 @@ export default function App() {
     setSelectedRequestId(null);
     setNetworkSearchText('');
     setNetworkSearchMatchIndex(0);
+    saveFlowLayout(EMPTY_FLOW_LAYOUT);
+    setFlowLayoutRevision((revision) => revision + 1);
   }, []);
 
   const handleSearchTextChange = useCallback(
@@ -527,19 +536,21 @@ export default function App() {
 
   const handleExportSession = useCallback(() => {
     if (!requests.length) return;
-    exportSession(requests);
+    exportSession(requests, loadFlowLayout());
     setSessionNotice(`Exported ${requests.length} requests.`);
   }, [requests]);
 
   const handleImportSession = useCallback(async () => {
     try {
       const content = await pickSessionFile();
-      const importedRequests = parseSession(content);
+      const { requests: importedRequests, flowLayout } = parseSession(content);
       networkRequestById.current.clear();
       setRequests(importedRequests);
       setSelectedRequestId(importedRequests[0]?.id ?? null);
       setNetworkSearchText('');
       setNetworkSearchMatchIndex(0);
+      saveFlowLayout(flowLayout ?? EMPTY_FLOW_LAYOUT);
+      setFlowLayoutRevision((revision) => revision + 1);
       setSessionNotice(`Imported ${importedRequests.length} requests.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to import session.';
@@ -720,6 +731,7 @@ export default function App() {
             searchText={networkSearchText}
             searchOccurrenceByRequest={searchOccurrenceByRequest}
             activeGlobalSearchIndex={activeGlobalSearchIndex}
+            layoutRevision={flowLayoutRevision}
             onSelectRequest={handleSelectRequestWithBodyLoad}
           />
         ) : (
