@@ -114,6 +114,7 @@ type TextNoteData = {
     patch: Partial<Pick<FlowTextNote, "color" | "background" | "fontSize">>
   ) => void;
   onZOrder: (id: string, toFront: boolean) => void;
+  onDuplicate: (id: string) => void;
 };
 
 type ShapeData = {
@@ -121,6 +122,7 @@ type ShapeData = {
   filled: boolean;
   onChange: (id: string, patch: Partial<Pick<FlowShape, "color" | "filled">>) => void;
   onZOrder: (id: string, toFront: boolean) => void;
+  onDuplicate: (id: string) => void;
 };
 
 type RequestNodeData = {
@@ -197,6 +199,22 @@ function SendToBackIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <rect x="4" y="4" width="11" height="11" rx="2" fill="currentColor" />
       <rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.8" fill="var(--surface)" />
+    </svg>
+  );
+}
+
+// 복사(겹친 두 장의 종이) 아이콘.
+function CopyIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="8" y="8" width="11" height="11" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M5 15.5V6.5A1.5 1.5 0 0 1 6.5 5H15"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -357,6 +375,15 @@ function TextNoteNodeView({ id, data, selected }: NodeProps) {
           </button>
           <span className="flow-shape-toolbar-divider" />
           <ZOrderButtons id={id} onZOrder={noteData.onZOrder} />
+          <button
+            type="button"
+            className="flow-shape-icon-button"
+            title="복사"
+            aria-label="복사"
+            onClick={() => noteData.onDuplicate(id)}
+          >
+            <CopyIcon />
+          </button>
         </div>
       ) : null}
     </div>
@@ -427,6 +454,15 @@ function ShapeNodeView({ id, data, selected }: NodeProps) {
           </button>
           <span className="flow-shape-toolbar-divider" />
           <ZOrderButtons id={id} onZOrder={shapeData.onZOrder} />
+          <button
+            type="button"
+            className="flow-shape-icon-button"
+            title="복사"
+            aria-label="복사"
+            onClick={() => shapeData.onDuplicate(id)}
+          >
+            <CopyIcon />
+          </button>
         </div>
       ) : null}
     </>
@@ -503,6 +539,9 @@ export function FlowChartView({
   // 현재 표시 중인 연결선(중복 연결 방지에 사용).
   const rfEdgesRef = useRef(rfEdges);
   rfEdgesRef.current = rfEdges;
+  // 현재 노드(선택 상태 포함). 단축키 복사 시 선택된 노드를 읽는 데 쓴다.
+  const rfNodesRef = useRef(rfNodes);
+  rfNodesRef.current = rfNodes;
   // 동기화 effect가 텍스트 한 글자마다 재실행되지 않도록 메모 최신값을 ref로 읽는다.
   const textNotesRef = useRef(textNotes);
   textNotesRef.current = textNotes;
@@ -608,6 +647,52 @@ export function FlowChartView({
       );
     },
     [setRfNodes]
+  );
+
+  // 선택한 도형/메모를 복제한다. API 요청 카드는 실제 트래픽과 묶여 있어 제외.
+  // 사본은 약간 오른쪽 아래로 옮기고 맨 앞 zIndex를 차례로 부여한다.
+  const handleDuplicateNodes = useCallback((ids: string[]) => {
+    const shapeList = shapesRef.current;
+    const noteList = textNotesRef.current;
+    const overrides = positionOverridesRef.current;
+    const offset = 28;
+    let frontZIndex = getNextFrontZIndex(shapeList, noteList);
+    const stamp = Date.now();
+    const newShapes: FlowShape[] = [];
+    const newNotes: FlowTextNote[] = [];
+
+    ids.forEach((id, index) => {
+      const suffix = `${stamp}-${index}`;
+      if (id.startsWith(SHAPE_NODE_PREFIX)) {
+        const source = shapeList.find((shape) => shape.id === id);
+        if (!source) return;
+        const base = overrides.get(id) ?? source.position;
+        newShapes.push({
+          ...source,
+          id: `${SHAPE_NODE_PREFIX}${suffix}`,
+          position: { x: base.x + offset, y: base.y + offset },
+          zIndex: frontZIndex++,
+        });
+      } else if (id.startsWith(TEXT_NODE_PREFIX)) {
+        const source = noteList.find((note) => note.id === id);
+        if (!source) return;
+        const base = overrides.get(id) ?? source.position;
+        newNotes.push({
+          ...source,
+          id: `${TEXT_NODE_PREFIX}${suffix}`,
+          position: { x: base.x + offset, y: base.y + offset },
+          zIndex: frontZIndex++,
+        });
+      }
+    });
+
+    if (newShapes.length) setShapes((prev) => [...prev, ...newShapes]);
+    if (newNotes.length) setTextNotes((prev) => [...prev, ...newNotes]);
+  }, []);
+
+  const handleDuplicateNode = useCallback(
+    (id: string) => handleDuplicateNodes([id]),
+    [handleDuplicateNodes]
   );
 
   // 편집이 바뀔 때마다 onLayoutChange로 부모(App)의 flowLayoutRef에 반영한다.
@@ -780,6 +865,7 @@ export function FlowChartView({
           filled: shape.filled,
           onChange: handleShapeChange,
           onZOrder: handleZOrderChange,
+          onDuplicate: handleDuplicateNode,
         },
       })),
       ...baseNodes
@@ -809,6 +895,7 @@ export function FlowChartView({
             onTextChange: handleTextChange,
             onStyleChange: handleNoteStyleChange,
             onZOrder: handleZOrderChange,
+            onDuplicate: handleDuplicateNode,
           },
         };
       }),
@@ -833,6 +920,7 @@ export function FlowChartView({
     handleShapeChange,
     handleNoteStyleChange,
     handleZOrderChange,
+    handleDuplicateNode,
     setRfNodes,
   ]);
 
@@ -1094,6 +1182,38 @@ export function FlowChartView({
     setManualEdges([]);
     setShapes([]);
   }, []);
+
+  // Cmd/Ctrl+D: 선택된 도형·메모를 복제한다(요청 카드는 제외).
+  // 플로우 뷰일 때만 이 컴포넌트가 마운트되므로 window 리스너로 둬도 안전하다.
+  useEffect(() => {
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "d") {
+        return;
+      }
+      // 입력 필드(메모 textarea 등)에 포커스가 있으면 가로채지 않는다.
+      const active = document.activeElement;
+      if (
+        active instanceof HTMLTextAreaElement ||
+        active instanceof HTMLInputElement ||
+        (active instanceof HTMLElement && active.isContentEditable)
+      ) {
+        return;
+      }
+      const selectedIds = rfNodesRef.current
+        .filter(
+          (node) =>
+            node.selected &&
+            (node.id.startsWith(SHAPE_NODE_PREFIX) ||
+              node.id.startsWith(TEXT_NODE_PREFIX))
+        )
+        .map((node) => node.id);
+      if (selectedIds.length === 0) return;
+      event.preventDefault();
+      handleDuplicateNodes(selectedIds);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleDuplicateNodes]);
 
   useEffect(() => {
     if (!searchText.trim() || !selectedRequestId) return;
