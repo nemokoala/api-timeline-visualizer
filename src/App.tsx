@@ -506,6 +506,36 @@ export default function App() {
     [applyResponseContent],
   );
 
+  const getResponseContentForExport = useCallback(
+    (request: ApiRequest): Promise<ApiRequest> => {
+      if (request.responseContent !== undefined) {
+        return Promise.resolve(request);
+      }
+
+      const networkRequest = networkRequestById.current.get(request.id);
+      if (!networkRequest) {
+        const resolved = 'Response body is not available.';
+        return Promise.resolve({
+          ...request,
+          responseContent: resolved,
+          responsePreview: parseResponseContent('', request.mimeType),
+        });
+      }
+
+      return new Promise((resolve) => {
+        networkRequest.getContent((content) => {
+          const resolved = content || 'Response body is not available.';
+          resolve({
+            ...request,
+            responseContent: resolved,
+            responsePreview: parseResponseContent(content || '', request.mimeType),
+          });
+        });
+      });
+    },
+    [],
+  );
+
   const startResponseBodyLoad = useCallback(
     (requestId: string) => {
       const target = requests.find((request) => request.id === requestId);
@@ -534,11 +564,24 @@ export default function App() {
     }
   }, [fetchResponseContent]);
 
-  const handleExportSession = useCallback(() => {
+  const handleExportSession = useCallback(async () => {
     if (!requests.length) return;
-    exportSession(requests, loadFlowLayout());
-    setSessionNotice(`Exported ${requests.length} requests.`);
-  }, [requests]);
+    const pendingBodyCount = requests.filter(
+      (request) => request.responseContent === undefined,
+    ).length;
+
+    if (pendingBodyCount > 0) {
+      setSessionNotice(`Collecting ${pendingBodyCount} response bodies...`);
+    }
+
+    const hydratedRequests = await Promise.all(
+      requests.map((request) => getResponseContentForExport(request)),
+    );
+
+    setRequests(hydratedRequests);
+    exportSession(hydratedRequests, loadFlowLayout());
+    setSessionNotice(`Exported ${hydratedRequests.length} requests.`);
+  }, [getResponseContentForExport, requests]);
 
   const handleImportSession = useCallback(async () => {
     try {
