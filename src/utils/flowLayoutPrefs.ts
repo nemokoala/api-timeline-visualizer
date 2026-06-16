@@ -1,7 +1,7 @@
 /**
- * 플로우차트 사용자 편집(노드 이동 위치, 삭제한 노드, 추가한 텍스트 메모)을
- * localStorage에 저장합니다. 새로고침이나 재마운트 후에도 편집 상태를 자동 복원하고,
- * 세션 JSON export/import에도 같은 형태로 실어 보내 공유·이식이 가능하도록 합니다.
+ * 플로우차트 사용자 편집을 localStorage에 저장합니다.
+ * 텍스트 메모(notes)는 새로고침 자동 복원 대상에서 제외하고,
+ * 세션 JSON export/import에만 포함합니다.
  */
 import { readJson, writeJson, removeKey } from './localStoragePrefs';
 
@@ -127,13 +127,14 @@ export function normalizeFlowLayout(value: unknown): FlowLayout {
 export function loadFlowLayout(): FlowLayout {
   const stored = readJson<unknown>(FLOW_LAYOUT_KEY);
   if (stored === null) return { ...EMPTY_FLOW_LAYOUT };
-  return normalizeFlowLayout(stored);
+  return { ...normalizeFlowLayout(stored), notes: [] };
 }
 
 export function saveFlowLayout(layout: FlowLayout): void {
-  if (isEmptyFlowLayout(layout)) {
+  const storedLayout: FlowLayout = { ...layout, notes: [] };
+  if (isEmptyFlowLayout(storedLayout)) {
     removeKey(FLOW_LAYOUT_KEY);
     return;
   }
-  writeJson(FLOW_LAYOUT_KEY, layout);
+  writeJson(FLOW_LAYOUT_KEY, storedLayout);
 }

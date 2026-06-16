@@ -26,6 +26,7 @@ import {
   EMPTY_FLOW_LAYOUT,
   loadFlowLayout,
   saveFlowLayout,
+  type FlowLayout,
 } from './utils/flowLayoutPrefs';
 import {
   matchesTextFilters,
@@ -113,6 +114,7 @@ export default function App() {
   const [consoleSearchOccurrences, setConsoleSearchOccurrences] = useState<ConsoleSearchOccurrence[]>([]);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const workspaceRef = useRef<HTMLElement>(null);
+  const flowLayoutRef = useRef<FlowLayout>(loadFlowLayout());
   const {
     isStacked: isSplitStacked,
     layoutStyle: splitLayoutStyle,
@@ -371,8 +373,13 @@ export default function App() {
     setSelectedRequestId(null);
     setNetworkSearchText('');
     setNetworkSearchMatchIndex(0);
+    flowLayoutRef.current = EMPTY_FLOW_LAYOUT;
     saveFlowLayout(EMPTY_FLOW_LAYOUT);
     setFlowLayoutRevision((revision) => revision + 1);
+  }, []);
+
+  const handleFlowLayoutChange = useCallback((layout: FlowLayout) => {
+    flowLayoutRef.current = layout;
   }, []);
 
   const handleSearchTextChange = useCallback(
@@ -579,7 +586,7 @@ export default function App() {
     );
 
     setRequests(hydratedRequests);
-    exportSession(hydratedRequests, loadFlowLayout());
+    exportSession(hydratedRequests, flowLayoutRef.current);
     setSessionNotice(`Exported ${hydratedRequests.length} requests.`);
   }, [getResponseContentForExport, requests]);
 
@@ -592,7 +599,9 @@ export default function App() {
       setSelectedRequestId(importedRequests[0]?.id ?? null);
       setNetworkSearchText('');
       setNetworkSearchMatchIndex(0);
-      saveFlowLayout(flowLayout ?? EMPTY_FLOW_LAYOUT);
+      const nextFlowLayout = flowLayout ?? EMPTY_FLOW_LAYOUT;
+      flowLayoutRef.current = nextFlowLayout;
+      saveFlowLayout(nextFlowLayout);
       setFlowLayoutRevision((revision) => revision + 1);
       setSessionNotice(`Imported ${importedRequests.length} requests.`);
     } catch (error) {
@@ -775,7 +784,9 @@ export default function App() {
             searchOccurrenceByRequest={searchOccurrenceByRequest}
             activeGlobalSearchIndex={activeGlobalSearchIndex}
             layoutRevision={flowLayoutRevision}
+            layoutSnapshot={flowLayoutRef.current}
             onSelectRequest={handleSelectRequestWithBodyLoad}
+            onLayoutChange={handleFlowLayoutChange}
           />
         ) : (
           <TimelineView

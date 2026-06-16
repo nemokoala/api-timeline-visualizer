@@ -32,15 +32,12 @@ import { useTheme } from "../hooks/useTheme";
 import { exportFlowChartToPng } from "../utils/exportFlowImage";
 import { getImageSource } from "../utils/imageSource";
 import {
-  loadFlowLayout,
   saveFlowLayout,
+  type FlowLayout,
   type FlowManualEdge,
   type FlowTextNote,
 } from "../utils/flowLayoutPrefs";
-import {
-  getFlowShowQuery,
-  saveFlowShowQuery,
-} from "../utils/networkFlowPrefs";
+import { getFlowShowQuery, saveFlowShowQuery } from "../utils/networkFlowPrefs";
 import type { RequestSearchSummary } from "../utils/requestSearch";
 import { formatDuration, formatOffset, getStatusTone } from "./formatters";
 import { ImagePreview } from "./ImagePreview";
@@ -56,14 +53,17 @@ type FlowChartViewProps = {
   activeGlobalSearchIndex: number | null;
   // import 등으로 외부에서 레이아웃을 갈아끼웠을 때 localStorage에서 다시 읽어오기 위한 신호.
   layoutRevision: number;
+  layoutSnapshot: FlowLayout;
   onSelectRequest: (requestId: string) => void;
+  onLayoutChange: (layout: FlowLayout) => void;
 };
 
 const NODE_WIDTH = 240;
 const NODE_HEIGHT = 152;
 const COLUMN_GAP = 40;
-const ROW_GAP = 32;
+const ROW_GAP = 42;
 const NODES_PER_ROW = 3;
+const AUTO_CONTINUATION_COLUMNS = 4;
 const PARALLEL_GROUP_THRESHOLD_MS = 120;
 const MIN_ZOOM = 0.12;
 const MAX_ZOOM = 1.6;
@@ -161,29 +161,31 @@ export function FlowChartView({
   searchOccurrenceByRequest,
   activeGlobalSearchIndex,
   layoutRevision,
+  layoutSnapshot,
   onSelectRequest,
+  onLayoutChange,
 }: FlowChartViewProps) {
   const flowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const flowPanelRef = useRef<HTMLElement | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   // 사용자가 직접 옮긴 위치, 삭제한 노드, 추가한 텍스트 메모를 로컬 상태로 보관한다.
-  // 초기값은 localStorage에 저장된 레이아웃에서 복원한다.
+  // 텍스트 메모는 localStorage가 아니라 import/export용 스냅샷에서만 복원한다.
   const [positionOverrides, setPositionOverrides] = useState<
     Map<string, { x: number; y: number }>
-  >(() => new Map(Object.entries(loadFlowLayout().positions)));
+  >(() => new Map(Object.entries(layoutSnapshot.positions)));
   const [deletedIds, setDeletedIds] = useState<Set<string>>(
-    () => new Set(loadFlowLayout().deleted),
+    () => new Set(layoutSnapshot.deleted)
   );
   const [textNotes, setTextNotes] = useState<FlowTextNote[]>(
-    () => loadFlowLayout().notes,
+    () => layoutSnapshot.notes
   );
   // 삭제한 자동 연결선 id, 수동으로 추가한 연결선.
   const [deletedEdgeIds, setDeletedEdgeIds] = useState<Set<string>>(
-    () => new Set(loadFlowLayout().deletedEdges),
+    () => new Set(layoutSnapshot.deletedEdges)
   );
   const [manualEdges, setManualEdges] = useState<FlowManualEdge[]>(
-    () => loadFlowLayout().manualEdges,
+    () => layoutSnapshot.manualEdges
   );
   // 카드 타이틀에 쿼리 문자열 표시 여부(localStorage에 저장).
   const [showQuery, setShowQuery] = useState(() => getFlowShowQuery());
@@ -206,55 +208,67 @@ export function FlowChartView({
   // 동기화 effect가 텍스트 한 글자마다 재실행되지 않도록 메모 최신값을 ref로 읽는다.
   const textNotesRef = useRef(textNotes);
   textNotesRef.current = textNotes;
+  const [autoPositions, setAutoPositions] = useState<
+    Map<string, { x: number; y: number }>
+  >(new Map());
+  // 새로 들어온 요청만 위치를 한 번 부여한다. 기존 요청을 다시 줄 세우지 않는다.
+  const knownRequestNodeIdsRef = useRef<Set<string>>(new Set());
 
   const requestById = useMemo(
     () => new Map(requests.map((request) => [request.id, request])),
-    [requests],
+    [requests]
   );
   const groups = useMemo(
     () => (groupByTime ? toTimeGroups(items) : []),
-    [items, groupByTime],
+    [items, groupByTime]
   );
 
   const handleTextChange = useCallback(
     (id: string, text: string) => {
       // 영속 상태 갱신(저장용).
       setTextNotes((prev) =>
-        prev.map((note) => (note.id === id ? { ...note, text } : note)),
+        prev.map((note) => (note.id === id ? { ...note, text } : note))
       );
       // React Flow 노드 data를 제자리에서 갱신한다. 전체 재생성을 피해
       // textarea가 리마운트되지 않으므로 입력 중 포커스가 유지된다.
       setRfNodes((nodes) =>
         nodes.map((node) =>
-          node.id === id
-            ? { ...node, data: { ...node.data, text } }
-            : node,
-        ),
+          node.id === id ? { ...node, data: { ...node.data, text } } : node
+        )
       );
     },
-    [setRfNodes],
+    [setRfNodes]
   );
 
-  // 편집이 바뀔 때마다 localStorage에 저장 → 새로고침/재마운트 시 자동 복원.
+  // 편집이 바뀔 때마다 위치/삭제/수동 연결선은 localStorage에 저장한다.
+  // 텍스트 메모는 onLayoutChange를 통해 export/import 스냅샷에만 유지한다.
   // positionOverrides는 드래그가 끝났을 때만 갱신되므로 매 프레임 저장되지 않는다.
   useEffect(() => {
-    saveFlowLayout({
+    const layout = {
       positions: Object.fromEntries(positionOverrides),
       deleted: [...deletedIds],
       notes: textNotes,
       deletedEdges: [...deletedEdgeIds],
       manualEdges,
-    });
-  }, [positionOverrides, deletedIds, textNotes, deletedEdgeIds, manualEdges]);
+    };
+    saveFlowLayout(layout);
+    onLayoutChange(layout);
+  }, [
+    positionOverrides,
+    deletedIds,
+    textNotes,
+    deletedEdgeIds,
+    manualEdges,
+    onLayoutChange,
+  ]);
 
   // 세션 import 등 외부에서 레이아웃이 교체되면 저장소에서 다시 읽어 상태에 반영.
   useEffect(() => {
-    const layout = loadFlowLayout();
-    setPositionOverrides(new Map(Object.entries(layout.positions)));
-    setDeletedIds(new Set(layout.deleted));
-    setTextNotes(layout.notes);
-    setDeletedEdgeIds(new Set(layout.deletedEdges));
-    setManualEdges(layout.manualEdges);
+    setPositionOverrides(new Map(Object.entries(layoutSnapshot.positions)));
+    setDeletedIds(new Set(layoutSnapshot.deleted));
+    setTextNotes(layoutSnapshot.notes);
+    setDeletedEdgeIds(new Set(layoutSnapshot.deletedEdges));
+    setManualEdges(layoutSnapshot.manualEdges);
   }, [layoutRevision]);
 
   // 노드 라벨(JSX)과 엣지는 드래그(위치 변경)와 무관한 입력에만 의존하도록 메모이즈한다.
@@ -269,7 +283,7 @@ export function FlowChartView({
         groups,
         searchOccurrenceByRequest,
         activeGlobalSearchIndex,
-        showQuery,
+        showQuery
       ),
     [
       items,
@@ -280,19 +294,90 @@ export function FlowChartView({
       searchOccurrenceByRequest,
       activeGlobalSearchIndex,
       showQuery,
-    ],
+    ]
   );
   const baseEdges = useMemo(
     () => toFlowEdges(items, groupByTime, groups, theme),
-    [items, groupByTime, groups, theme],
+    [items, groupByTime, groups, theme]
   );
+
+  useEffect(() => {
+    knownRequestNodeIdsRef.current = new Set(baseNodes.map((node) => node.id));
+    setAutoPositions(new Map());
+  }, [layoutRevision]);
+
+  useEffect(() => {
+    const knownIds = knownRequestNodeIdsRef.current;
+    if (baseNodes.length === 0) {
+      knownIds.clear();
+      setAutoPositions(new Map());
+      return;
+    }
+
+    if (positionOverrides.size === 0) {
+      setAutoPositions(new Map());
+      baseNodes.forEach((node) => knownIds.add(node.id));
+      return;
+    }
+
+    if (knownIds.size === 0) {
+      baseNodes.forEach((node) => knownIds.add(node.id));
+      return;
+    }
+
+    const visibleNodes = baseNodes.filter((node) => !deletedIds.has(node.id));
+    const newNodes = visibleNodes.filter(
+      (node) => !knownIds.has(node.id) && !positionOverrides.has(node.id)
+    );
+    baseNodes.forEach((node) => knownIds.add(node.id));
+    if (newNodes.length === 0) return;
+
+    setAutoPositions((prev) => {
+      let changed = false;
+      const next = new Map(prev);
+      const positions = mergeNodePositions(positionOverrides, next);
+
+      for (const node of newNodes) {
+        if (positions.has(node.id)) continue;
+
+        const nodeIndex = visibleNodes.findIndex(
+          (candidate) => candidate.id === node.id
+        );
+        const previousNode = nodeIndex > 0 ? visibleNodes[nodeIndex - 1] : null;
+        if (!previousNode) continue;
+
+        const anchorNode =
+          visibleNodes
+            .slice(0, nodeIndex)
+            .reverse()
+            .find((candidate) => positionOverrides.has(candidate.id)) ??
+          previousNode;
+        const previousPosition =
+          positions.get(previousNode.id) ?? previousNode.position;
+        const anchorPosition =
+          positions.get(anchorNode.id) ?? anchorNode.position;
+
+        const nextPosition = getNextWrappedPosition(
+          anchorPosition,
+          previousPosition,
+          visibleNodes.slice(0, nodeIndex),
+          positions
+        );
+        next.set(node.id, nextPosition);
+        positions.set(node.id, nextPosition);
+        changed = true;
+      }
+
+      return changed ? next : prev;
+    });
+  }, [baseNodes, deletedIds, positionOverrides]);
 
   // 텍스트 메모 노드의 data는 텍스트가 바뀔 때만 새로 만든다(위치 이동과 분리).
   // 메모의 추가/삭제(구조 변화)만 감지하는 키. 텍스트 내용이 바뀌어도 동일하다.
   // → 타이핑 중에는 아래 동기화 effect가 재실행되지 않아 노드가 재생성되지 않는다.
   const noteIdsKey = useMemo(
     () => textNotes.map((note) => note.id).join("|"),
-    [textNotes],
+    [textNotes]
   );
 
   // 삭제/노드 라벨/메모 추가·삭제 시에만 React Flow 노드 상태를 다시 만든다.
@@ -300,12 +385,13 @@ export function FlowChartView({
   // 전체 재생성(과 그로 인한 포커스 손실/깜빡임)을 피한다.
   useEffect(() => {
     const overrides = positionOverridesRef.current;
+    const requestPositions = mergeNodePositions(overrides, autoPositions);
     const nextNodes: Node[] = [
       ...baseNodes
         .filter((node) => !deletedIds.has(node.id))
         .map((node) => ({
           ...node,
-          position: overrides.get(node.id) ?? node.position,
+          position: requestPositions.get(node.id) ?? node.position,
           draggable: true,
         })),
       ...textNotesRef.current.map<Node>((note) => ({
@@ -319,15 +405,16 @@ export function FlowChartView({
     // 재생성 시 React Flow가 추적하던 선택 상태를 유지한다(Delete 키 대상 보존).
     setRfNodes((prev) => {
       const selectedIds = new Set(
-        prev.filter((node) => node.selected).map((node) => node.id),
+        prev.filter((node) => node.selected).map((node) => node.id)
       );
       if (selectedIds.size === 0) return nextNodes;
       return nextNodes.map((node) =>
-        selectedIds.has(node.id) ? { ...node, selected: true } : node,
+        selectedIds.has(node.id) ? { ...node, selected: true } : node
       );
     });
   }, [
     baseNodes,
+    autoPositions,
     deletedIds,
     noteIdsKey,
     handleTextChange,
@@ -342,11 +429,11 @@ export function FlowChartView({
       (edge) =>
         isNodeVisible(edge.source) &&
         isNodeVisible(edge.target) &&
-        !deletedEdgeIds.has(edge.id),
+        !deletedEdgeIds.has(edge.id)
     );
     const manual = manualEdges
       .filter(
-        (edge) => isNodeVisible(edge.source) && isNodeVisible(edge.target),
+        (edge) => isNodeVisible(edge.source) && isNodeVisible(edge.target)
       )
       .map((edge) =>
         styledEdge(
@@ -357,19 +444,19 @@ export function FlowChartView({
           theme,
           // 핸들 정보가 없는(예전) 연결선은 우측/좌측 핸들로 폴백.
           edge.sourceHandle ?? "right",
-          edge.targetHandle ?? "left",
-        ),
+          edge.targetHandle ?? "left"
+        )
       );
     const nextEdges = [...visibleAuto, ...manual];
 
     // 재생성 시 선택 상태 유지(Delete 키 대상 보존).
     setRfEdges((prev) => {
       const selectedIds = new Set(
-        prev.filter((edge) => edge.selected).map((edge) => edge.id),
+        prev.filter((edge) => edge.selected).map((edge) => edge.id)
       );
       if (selectedIds.size === 0) return nextEdges;
       return nextEdges.map((edge) =>
-        selectedIds.has(edge.id) ? { ...edge, selected: true } : edge,
+        selectedIds.has(edge.id) ? { ...edge, selected: true } : edge
       );
     });
   }, [baseEdges, deletedIds, deletedEdgeIds, manualEdges, theme, setRfEdges]);
@@ -391,12 +478,12 @@ export function FlowChartView({
         (change): change is Extract<NodeChange, { type: "position" }> =>
           change.type === "position" &&
           Boolean(change.position) &&
-          change.dragging !== true,
+          change.dragging !== true
       );
       const removedIds = changes
         .filter(
           (change): change is Extract<NodeChange, { type: "remove" }> =>
-            change.type === "remove",
+            change.type === "remove"
         )
         .map((change) => change.id);
 
@@ -408,11 +495,27 @@ export function FlowChartView({
           }
           return next;
         });
+        setAutoPositions((prev) => {
+          let changed = false;
+          const next = new Map(prev);
+          for (const change of committed) {
+            if (next.delete(change.id)) changed = true;
+          }
+          return changed ? next : prev;
+        });
       }
 
       if (removedIds.length) {
+        setAutoPositions((prev) => {
+          let changed = false;
+          const next = new Map(prev);
+          for (const id of removedIds) {
+            if (next.delete(id)) changed = true;
+          }
+          return changed ? next : prev;
+        });
         setTextNotes((prev) =>
-          prev.filter((note) => !removedIds.includes(note.id)),
+          prev.filter((note) => !removedIds.includes(note.id))
         );
         setDeletedIds((prev) => {
           const next = new Set(prev);
@@ -423,7 +526,7 @@ export function FlowChartView({
         });
       }
     },
-    [onNodesChange],
+    [onNodesChange]
   );
 
   const handleEdgesChange = useCallback(
@@ -434,13 +537,13 @@ export function FlowChartView({
       const removedIds = changes
         .filter(
           (change): change is Extract<EdgeChange, { type: "remove" }> =>
-            change.type === "remove",
+            change.type === "remove"
         )
         .map((change) => change.id);
 
       if (removedIds.length) {
         setManualEdges((prev) =>
-          prev.filter((edge) => !removedIds.includes(edge.id)),
+          prev.filter((edge) => !removedIds.includes(edge.id))
         );
         setDeletedEdgeIds((prev) => {
           const next = new Set(prev);
@@ -451,7 +554,7 @@ export function FlowChartView({
         });
       }
     },
-    [onEdgesChange],
+    [onEdgesChange]
   );
 
   // 핸들에서 다른 노드로 끌어 놓으면 수동 연결선을 추가한다.
@@ -464,10 +567,12 @@ export function FlowChartView({
         edge.source === source &&
         edge.target === target &&
         (edge.sourceHandle ?? null) === (sourceHandle ?? null) &&
-        (edge.targetHandle ?? null) === (targetHandle ?? null),
+        (edge.targetHandle ?? null) === (targetHandle ?? null)
     );
     if (alreadyConnected) return;
-    const id = `${MANUAL_EDGE_PREFIX}${source}.${sourceHandle ?? ""}__${target}.${targetHandle ?? ""}`;
+    const id = `${MANUAL_EDGE_PREFIX}${source}.${
+      sourceHandle ?? ""
+    }__${target}.${targetHandle ?? ""}`;
     setManualEdges((prev) => {
       if (prev.some((edge) => edge.id === id)) return prev;
       return [...prev, { id, source, target, sourceHandle, targetHandle }];
@@ -524,7 +629,7 @@ export function FlowChartView({
     const nextZoom = clamp(
       viewport.zoom * Math.exp(-event.deltaY * WHEEL_ZOOM_SENSITIVITY),
       MIN_ZOOM,
-      MAX_ZOOM,
+      MAX_ZOOM
     );
 
     flowInstance.setViewport(
@@ -533,7 +638,7 @@ export function FlowChartView({
         y: pointerY - flowY * nextZoom,
         zoom: nextZoom,
       },
-      { duration: 80 },
+      { duration: 80 }
     );
   }, []);
 
@@ -552,10 +657,11 @@ export function FlowChartView({
       await exportFlowChartToPng(
         viewportElement,
         flowInstance.getNodes(),
-        `api-flow-${timestamp}.png`,
+        `api-flow-${timestamp}.png`
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to export image.";
+      const message =
+        error instanceof Error ? error.message : "Failed to export image.";
       setExportError(message);
       console.error("Failed to export flow chart image", error);
     } finally {
@@ -614,7 +720,9 @@ export function FlowChartView({
               <div className="flow-export-controls">
                 <div className="flow-export-buttons">
                   <button
-                    className={`flow-export-button ${showQuery ? "active" : ""}`}
+                    className={`flow-export-button ${
+                      showQuery ? "active" : ""
+                    }`}
                     type="button"
                     aria-pressed={showQuery}
                     title="카드 타이틀에 쿼리 문자열 표시"
@@ -663,7 +771,9 @@ export function FlowChartView({
                     {isExporting ? "Exporting..." : "Download PNG"}
                   </button>
                 </div>
-                {exportError ? <span className="flow-export-error">{exportError}</span> : null}
+                {exportError ? (
+                  <span className="flow-export-error">{exportError}</span>
+                ) : null}
               </div>
             </Panel>
           </ReactFlow>
@@ -685,7 +795,7 @@ function toFlowNodes(
   groups: TimelineItem[][],
   searchOccurrenceByRequest: Map<string, RequestSearchSummary>,
   activeGlobalSearchIndex: number | null,
-  showQuery: boolean,
+  showQuery: boolean
 ): Node[] {
   return items.map((item, index) => {
     const request = requestById.get(item.requestId);
@@ -710,7 +820,9 @@ function toFlowNodes(
         requestId: item.requestId,
         label: (
           <div
-            className={`flow-node ${selectedRequestId === item.requestId ? "selected" : ""}`}
+            className={`flow-node ${
+              selectedRequestId === item.requestId ? "selected" : ""
+            }`}
           >
             <div className="flow-node-top">
               <div className="flow-node-top-main">
@@ -736,7 +848,9 @@ function toFlowNodes(
             ) : (
               <strong title={`${item.path}${query}`}>
                 {getNodeTitle(item)}
-                {query ? <span className="flow-node-query">{query}</span> : null}
+                {query ? (
+                  <span className="flow-node-query">{query}</span>
+                ) : null}
               </strong>
             )}
             <div className="flow-node-summary">
@@ -782,7 +896,7 @@ function toFlowEdges(
   items: TimelineItem[],
   groupByTime: boolean,
   groups: TimelineItem[][],
-  theme: keyof typeof EDGE_COLORS,
+  theme: keyof typeof EDGE_COLORS
 ): Edge[] {
   if (groupByTime) {
     return groups.slice(1).map((group, index) => {
@@ -804,7 +918,7 @@ function createEdge(
   source: TimelineItem,
   target: TimelineItem,
   isError: boolean,
-  theme: keyof typeof EDGE_COLORS,
+  theme: keyof typeof EDGE_COLORS
 ): Edge {
   // 자동 연결선은 왼쪽→오른쪽 흐름에 맞춰 우측/좌측 핸들에 붙인다.
   return styledEdge(
@@ -814,7 +928,7 @@ function createEdge(
     isError,
     theme,
     "right",
-    "left",
+    "left"
   );
 }
 
@@ -825,7 +939,7 @@ function styledEdge(
   isError: boolean,
   theme: keyof typeof EDGE_COLORS,
   sourceHandle?: string | null,
-  targetHandle?: string | null,
+  targetHandle?: string | null
 ): Edge {
   const color = isError ? EDGE_COLORS[theme].error : EDGE_COLORS[theme].normal;
 
@@ -859,11 +973,11 @@ function getGridPosition(index: number): { x: number; y: number } {
 
 function getGroupedPosition(
   item: TimelineItem,
-  groups: TimelineItem[][],
+  groups: TimelineItem[][]
 ): { x: number; y: number } {
   for (let groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
     const itemIndex = groups[groupIndex].findIndex(
-      (candidate) => candidate.requestId === item.requestId,
+      (candidate) => candidate.requestId === item.requestId
     );
     if (itemIndex >= 0) {
       return {
@@ -874,6 +988,73 @@ function getGroupedPosition(
   }
 
   return { x: 0, y: 0 };
+}
+
+function mergeNodePositions(
+  manualPositions: Map<string, { x: number; y: number }>,
+  autoPositions: Map<string, { x: number; y: number }>
+): Map<string, { x: number; y: number }> {
+  const merged = new Map(autoPositions);
+  for (const [id, position] of manualPositions) {
+    merged.set(id, position);
+  }
+  return merged;
+}
+
+function getNextWrappedPosition(
+  anchorPosition: { x: number; y: number },
+  previousPosition: { x: number; y: number },
+  existingNodes: Node[],
+  positions: Map<string, { x: number; y: number }>
+): { x: number; y: number } {
+  const stepX = NODE_WIDTH + COLUMN_GAP;
+  const stepY = NODE_HEIGHT + ROW_GAP;
+  const occupiedPositions = existingNodes.map(
+    (node) => positions.get(node.id) ?? node.position
+  );
+
+  const previousColumn = Math.max(
+    0,
+    Math.round((previousPosition.x - anchorPosition.x) / stepX)
+  );
+  const previousRow = Math.max(
+    0,
+    Math.round((previousPosition.y - anchorPosition.y) / stepY)
+  );
+  const previousIndex =
+    previousRow * AUTO_CONTINUATION_COLUMNS + previousColumn;
+
+  for (let offset = 1; offset < AUTO_CONTINUATION_COLUMNS * 20; offset += 1) {
+    const nextIndex = previousIndex + offset;
+    const candidate = {
+      x: anchorPosition.x + (nextIndex % AUTO_CONTINUATION_COLUMNS) * stepX,
+      y:
+        anchorPosition.y +
+        Math.floor(nextIndex / AUTO_CONTINUATION_COLUMNS) * stepY,
+    };
+    if (
+      !occupiedPositions.some((position) =>
+        positionsOverlap(candidate, position)
+      )
+    ) {
+      return candidate;
+    }
+  }
+
+  return {
+    x: anchorPosition.x + stepX,
+    y: anchorPosition.y,
+  };
+}
+
+function positionsOverlap(
+  first: { x: number; y: number },
+  second: { x: number; y: number }
+): boolean {
+  return (
+    Math.abs(first.x - second.x) < NODE_WIDTH &&
+    Math.abs(first.y - second.y) < NODE_HEIGHT
+  );
 }
 
 function toTimeGroups(items: TimelineItem[]): TimelineItem[][] {
