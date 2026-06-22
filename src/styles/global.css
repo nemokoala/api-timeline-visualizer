@@ -1524,6 +1524,27 @@ button:not(:disabled) {
   white-space: nowrap;
 }
 
+.console-log-list.wrap-lines .console-log-row {
+  align-items: flex-start;
+}
+
+.console-log-list.wrap-lines .console-log-message {
+  overflow: visible;
+  text-overflow: unset;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.console-log-list.wrap-lines .console-log-source {
+  overflow: visible;
+  max-width: none;
+  text-overflow: unset;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .console-log-source {
   overflow: hidden;
   max-width: 180px;

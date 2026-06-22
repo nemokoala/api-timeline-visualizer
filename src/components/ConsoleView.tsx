@@ -15,6 +15,7 @@ import {
   getSearchMatchIndexForConsoleEntry,
   type ConsoleSearchOccurrence,
 } from '../utils/consoleSearch';
+import { formatConsoleMessagePreview } from '../utils/consoleMessagePreview';
 import { DetailPanelCloseButton, SplitLayoutToggleButton } from './DetailPanelCloseButton';
 import { DetailSection } from './DetailSection';
 import { JsonViewer } from './JsonViewer';
@@ -54,6 +55,7 @@ const CONSOLE_COLUMNS: Array<{ id: ConsoleColumnId; label: string }> = [
 ];
 
 const COLUMNS_STORAGE_KEY = 'console-column-visibility';
+const WRAP_LINES_STORAGE_KEY = 'console-wrap-lines';
 const DEFAULT_COLUMN_VISIBILITY: ColumnVisibility = { level: true, timestamp: true, source: true };
 
 function loadColumnVisibility(): ColumnVisibility {
@@ -64,6 +66,14 @@ function loadColumnVisibility(): ColumnVisibility {
     return { ...DEFAULT_COLUMN_VISIBILITY, ...parsed };
   } catch {
     return DEFAULT_COLUMN_VISIBILITY;
+  }
+}
+
+function loadWrapLines(): boolean {
+  try {
+    return localStorage.getItem(WRAP_LINES_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
   }
 }
 
@@ -93,6 +103,7 @@ export function ConsoleView({
   const [levelFilter, setLevelFilter] = useState<ConsoleLevelFilter>('all');
   const [preserveLog, setPreserveLog] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [wrapLines, setWrapLines] = useState(loadWrapLines);
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(loadColumnVisibility);
   const [columnMenu, setColumnMenu] = useState<{ x: number; y: number } | null>(null);
   const consoleWorkspaceRef = useRef<HTMLDivElement>(null);
@@ -269,6 +280,18 @@ export function ConsoleView({
             />
             <span>Auto-scroll</span>
           </label>
+          <label className="toggle-control">
+            <input
+              type="checkbox"
+              checked={wrapLines}
+              onChange={(event) => {
+                const next = event.currentTarget.checked;
+                setWrapLines(next);
+                localStorage.setItem(WRAP_LINES_STORAGE_KEY, String(next));
+              }}
+            />
+            <span>Wrap lines</span>
+          </label>
           <button className="clear-button" type="button" onClick={() => void handleClear()} disabled={!entries.length}>
             Clear
           </button>
@@ -280,7 +303,7 @@ export function ConsoleView({
         className={`console-workspace ${hasDetail ? 'has-detail' : ''} ${hasDetail && isSplitStacked ? 'split-layout-stacked' : ''}`}
         style={hasDetail ? splitLayoutStyle : undefined}
       >
-        <div className="console-log-list" ref={logListRef}>
+        <div className={`console-log-list ${wrapLines ? 'wrap-lines' : ''}`} ref={logListRef}>
           <div
             className="console-log-header"
             style={gridStyle}
@@ -363,6 +386,7 @@ function ConsoleLogRow({
   const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
   const levelClass = `is-${entry.level}`;
+  const displayText = formatConsoleMessagePreview(entry.text);
 
   return (
     <button
@@ -379,7 +403,7 @@ function ConsoleLogRow({
         <span className="console-log-timestamp">{formatDateTime(entry.timestamp)}</span>
       )}
       <span className="console-log-message" title={entry.text}>
-        {hasSearch ? highlightSearchText(entry.text, searchText, searchOptions) : entry.text}
+        {hasSearch ? highlightSearchText(displayText, searchText, searchOptions) : displayText}
       </span>
       <span>
         {entry.repeatCount && entry.repeatCount > 1 ? (
