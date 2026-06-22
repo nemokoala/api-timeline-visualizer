@@ -14,6 +14,7 @@ export function formatDateTime(timestamp: number): string {
     minute: '2-digit',
     second: '2-digit',
     fractionalSecondDigits: 3,
+    hour12: false,
   }).format(timestamp);
 }
 
@@ -27,6 +28,7 @@ export function formatLocaleDateTime(timestamp: number): string {
     minute: '2-digit',
     second: '2-digit',
     fractionalSecondDigits: 3,
+    hour12: false,
   }).format(timestamp);
 }
 

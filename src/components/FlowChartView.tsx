@@ -41,7 +41,7 @@ import {
 } from "../utils/flowLayoutPrefs";
 import { getFlowShowQuery, saveFlowShowQuery } from "../utils/networkFlowPrefs";
 import type { RequestSearchSummary } from "../utils/requestSearch";
-import { formatDuration, formatOffset, getStatusTone } from "./formatters";
+import { formatDateTime, formatDuration, getStatusTone } from "./formatters";
 import { ImagePreview } from "./ImagePreview";
 import { SearchHitBadge } from "./SearchHitBadge";
 
@@ -1505,7 +1505,7 @@ function toFlowNodes(
               ))}
             </div>
             <div className="flow-node-bottom">
-              <span>{formatOffset(item.startOffset)}</span>
+              <span>{formatDateTime(request?.startedAt ?? NaN)}</span>
               <span className={item.isSlow ? "slow-text" : ""}>
                 {formatDuration(request?.duration ?? item.duration)}
               </span>

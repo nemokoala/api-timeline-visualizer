@@ -9,7 +9,7 @@ import {
   type TimelinePrefs,
 } from '../utils/timelinePrefs';
 import type { RequestSearchSummary } from '../utils/requestSearch';
-import { formatDuration, formatOffset, getStatusTone } from './formatters';
+import { formatDateTime, formatDuration, getStatusTone } from './formatters';
 import { SearchHitBadge } from './SearchHitBadge';
 import { ColumnMenu } from './ColumnMenu';
 
@@ -24,7 +24,7 @@ type TimelineViewProps = {
 };
 
 const COLUMN_WIDTHS: Record<TimelineColumnId, string> = {
-  time: '72px',
+  time: '88px',
   request: 'minmax(220px, 1fr)',
   status: '36px',
   duration: '52px',
@@ -196,7 +196,7 @@ export function TimelineView({
                 onClick={() => onSelectRequest(item.requestId)}
               >
                 {prefs.columnVisibility.time ? (
-                  <span className="offset">{formatOffset(item.startOffset)}</span>
+                  <span className="offset">{formatDateTime(request?.startedAt ?? NaN)}</span>
                 ) : null}
                 {prefs.columnVisibility.request ? (
                   <span className="request-main">
