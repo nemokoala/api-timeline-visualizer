@@ -960,7 +960,7 @@ button:not(:disabled) {
   min-height: 0;
 }
 
-.storage-workspace.has-detail {
+.storage-workspace.has-detail:not(.split-layout-stacked) {
   padding-right: 0;
 }
 
@@ -1394,7 +1394,7 @@ button:not(:disabled) {
   min-height: 0;
 }
 
-.console-workspace.has-detail {
+.console-workspace.has-detail:not(.split-layout-stacked) {
   padding-right: 0;
 }
 
@@ -3339,6 +3339,5 @@ button:not(:disabled) {
   .storage-workspace.has-detail.split-layout-stacked {
     grid-template-columns: minmax(0, 1fr) !important;
     min-height: 0;
-    padding-right: 12px;
   }
 }
