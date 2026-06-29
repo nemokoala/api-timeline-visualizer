@@ -248,11 +248,15 @@ function JsonBlock({
   const handleResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     const startY = event.clientY;
-    const startHeight = customHeight ?? wrapRef.current?.clientHeight ?? 318;
+    // border-box 기준 높이(offsetHeight)로 시작값을 잡아 적용 높이와 어긋나지 않게 한다.
+    const startHeight = customHeight ?? wrapRef.current?.offsetHeight ?? 318;
     const maxHeight = Math.max(160, window.innerHeight - 120);
+    // 내용이 적어 시작 높이가 낮을 때 드래그 시작과 동시에 최소높이로 튀지 않도록,
+    // 하한을 시작 높이와 기본 최소(120) 중 작은 값으로 둔다.
+    const minHeight = Math.max(48, Math.min(120, startHeight));
 
     const handleMove = (moveEvent: PointerEvent) => {
-      const next = clamp(startHeight + (moveEvent.clientY - startY), 120, maxHeight);
+      const next = clamp(startHeight + (moveEvent.clientY - startY), minHeight, maxHeight);
       setCustomHeight(next);
     };
     const handleUp = () => {
