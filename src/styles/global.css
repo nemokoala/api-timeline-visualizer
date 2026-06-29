@@ -2983,6 +2983,21 @@ button:not(:disabled) {
   min-height: 0;
 }
 
+/* 높이 핸들로 조절했을 때: 래퍼에 적용된 높이를 내부 body/pre가 채우고 스크롤한다. */
+.json-viewer-wrap.is-resized .json-viewer-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.json-viewer-wrap.is-resized .json-viewer {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+}
+
 .json-field-menu {
   display: inline-flex;
   gap: 4px;
@@ -3175,13 +3190,12 @@ button:not(:disabled) {
 
 .response-json-slot {
   position: relative;
-  height: 318px;
   flex-shrink: 0;
-  overflow: hidden;
 }
 
+/* 기본 높이는 래퍼가 갖고, 핸들 드래그 시 인라인 height로 덮어쓴다. */
 .response-json-slot .json-viewer-wrap {
-  height: 100%;
+  height: 318px;
 }
 
 .response-json-slot:not(.is-loading) .json-viewer-wrap:not(.response-json-skeleton) {

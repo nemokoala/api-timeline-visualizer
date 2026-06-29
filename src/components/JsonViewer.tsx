@@ -168,7 +168,7 @@ function JsonBlock({
   const [localWholeWord, setLocalWholeWord] = useState(false);
   const [customHeight, setCustomHeight] = useState<number | null>(null);
   const viewerBodyRef = useRef<HTMLDivElement>(null);
-  const preRef = useRef<HTMLPreElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const copyText = fallback || '{}';
   const isObject = Boolean(value && typeof value === 'object');
 
@@ -248,11 +248,11 @@ function JsonBlock({
   const handleResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     const startY = event.clientY;
-    const startHeight = customHeight ?? preRef.current?.clientHeight ?? 280;
+    const startHeight = customHeight ?? wrapRef.current?.clientHeight ?? 318;
     const maxHeight = Math.max(160, window.innerHeight - 120);
 
     const handleMove = (moveEvent: PointerEvent) => {
-      const next = clamp(startHeight + (moveEvent.clientY - startY), 80, maxHeight);
+      const next = clamp(startHeight + (moveEvent.clientY - startY), 120, maxHeight);
       setCustomHeight(next);
     };
     const handleUp = () => {
@@ -267,8 +267,9 @@ function JsonBlock({
   };
 
   // 전체화면에서는 고정 높이를 적용하지 않고 화면을 가득 채운다.
+  // 높이는 래퍼에 적용하고 내부 body/pre가 이를 채우도록 한다. (pre가 flex:1인 컨텍스트에서도 동작)
   const appliedHeight = !isFullscreen && customHeight != null ? customHeight : undefined;
-  const preStyle = appliedHeight != null ? { height: appliedHeight, maxHeight: appliedHeight } : undefined;
+  const wrapStyle = appliedHeight != null ? { height: appliedHeight } : undefined;
 
   useEffect(() => {
     if (!isFullscreen) return;
@@ -351,7 +352,9 @@ function JsonBlock({
         <div className="json-fullscreen-backdrop" onClick={() => setIsFullscreen(false)} aria-hidden="true" />
       ) : null}
       <div
-        className={`json-viewer-wrap${isFullscreen ? ' is-fullscreen' : ''}`}
+        ref={wrapRef}
+        className={`json-viewer-wrap${isFullscreen ? ' is-fullscreen' : ''}${appliedHeight != null ? ' is-resized' : ''}`}
+        style={wrapStyle}
         role={isFullscreen ? 'dialog' : undefined}
         aria-modal={isFullscreen ? true : undefined}
         aria-label={isFullscreen ? 'JSON fullscreen' : undefined}
@@ -446,11 +449,11 @@ function JsonBlock({
             </div>
           ) : null}
           {isObject ? (
-            <pre className="json-viewer json-tree" ref={preRef} style={preStyle}>
+            <pre className="json-viewer json-tree">
               {renderJsonValue(value, 0, 'root', handleFieldClick, effectiveSearch, effectiveOptions, markClassName)}
             </pre>
           ) : (
-            <pre className="json-viewer" ref={preRef} style={preStyle}>
+            <pre className="json-viewer">
               {highlightSearchText(copyText, effectiveSearch, effectiveOptions, markClassName)}
             </pre>
           )}
