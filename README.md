@@ -1,7 +1,7 @@
-# API Timeline Visualizer
+# DevLens
 
-API 요청을 시간순으로 시각화하는 Chrome DevTools 패널 확장 프로그램 (Manifest V3).
-Network / Storage / Console 세 가지 뷰어를 한 패널에서 제공합니다.
+Network / Console / Storage를 한 패널에서 보는 Chrome DevTools 확장 프로그램 (Manifest V3).
+API 요청을 플로우 그래프 / 타임라인으로 시각화하고, 콘솔 로그와 스토리지를 함께 점검합니다.
 
 ## 기술 스택
 
