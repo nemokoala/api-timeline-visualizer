@@ -49,16 +49,18 @@ export function useSplitPanelLayout(workspaceRef: RefObject<HTMLElement | null>)
     if (!resizeAxis) return;
 
     const handleMouseMove = (event: MouseEvent) => {
+      const bounds = workspaceRef.current?.getBoundingClientRect();
+      if (!bounds) return;
+
       if (resizeAxis === 'width') {
-        const nextWidth = window.innerWidth - event.clientX;
-        const next = clamp(nextWidth, MIN_DETAIL_PANEL_WIDTH, Math.min(820, window.innerWidth * 0.72));
+        // 상세 패널은 컨테이너(도킹 패널) 오른쪽 끝에 붙으므로, 창이 아니라
+        // 컨테이너 기준으로 폭을 계산해야 도킹 패널 안에서도 정확하다.
+        const nextWidth = bounds.right - event.clientX;
+        const next = clamp(nextWidth, MIN_DETAIL_PANEL_WIDTH, Math.min(820, bounds.width * 0.72));
         setDetailPanelWidth(next);
         saveDetailPanelWidth(next);
         return;
       }
-
-      const bounds = workspaceRef.current?.getBoundingClientRect();
-      if (!bounds) return;
 
       const nextHeight = event.clientY - bounds.top;
       const maxHeight = bounds.height - MIN_STACKED_SECONDARY_HEIGHT;
@@ -86,9 +88,11 @@ export function useSplitPanelLayout(workspaceRef: RefObject<HTMLElement | null>)
 
   const layoutStyle = useMemo((): CSSProperties => {
     if (isStacked) {
+      // 상단(Flow/Timeline)은 저장된 높이까지 커지되 컨테이너가 짧아지면 줄어들고,
+      // 세부 패널은 최소 높이를 보장해 아래에 다른 창을 도킹해도 사라지지 않게 한다.
       return {
         gridTemplateColumns: 'minmax(0, 1fr)',
-        gridTemplateRows: `${stackedPrimaryHeight}px 8px minmax(0, 1fr)`,
+        gridTemplateRows: `minmax(0, ${stackedPrimaryHeight}px) 8px minmax(${MIN_STACKED_SECONDARY_HEIGHT}px, 1fr)`,
       };
     }
 

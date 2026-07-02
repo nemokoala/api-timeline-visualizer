@@ -573,12 +573,13 @@ button:not(:disabled) {
 }
 
 .toolbar-button {
-  height: 32px;
+  height: 28px;
   border: 0;
-  border-radius: 10px;
-  padding: 0 14px;
+  border-radius: 9px;
+  padding: 0 12px;
   color: var(--text-sub);
   background: var(--fill);
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -646,12 +647,13 @@ button:not(:disabled) {
 
 .clear-button,
 .response-actions button {
-  height: 32px;
+  height: 28px;
   border: 0;
-  border-radius: 10px;
-  padding: 0 14px;
+  border-radius: 9px;
+  padding: 0 12px;
   color: var(--text-sub);
   background: var(--fill);
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -3354,4 +3356,277 @@ button:not(:disabled) {
     grid-template-columns: minmax(0, 1fr) !important;
     min-height: 0;
   }
+}
+
+/* ── 도킹 워크스페이스 (dockview) ───────────────────────────────── */
+.workspace-dock {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* dockview 테마 변수를 앱 팔레트에 맞춘다. */
+.workspace-dock .dv-dockview {
+  --dv-group-view-background-color: var(--bg);
+  --dv-tabs-and-actions-container-background-color: var(--surface);
+  --dv-tabs-and-actions-container-height: 34px;
+  --dv-activegroup-visiblepanel-tab-background-color: var(--bg);
+  --dv-activegroup-visiblepanel-tab-color: var(--text-strong);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--surface);
+  --dv-activegroup-hiddenpanel-tab-color: var(--text-weak);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--surface-sub);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--text-sub);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--surface);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--text-weak);
+  --dv-separator-border: var(--border);
+  --dv-tab-divider-color: var(--border-weak);
+  --dv-paneview-header-border-color: var(--border);
+  --dv-sash-color: transparent;
+  --dv-active-sash-color: var(--blue);
+  --dv-icon-hover-background-color: var(--fill-hover);
+  --dv-drag-over-background-color: var(--blue-soft);
+  --dv-tab-close-icon-size: 14px;
+  height: 100%;
+}
+
+/* 패널 = 슬림 검색바(상단) + 콘텐츠(나머지). */
+.dock-panel-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.dock-panel-shell > .panel-header,
+.dock-panel-shell > .network-actions {
+  flex: 0 0 auto;
+}
+
+.dock-panel-shell > .dock-pane,
+.dock-panel-shell > .network-dock-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Network 패널 전용 세션 액션 행. */
+.network-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border-weak);
+  background: var(--surface);
+  overflow-x: auto;
+}
+
+.network-actions .toolbar-notice {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.network-actions .segmented-control {
+  flex-shrink: 0;
+}
+
+.network-actions-sep {
+  width: 1px;
+  height: 18px;
+  flex-shrink: 0;
+  background: var(--border);
+}
+
+.network-actions .toolbar-button-group {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* 필터 접기/펴기 토글(검색바 끝). */
+.panel-filter-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 6px;
+  padding: 0;
+  color: var(--text-weak);
+  background: transparent;
+  cursor: pointer;
+}
+
+.panel-filter-toggle:hover {
+  color: var(--text-sub);
+  background: var(--fill-hover);
+}
+
+.panel-filter-toggle.active {
+  color: var(--text-strong);
+  background: var(--fill);
+}
+
+/* 필터가 걸려 있는데 접혀 있으면 점으로 표시. */
+.panel-filter-toggle.has-filter {
+  color: var(--blue);
+}
+
+.panel-filter-toggle.has-filter::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--blue);
+}
+
+/* 패널 헤더 = 검색바 + 필터바(세로 스택). */
+.panel-header {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-weak);
+}
+
+/* 패널 헤더의 슬림 검색바. */
+.panel-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 6px 0 10px;
+}
+
+/* 패널 헤더의 Include/Exclude 필터바. */
+.panel-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 8px 4px;
+}
+
+.panel-filter-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 7px;
+  color: var(--text-weak);
+  background: var(--fill);
+  font-size: 11px;
+}
+
+.panel-filter-label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.panel-filter-field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 0;
+  height: 22px;
+  border: 0;
+  outline: 0;
+  color: var(--text-strong);
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+}
+
+.panel-search-input {
+  flex: 1 1 80px;
+  min-width: 0;
+  height: 22px;
+  border: 0;
+  outline: 0;
+  color: var(--text-strong);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+}
+
+.panel-search-options {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.panel-search-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding-left: 6px;
+  border-left: 1px solid var(--border);
+}
+
+.dock-watermark {
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-sub);
+}
+
+.dock-watermark-hint {
+  font-size: 12px;
+  color: var(--text-weak);
+}
+
+/* 열려 있지만 포커스되지 않은 패널 표시(작은 점). */
+.segmented-control-dock button {
+  position: relative;
+}
+
+.segmented-control-dock button.is-open:not(.active)::after {
+  content: "";
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--blue);
+  transform: translateX(-50%);
+}
+
+.toolbar-spacer {
+  flex: 1 1 auto;
+  min-width: 8px;
+}
+
+.toolbar-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 10px;
+  padding: 0;
+  color: var(--text-weak);
+  background: var(--fill);
+  cursor: pointer;
+}
+
+.toolbar-icon-button:hover {
+  color: var(--text-sub);
+  background: var(--fill-hover);
 }

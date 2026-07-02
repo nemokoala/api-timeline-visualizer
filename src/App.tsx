@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ConsoleView } from './components/ConsoleView';
-import { FlowChartView } from './components/FlowChartView';
-import { RequestDetailPanel } from './components/RequestDetailPanel';
-import { SplitPanelResizer } from './components/SplitPanelResizer';
-import { StorageView } from './components/StorageView';
-import { TimelineView } from './components/TimelineView';
+import type { DockviewApi } from 'dockview-react';
+import {
+  buildDefaultWorkspaceLayout,
+  focusOrOpenWorkspacePanel,
+  WorkspaceDock,
+} from './components/WorkspaceDock';
+import { WorkspaceProvider, type WorkspaceContextValue } from './contexts/WorkspaceContext';
 import { SearchOptionsProvider } from './contexts/SearchOptionsContext';
 import { Toolbar, type NetworkViewMode, type WorkspaceMode } from './components/Toolbar';
 import type { ConsoleEntry } from './types/console';
@@ -70,7 +71,7 @@ import {
   getNextStorageItemJumpIndex,
   storageTargetKey,
 } from './utils/storageSearch';
-import { useSplitPanelLayout } from './hooks/useSplitPanelLayout';
+import { clearDockLayout } from './utils/dockLayoutPrefs';
 import { toTimelineItems } from './utils/timeline';
 import {
   getGroupFlowByTime,
@@ -111,22 +112,13 @@ export default function App() {
   const [storageSearchOccurrences, setStorageSearchOccurrences] = useState<StorageSearchOccurrence[]>([]);
   const [consoleSearchOccurrences, setConsoleSearchOccurrences] = useState<ConsoleSearchOccurrence[]>([]);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
-  const workspaceRef = useRef<HTMLElement>(null);
+  const [openPanels, setOpenPanels] = useState<WorkspaceMode[]>([]);
+  const dockApiRef = useRef<DockviewApi | null>(null);
   // 레이아웃은 세션 동안만 이 ref로 유지한다(뷰 전환 시 복원). DevTools를 다시 열면
   // requestId가 새로 찍혀 이전 좌표와 맞지 않으므로 localStorage 영속은 하지 않는다.
   // 진짜 영속이 필요하면 세션 export/import(JSON)를 쓴다.
   const flowLayoutRef = useRef<FlowLayout>(EMPTY_FLOW_LAYOUT);
-  const {
-    isStacked: isSplitStacked,
-    layoutStyle: splitLayoutStyle,
-    startWidthResize,
-    startHeightResize,
-    resetWidth: resetSplitWidth,
-    resetHeight: resetSplitHeight,
-    toggleSplitLayout,
-  } = useSplitPanelLayout(workspaceRef);
   const networkRequestById = useRef(new Map<string, chrome.devtools.network.Request>());
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const preloadQueueRef = useRef<string[]>([]);
   const preloadInFlightRef = useRef(new Set<string>());
 
@@ -191,19 +183,7 @@ export default function App() {
     [searchMatchCase, searchWholeWord],
   );
 
-  const isNetworkMode = workspaceMode === 'network';
-  const isStorageMode = workspaceMode === 'storage';
   const isConsoleMode = workspaceMode === 'console';
-  const activeSearchText = isNetworkMode
-    ? networkSearchText
-    : isStorageMode
-      ? storageSearchText
-      : consoleSearchText;
-  const activeSearchMatchIndex = isNetworkMode
-    ? networkSearchMatchIndex
-    : isStorageMode
-      ? storageSearchMatchIndex
-      : consoleSearchMatchIndex;
 
   const filteredRequests = useMemo(
     () => requests.filter((request) => matchesTextFilters(request, networkIncludeText, networkExcludeText)),
@@ -293,13 +273,15 @@ export default function App() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'f') return;
       event.preventDefault();
-      searchInputRef.current?.focus();
-      searchInputRef.current?.select();
+      // 검색바가 패널마다 있으므로 현재 활성 패널의 검색창에 포커스한다.
+      const input = document.querySelector<HTMLInputElement>(`[data-panel-search="${workspaceMode}"] input`);
+      input?.focus();
+      input?.select();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [workspaceMode]);
 
   useEffect(() => {
     if (!sessionNotice) return;
@@ -382,22 +364,29 @@ export default function App() {
     flowLayoutRef.current = layout;
   }, []);
 
-  const handleSearchTextChange = useCallback(
-    (value: string) => {
-      if (workspaceMode === 'network') {
-        setNetworkSearchText(value);
-        return;
-      }
+  const handleDockApiReady = useCallback((api: DockviewApi) => {
+    dockApiRef.current = api;
+  }, []);
 
-      if (workspaceMode === 'storage') {
-        setStorageSearchText(value);
-        return;
-      }
+  const handleActivePanelChange = useCallback((mode: WorkspaceMode) => {
+    setWorkspaceMode(mode);
+  }, []);
 
-      setConsoleSearchText(value);
-    },
-    [workspaceMode],
-  );
+  // 툴바에서 뷰 버튼을 누르면 해당 패널을 열거나 포커스한다(active 패널 = 툴바 컨텍스트).
+  const handleWorkspaceModeChange = useCallback((mode: WorkspaceMode) => {
+    setWorkspaceMode(mode);
+    if (dockApiRef.current) focusOrOpenWorkspacePanel(dockApiRef.current, mode);
+  }, []);
+
+  const handleResetLayout = useCallback(() => {
+    if (!dockApiRef.current) return;
+    clearDockLayout();
+    buildDefaultWorkspaceLayout(dockApiRef.current);
+  }, []);
+
+  const handleCloseDetail = useCallback(() => {
+    setSelectedRequestId(null);
+  }, []);
 
   const goToNetworkSearchMatch = useCallback(
     (direction: 1 | -1) => {
@@ -662,164 +651,152 @@ export default function App() {
     startResponseBodyLoad(selectedRequest.id);
   }, [selectedRequest, startResponseBodyLoad]);
 
+  const searchModels: WorkspaceContextValue['searchModels'] = {
+    network: {
+      searchText: networkSearchText,
+      onSearchTextChange: setNetworkSearchText,
+      occurrenceCount: searchOccurrences.length,
+      matchIndex: networkSearchMatchIndex,
+      scopeJumpCount: searchRequestJumpCount,
+      activeScopeOrder: activeSearchRequestOrder,
+      scopeLabel: 'Card',
+      placeholder: 'Search path, status, body…',
+      onNext: () => goToNetworkSearchMatch(1),
+      onPrevious: () => goToNetworkSearchMatch(-1),
+      onNextScope: () => goToNetworkSearchRequest(1),
+      onPreviousScope: () => goToNetworkSearchRequest(-1),
+    },
+    storage: {
+      searchText: storageSearchText,
+      onSearchTextChange: setStorageSearchText,
+      occurrenceCount: storageSearchOccurrences.length,
+      matchIndex: storageSearchMatchIndex,
+      scopeJumpCount: storageSearchRequestJumpCount,
+      activeScopeOrder: activeStorageItemOrder,
+      scopeLabel: 'Row',
+      placeholder: 'Search key, value…',
+      onNext: () => goToStorageSearchMatch(1),
+      onPrevious: () => goToStorageSearchMatch(-1),
+      onNextScope: () => goToStorageSearchItem(1),
+      onPreviousScope: () => goToStorageSearchItem(-1),
+    },
+    console: {
+      searchText: consoleSearchText,
+      onSearchTextChange: setConsoleSearchText,
+      occurrenceCount: consoleSearchOccurrences.length,
+      matchIndex: consoleSearchMatchIndex,
+      scopeJumpCount: consoleSearchEntryJumpCount,
+      activeScopeOrder: activeConsoleEntryOrder,
+      scopeLabel: 'Log',
+      placeholder: 'Search logs, objects, stack…',
+      onNext: () => goToConsoleSearchMatch(1),
+      onPrevious: () => goToConsoleSearchMatch(-1),
+      onNextScope: () => goToConsoleSearchEntry(1),
+      onPreviousScope: () => goToConsoleSearchEntry(-1),
+    },
+  };
+
+  const filterModels: WorkspaceContextValue['filterModels'] = {
+    network: {
+      includeText: networkIncludeText,
+      excludeText: networkExcludeText,
+      onIncludeTextChange: setNetworkIncludeText,
+      onExcludeTextChange: setNetworkExcludeText,
+      includePlaceholder: 'api, graphql',
+      excludePlaceholder: 'analytics, sentry',
+    },
+    storage: {
+      includeText: storageIncludeText,
+      excludeText: storageExcludeText,
+      onIncludeTextChange: setStorageIncludeText,
+      onExcludeTextChange: setStorageExcludeText,
+      includePlaceholder: 'token, auth',
+      excludePlaceholder: 'analytics, cache',
+    },
+    console: {
+      includeText: consoleIncludeText,
+      excludeText: consoleExcludeText,
+      onIncludeTextChange: setConsoleIncludeText,
+      onExcludeTextChange: setConsoleExcludeText,
+      includePlaceholder: 'error, warn',
+      excludePlaceholder: 'debug, vite',
+    },
+  };
+
+  const workspaceValue: WorkspaceContextValue = {
+    searchModels,
+    filterModels,
+    searchOptions: {
+      matchCase: searchMatchCase,
+      wholeWord: searchWholeWord,
+      onMatchCaseChange: setSearchMatchCase,
+      onWholeWordChange: setSearchWholeWord,
+    },
+    activeMode: workspaceMode,
+    networkViewMode,
+    timelineItems,
+    displayedRequests,
+    selectedRequestId,
+    groupFlowByTime,
+    networkSearchText,
+    searchOccurrenceByRequest,
+    activeGlobalSearchIndex,
+    flowLayoutRevision,
+    flowLayoutSnapshot: flowLayoutRef.current,
+    onSelectRequest: handleSelectRequestWithBodyLoad,
+    onFlowLayoutChange: handleFlowLayoutChange,
+    onNetworkViewModeChange: setNetworkViewMode,
+    onGroupFlowByTimeChange: setGroupFlowByTime,
+    onExportSession: handleExportSession,
+    onImportSession: () => {
+      void handleImportSession();
+    },
+    onClear: handleClear,
+    canExport: requests.length > 0,
+    canClear: displayedRequests.length > 0,
+    sessionNotice,
+    selectedRequest,
+    bodyLoadingId,
+    networkSearchMatchIndex,
+    activeSearchOccurrence,
+    onLoadResponseBody: loadResponseBody,
+    onCloseDetail: handleCloseDetail,
+    storageSearchText,
+    storageSearchMatchIndex,
+    storageIncludeText,
+    storageExcludeText,
+    onStorageSearchOccurrencesChange: setStorageSearchOccurrences,
+    onStorageSearchMatchIndexChange: setStorageSearchMatchIndex,
+    consoleEntries,
+    selectedConsoleEntryId,
+    consoleSearchText,
+    consoleIncludeText,
+    consoleExcludeText,
+    consoleSearchMatchIndex,
+    onConsoleEntriesChange: setConsoleEntries,
+    onConsoleSelectedEntryIdChange: setSelectedConsoleEntryId,
+    onConsoleSearchOccurrencesChange: setConsoleSearchOccurrences,
+    onConsoleSearchMatchIndexChange: setConsoleSearchMatchIndex,
+  };
+
   return (
     <SearchOptionsProvider value={searchOptions}>
     <main className="app-shell">
       <Toolbar
         requestCount={isConsoleMode ? displayedConsoleEntries.length : displayedRequests.length}
         totalRequestCount={isConsoleMode ? displayedConsoleEntries.length : requests.length}
-        searchText={activeSearchText}
-        searchMatchIndex={activeSearchMatchIndex}
-        searchOccurrenceCount={
-          isNetworkMode
-            ? searchOccurrences.length
-            : isStorageMode
-              ? storageSearchOccurrences.length
-              : consoleSearchOccurrences.length
-        }
-        searchInputRef={searchInputRef}
         workspaceMode={workspaceMode}
-        networkViewMode={networkViewMode}
-        groupFlowByTime={groupFlowByTime}
-        networkIncludeText={networkIncludeText}
-        networkExcludeText={networkExcludeText}
-        storageIncludeText={storageIncludeText}
-        storageExcludeText={storageExcludeText}
-        consoleIncludeText={consoleIncludeText}
-        consoleExcludeText={consoleExcludeText}
-        sessionNotice={sessionNotice}
-        onSearchTextChange={handleSearchTextChange}
-        onSearchNext={() => {
-          if (isNetworkMode) goToNetworkSearchMatch(1);
-          else if (isStorageMode) goToStorageSearchMatch(1);
-          else goToConsoleSearchMatch(1);
-        }}
-        onSearchPrevious={() => {
-          if (isNetworkMode) goToNetworkSearchMatch(-1);
-          else if (isStorageMode) goToStorageSearchMatch(-1);
-          else goToConsoleSearchMatch(-1);
-        }}
-        onSearchNextScope={() => {
-          if (isNetworkMode) goToNetworkSearchRequest(1);
-          else if (isStorageMode) goToStorageSearchItem(1);
-          else goToConsoleSearchEntry(1);
-        }}
-        onSearchPreviousScope={() => {
-          if (isNetworkMode) goToNetworkSearchRequest(-1);
-          else if (isStorageMode) goToStorageSearchItem(-1);
-          else goToConsoleSearchEntry(-1);
-        }}
-        searchScopeJumpCount={
-          isNetworkMode
-            ? searchRequestJumpCount
-            : isStorageMode
-              ? storageSearchRequestJumpCount
-              : consoleSearchEntryJumpCount
-        }
-        activeSearchScopeOrder={
-          isNetworkMode
-            ? activeSearchRequestOrder
-            : isStorageMode
-              ? activeStorageItemOrder
-              : activeConsoleEntryOrder
-        }
-        onGroupFlowByTimeChange={setGroupFlowByTime}
-        onNetworkIncludeTextChange={setNetworkIncludeText}
-        onNetworkExcludeTextChange={setNetworkExcludeText}
-        onStorageIncludeTextChange={setStorageIncludeText}
-        onStorageExcludeTextChange={setStorageExcludeText}
-        onConsoleIncludeTextChange={setConsoleIncludeText}
-        onConsoleExcludeTextChange={setConsoleExcludeText}
-        onWorkspaceModeChange={setWorkspaceMode}
-        onNetworkViewModeChange={setNetworkViewMode}
-        onExportSession={handleExportSession}
-        onImportSession={() => {
-          void handleImportSession();
-        }}
-        onClear={handleClear}
-        searchMatchCase={searchMatchCase}
-        searchWholeWord={searchWholeWord}
-        onSearchMatchCaseChange={setSearchMatchCase}
-        onSearchWholeWordChange={setSearchWholeWord}
+        openPanels={openPanels}
+        onWorkspaceModeChange={handleWorkspaceModeChange}
+        onResetLayout={handleResetLayout}
       />
-      <section
-        ref={workspaceRef}
-        className={`workspace ${workspaceMode === 'storage' ? 'workspace-storage' : ''} ${workspaceMode === 'console' ? 'workspace-console' : ''} ${isNetworkMode && selectedRequest && isSplitStacked ? 'split-layout-stacked' : ''}`}
-        style={
-          workspaceMode === 'storage' || workspaceMode === 'console' || !selectedRequest
-            ? undefined
-            : splitLayoutStyle
-        }
-      >
-        {workspaceMode === 'console' ? (
-          <ConsoleView
-            entries={consoleEntries}
-            selectedEntryId={selectedConsoleEntryId}
-            searchText={consoleSearchText}
-            includeText={consoleIncludeText}
-            excludeText={consoleExcludeText}
-            searchMatchIndex={consoleSearchMatchIndex}
-            onEntriesChange={setConsoleEntries}
-            onSelectedEntryIdChange={setSelectedConsoleEntryId}
-            onSearchOccurrencesChange={setConsoleSearchOccurrences}
-            onSearchMatchIndexChange={setConsoleSearchMatchIndex}
-          />
-        ) : workspaceMode === 'storage' ? (
-          <StorageView
-            searchText={storageSearchText}
-            searchMatchIndex={storageSearchMatchIndex}
-            includeText={storageIncludeText}
-            excludeText={storageExcludeText}
-            onSearchOccurrencesChange={setStorageSearchOccurrences}
-            onSearchMatchIndexChange={setStorageSearchMatchIndex}
-          />
-        ) : networkViewMode === 'flow' ? (
-          <FlowChartView
-            items={timelineItems}
-            requests={displayedRequests}
-            selectedRequestId={selectedRequestId}
-            groupByTime={groupFlowByTime}
-            searchText={networkSearchText}
-            searchOccurrenceByRequest={searchOccurrenceByRequest}
-            activeGlobalSearchIndex={activeGlobalSearchIndex}
-            layoutRevision={flowLayoutRevision}
-            layoutSnapshot={flowLayoutRef.current}
-            onSelectRequest={handleSelectRequestWithBodyLoad}
-            onLayoutChange={handleFlowLayoutChange}
-          />
-        ) : (
-          <TimelineView
-            items={timelineItems}
-            requests={displayedRequests}
-            selectedRequestId={selectedRequestId}
-            searchText={networkSearchText}
-            searchOccurrenceByRequest={searchOccurrenceByRequest}
-            activeGlobalSearchIndex={activeGlobalSearchIndex}
-            onSelectRequest={handleSelectRequestWithBodyLoad}
-          />
-        )}
-        {isNetworkMode && selectedRequest ? (
-          <>
-            <SplitPanelResizer
-              orientation={isSplitStacked ? 'horizontal' : 'vertical'}
-              ariaLabel="Resize request detail panel"
-              onMouseDown={isSplitStacked ? startHeightResize : startWidthResize}
-              onDoubleClick={isSplitStacked ? resetSplitHeight : resetSplitWidth}
-            />
-            <RequestDetailPanel
-              request={selectedRequest}
-              isBodyLoading={bodyLoadingId === selectedRequest.id}
-              searchText={networkSearchText}
-              searchOccurrenceIndex={activeSearchOccurrence?.occurrenceIndex ?? 0}
-              searchFocusKey={`${networkSearchMatchIndex}:${activeSearchOccurrence?.requestId ?? ''}:${activeSearchOccurrence?.occurrenceIndex ?? 0}`}
-              isStacked={isSplitStacked}
-              onLoadResponseBody={loadResponseBody}
-              onToggleLayout={toggleSplitLayout}
-              onClose={() => setSelectedRequestId(null)}
-            />
-          </>
-        ) : null}
-      </section>
+      <WorkspaceProvider value={workspaceValue}>
+        <WorkspaceDock
+          onApiReady={handleDockApiReady}
+          onActivePanelChange={handleActivePanelChange}
+          onOpenPanelsChange={setOpenPanels}
+        />
+      </WorkspaceProvider>
     </main>
     </SearchOptionsProvider>
   );
