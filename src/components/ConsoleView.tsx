@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import type { ConsoleEntry, ConsoleLevelFilter } from '../types/console';
 import { useSplitPanelLayout } from '../hooks/useSplitPanelLayout';
-import {
-  clearInspectedConsoleBuffer,
-  setConsolePreserveLog,
-} from '../utils/consoleInspector';
+import { clearInspectedConsoleBuffer } from '../utils/consoleInspector';
 import { scrollSearchHitIntoView } from '../utils/searchScroll';
 import { useSearchOptions } from '../contexts/SearchOptionsContext';
 import { highlightSearchText, textMatchesSearch } from '../utils/searchHighlight';
@@ -101,7 +98,6 @@ export function ConsoleView({
 }: ConsoleViewProps) {
   const searchOptions = useSearchOptions();
   const [levelFilter, setLevelFilter] = useState<ConsoleLevelFilter>('all');
-  const [preserveLog, setPreserveLog] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
   const [wrapLines, setWrapLines] = useState(loadWrapLines);
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(loadColumnVisibility);
@@ -168,9 +164,6 @@ export function ConsoleView({
     return () => onSearchOccurrencesChange([]);
   }, [onSearchOccurrencesChange]);
 
-  useEffect(() => {
-    void setConsolePreserveLog(preserveLog);
-  }, [preserveLog]);
 
   useEffect(() => {
     if (!hasSearch || !searchOccurrences.length) return;
@@ -264,14 +257,6 @@ export function ConsoleView({
           ))}
         </div>
         <div className="console-toolbar-actions">
-          <label className="toggle-control">
-            <input
-              type="checkbox"
-              checked={preserveLog}
-              onChange={(event) => setPreserveLog(event.currentTarget.checked)}
-            />
-            <span>Preserve log</span>
-          </label>
           <label className="toggle-control">
             <input
               type="checkbox"

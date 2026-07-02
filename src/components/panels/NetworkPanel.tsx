@@ -43,15 +43,19 @@ export function NetworkPanel() {
             Timeline
           </button>
         </div>
-        <span className="network-actions-sep" aria-hidden="true" />
-        <label className="toggle-control">
-          <input
-            type="checkbox"
-            checked={ctx.groupFlowByTime}
-            onChange={(event) => ctx.onGroupFlowByTimeChange(event.currentTarget.checked)}
-          />
-          <span>Group time</span>
-        </label>
+        {ctx.networkViewMode === 'flow' ? (
+          <>
+            <span className="network-actions-sep" aria-hidden="true" />
+            <label className="toggle-control">
+              <input
+                type="checkbox"
+                checked={ctx.groupFlowByTime}
+                onChange={(event) => ctx.onGroupFlowByTimeChange(event.currentTarget.checked)}
+              />
+              <span>Group time</span>
+            </label>
+          </>
+        ) : null}
         {ctx.sessionNotice ? <p className="toolbar-notice">{ctx.sessionNotice}</p> : null}
         <div className="toolbar-button-group" aria-label="Session actions">
           <button className="toolbar-button" type="button" onClick={ctx.onExportSession} disabled={!ctx.canExport}>

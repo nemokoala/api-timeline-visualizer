@@ -2343,16 +2343,22 @@ button:not(:disabled) {
   font-size: 11px;
 }
 
+.column-menu-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-weak);
+}
+
 .timeline-list {
-  padding: 6px 0 28px;
+  padding: 4px 0 12px;
 }
 
 .request-row {
   width: 100%;
-  min-height: 52px;
+  min-height: 38px;
   border: 0;
   border-left: 3px solid transparent;
-  padding: 6px 12px 6px 9px;
+  padding: 4px 12px 4px 9px;
   color: var(--text);
   background: transparent;
   text-align: left;
@@ -2396,7 +2402,7 @@ button:not(:disabled) {
 
 .request-main {
   display: grid;
-  gap: 6px;
+  gap: 3px;
   min-width: 0;
 }
 
@@ -2452,10 +2458,15 @@ button:not(:disabled) {
   white-space: nowrap;
 }
 
+.path-query {
+  color: var(--text-weak);
+  font-weight: 400;
+}
+
 .bar-track {
   position: relative;
   display: block;
-  height: 8px;
+  height: 6px;
   border-radius: 999px;
   background: var(--border-weak);
   overflow: hidden;

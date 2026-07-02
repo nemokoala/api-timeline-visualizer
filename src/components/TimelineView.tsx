@@ -58,6 +58,16 @@ function buildGridTemplate(visibility: Record<TimelineColumnId, boolean>): strin
     .join(' ');
 }
 
+/** URL에서 쿼리 문자열(?a=1&b=2)만 추출한다. 해시(#…)는 제외. 빈 쿼리('?')는 무시. */
+function getQueryString(url: string | undefined): string {
+  if (!url) return '';
+  const queryIndex = url.indexOf('?');
+  if (queryIndex === -1) return '';
+  const hashIndex = url.indexOf('#', queryIndex);
+  const query = hashIndex === -1 ? url.slice(queryIndex) : url.slice(queryIndex, hashIndex);
+  return query === '?' ? '' : query;
+}
+
 export function TimelineView({
   items,
   requests,
@@ -142,7 +152,7 @@ export function TimelineView({
               type="button"
               className={`timeline-column-header timeline-column-header-${column} ${prefs.sortColumn === column ? 'sorted' : ''}`}
               onClick={() => handleSortClick(column)}
-              title="클릭: 정렬 · 우클릭: 열 표시 설정"
+              title="클릭: 정렬 · 우클릭: 열/쿼리 표시 설정"
             >
               <span>{TIMELINE_COLUMN_HEADER_LABELS[column]}</span>
               {prefs.sortColumn === column ? (
@@ -160,7 +170,11 @@ export function TimelineView({
           columns={TIMELINE_COLUMNS.map((id) => ({ id, label: TIMELINE_COLUMN_LABELS[id] }))}
           visibility={prefs.columnVisibility}
           position={columnMenu}
+          options={[{ id: 'showQuery', label: 'Show query string', checked: prefs.showQuery }]}
           onToggle={toggleColumnVisibility}
+          onToggleOption={(id) => {
+            if (id === 'showQuery') updatePrefs({ ...prefs, showQuery: !prefs.showQuery });
+          }}
           onClose={() => setColumnMenu(null)}
         />
       ) : null}
@@ -182,6 +196,7 @@ export function TimelineView({
             const widthPercent = Math.max(2, (item.duration / maxEnd) * 100);
             const isSelected = selectedRequestId === item.requestId;
             const searchSummary = searchOccurrenceByRequest.get(item.requestId);
+            const queryString = prefs.showQuery ? getQueryString(request?.url) : '';
 
             return (
               <button
@@ -202,7 +217,10 @@ export function TimelineView({
                   <span className="request-main">
                     <span className="request-meta">
                       <span className={`method method-${item.method.toLowerCase()}`}>{item.method}</span>
-                      <span className="path">{item.normalizedPath}</span>
+                      <span className="path">
+                        {item.normalizedPath}
+                        {queryString ? <span className="path-query">{queryString}</span> : null}
+                      </span>
                       {searchSummary ? (
                         <SearchHitBadge
                           summary={searchSummary}

@@ -11,6 +11,8 @@ export type TimelinePrefs = {
   sortColumn: TimelineColumnId;
   sortDirection: SortDirection;
   columnVisibility: Record<TimelineColumnId, boolean>;
+  /** Request 열에 쿼리 문자열(?a=1&b=2)까지 표시할지 여부. */
+  showQuery: boolean;
 };
 
 const STORAGE_KEY = 'api-flow-timeline-prefs';
@@ -33,6 +35,7 @@ const DEFAULT_PREFS: TimelinePrefs = {
     status: true,
     duration: true,
   },
+  showQuery: true,
 };
 
 function readPrefs(): Partial<TimelinePrefs> {
@@ -64,6 +67,7 @@ export function getTimelinePrefs(): TimelinePrefs {
     sortColumn,
     sortDirection,
     columnVisibility: normalizeVisibility(stored.columnVisibility),
+    showQuery: stored.showQuery !== false,
   };
 }
 
@@ -71,5 +75,6 @@ export function saveTimelinePrefs(prefs: TimelinePrefs): void {
   writePrefs({
     ...prefs,
     columnVisibility: normalizeVisibility(prefs.columnVisibility),
+    showQuery: prefs.showQuery === true,
   });
 }

@@ -49,11 +49,6 @@ export async function clearInspectedConsoleBuffer(): Promise<void> {
   await evalInInspectedPage('window.__API_FLOW_CONSOLE_CLEAR__?.() ?? true');
 }
 
-export async function setConsolePreserveLog(preserveLog: boolean): Promise<void> {
-  if (!canInspectConsole()) return;
-  await evalInInspectedPage(`window.__API_FLOW_CONSOLE_PRESERVE_LOG__ = ${preserveLog ? 'true' : 'false'}`);
-}
-
 function evalInInspectedPage(expression: string): Promise<unknown> {
   return new Promise((resolve, reject) => {
     chrome.devtools.inspectedWindow.eval(expression, (result, exceptionInfo) => {
