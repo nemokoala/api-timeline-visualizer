@@ -1129,6 +1129,136 @@ button:not(:disabled) {
   scrollbar-gutter: stable;
 }
 
+/* ── Storage 편집/삭제 UI ───────────────────────────── */
+.storage-actions-col {
+  width: 40px;
+}
+
+.storage-actions-cell {
+  padding: 0 6px !important;
+  text-align: center;
+}
+
+.storage-row-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0;
+  color: var(--text-faint);
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+
+.storage-table tbody tr:hover .storage-row-delete,
+.storage-row-delete:focus-visible {
+  opacity: 1;
+}
+
+.storage-row-delete:hover:not(:disabled) {
+  color: var(--danger, #e5484d);
+  background: var(--fill-hover);
+}
+
+.storage-row-delete:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.storage-add {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-weak);
+  background: var(--surface-sub);
+}
+
+.storage-add-toggle {
+  border: 0;
+  border-radius: 7px;
+  padding: 5px 10px;
+  color: var(--text-sub);
+  background: var(--fill);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.storage-add-toggle:hover {
+  background: var(--fill-hover);
+}
+
+.storage-add-form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.storage-add-input {
+  min-width: 0;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 0 8px;
+  color: var(--text-strong);
+  background: var(--surface);
+  font: inherit;
+  font-size: 12px;
+}
+
+.storage-add-input:first-child {
+  flex: 0 0 30%;
+}
+
+.storage-add-input:nth-child(2) {
+  flex: 1 1 auto;
+}
+
+.storage-empty-row td {
+  padding: 28px 12px !important;
+  color: var(--text-weak);
+  text-align: center !important;
+  white-space: normal !important;
+  cursor: default;
+}
+
+.storage-detail-edit {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+.storage-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+  padding: 12px;
+}
+
+.storage-edit-textarea {
+  flex: 1;
+  min-height: 160px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  color: var(--text-strong);
+  background: var(--surface);
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.storage-edit-actions {
+  display: flex;
+  gap: 6px;
+}
+
 .json-value-sections .detail-section-body {
   padding: 12px;
 }

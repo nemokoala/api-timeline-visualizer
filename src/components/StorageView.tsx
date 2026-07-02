@@ -7,7 +7,13 @@ import type {
   StorageEntry,
 } from '../types/storage';
 import { useSplitPanelLayout } from '../hooks/useSplitPanelLayout';
-import { canInspectPageStorage, inspectPageStorage } from '../utils/storageInspector';
+import {
+  canInspectPageStorage,
+  deleteIndexedDbRecord,
+  inspectPageStorage,
+  removeWebStorageItem,
+  setWebStorageItem,
+} from '../utils/storageInspector';
 import { formatStorageValuePreview } from '../utils/storageBlobValue';
 import { matchesIncludeExcludeFilters } from '../utils/textFilters';
 import { scrollSearchHitIntoView } from '../utils/searchScroll';
@@ -114,6 +120,9 @@ export function StorageView({
   } = useSplitPanelLayout(storageWorkspaceRef);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const [isMutating, setIsMutating] = useState(false);
+  const canEdit = canInspectPageStorage();
   const hasSearch = Boolean(searchText.trim());
 
   const loadSnapshot = async () => {
@@ -247,6 +256,37 @@ export function StorageView({
     setSelectedItem(item);
   };
 
+  const runMutation = async (mutation: () => Promise<void>): Promise<boolean> => {
+    setMutationError(null);
+    setIsMutating(true);
+    try {
+      await mutation();
+      await loadSnapshot();
+      return true;
+    } catch (mutationFailure) {
+      const message =
+        mutationFailure instanceof Error ? mutationFailure.message : 'Storage operation failed.';
+      setMutationError(message);
+      return false;
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const handleSaveWebEntry = (kind: 'local' | 'session', key: string, value: string) =>
+    runMutation(() => setWebStorageItem(kind, key, value));
+
+  const handleDeleteWebEntry = (kind: 'local' | 'session', key: string) => {
+    const label = kind === 'local' ? 'localStorage' : 'sessionStorage';
+    if (!window.confirm(`Delete "${key}" from ${label}?`)) return;
+    void runMutation(() => removeWebStorageItem(kind, key));
+  };
+
+  const handleDeleteIdbRecord = (databaseName: string, storeName: string, recordKey: string) => {
+    if (!window.confirm(`Delete this record from ${databaseName} / ${storeName}?`)) return;
+    void runMutation(() => deleteIndexedDbRecord(databaseName, storeName, recordKey));
+  };
+
   return (
     <section className="storage-panel">
       <div className="storage-header">
@@ -306,6 +346,7 @@ export function StorageView({
       </div>
 
       {error ? <div className="storage-message is-error">{error}</div> : null}
+      {mutationError ? <div className="storage-message is-error">{mutationError}</div> : null}
       {snapshot?.errors.length ? (
         <div className="storage-message">{snapshot.errors.join(' ')}</div>
       ) : null}
@@ -323,6 +364,9 @@ export function StorageView({
             activeSearchTarget={activeSearchOccurrence?.target ?? null}
             onSelectRecord={handleSelectItem}
             isLoading={isLoading}
+            canEdit={canEdit}
+            isMutating={isMutating}
+            onDeleteRecord={handleDeleteIdbRecord}
           />
         ) : (
           <WebStoragePane
@@ -332,6 +376,10 @@ export function StorageView({
             searchText={searchText}
             onSelectEntry={(key) => handleSelectItem({ kind: activeTab, key })}
             isLoading={isLoading}
+            canEdit={canEdit}
+            isMutating={isMutating}
+            onDeleteEntry={(key) => handleDeleteWebEntry(activeTab, key)}
+            onAddEntry={(key, value) => handleSaveWebEntry(activeTab, key, value)}
           />
         )}
 
@@ -349,6 +397,13 @@ export function StorageView({
               searchOccurrenceIndex={activeSearchOccurrence?.occurrenceIndex ?? 0}
               searchFocusKey={searchFocusKey}
               isStacked={isSplitStacked}
+              canEdit={canEdit}
+              isMutating={isMutating}
+              onSaveValue={(value) =>
+                selectedDetail?.editTarget
+                  ? handleSaveWebEntry(selectedDetail.editTarget.kind, selectedDetail.editTarget.key, value)
+                  : Promise.resolve(false)
+              }
               onToggleLayout={toggleSplitLayout}
               onClose={() => setSelectedItem(null)}
             />
@@ -385,6 +440,10 @@ function WebStoragePane({
   searchText,
   onSelectEntry,
   isLoading,
+  canEdit,
+  isMutating,
+  onDeleteEntry,
+  onAddEntry,
 }: {
   kind: 'local' | 'session';
   entries: StorageEntry[];
@@ -392,11 +451,18 @@ function WebStoragePane({
   searchText: string;
   onSelectEntry: (key: string) => void;
   isLoading: boolean;
+  canEdit: boolean;
+  isMutating: boolean;
+  onDeleteEntry: (key: string) => void;
+  onAddEntry: (key: string, value: string) => Promise<boolean>;
 }) {
   const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
   const [columnVisibility, setColumnVisibility] = useState<WebStorageColumnVisibility>(loadWebColumnVisibility);
   const [columnMenu, setColumnMenu] = useState<{ x: number; y: number } | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [newKey, setNewKey] = useState('');
+  const [newValue, setNewValue] = useState('');
 
   const handleColumnToggle = (col: WebStorageColumnId) => {
     setColumnVisibility((prev) => {
@@ -411,34 +477,95 @@ function WebStoragePane({
     setColumnMenu({ x: event.clientX, y: event.clientY });
   };
 
-  if (!entries.length && !isLoading) {
-    return <div className="storage-empty">No matching storage entries.</div>;
-  }
+  const handleAdd = async () => {
+    if (!newKey || isMutating) return;
+    const ok = await onAddEntry(newKey, newValue);
+    if (ok) {
+      setNewKey('');
+      setNewValue('');
+      setAdding(false);
+    }
+  };
+
+  const isEmpty = !entries.length && !isLoading;
+  const actionsColSpan =
+    (columnVisibility.key ? 1 : 0) + (columnVisibility.value ? 1 : 0) + (columnVisibility.size ? 1 : 0) + 1;
 
   return (
     <>
       <div className="storage-table-wrap">
+        {canEdit ? (
+          <div className="storage-add">
+            {adding ? (
+              <div className="storage-add-form">
+                <input
+                  className="storage-add-input"
+                  placeholder="Key"
+                  value={newKey}
+                  onChange={(event) => setNewKey(event.currentTarget.value)}
+                  autoFocus
+                />
+                <input
+                  className="storage-add-input"
+                  placeholder="Value"
+                  value={newValue}
+                  onChange={(event) => setNewValue(event.currentTarget.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') void handleAdd();
+                    if (event.key === 'Escape') setAdding(false);
+                  }}
+                />
+                <button className="toolbar-button" type="button" onClick={() => void handleAdd()} disabled={!newKey || isMutating}>
+                  Add
+                </button>
+                <button className="clear-button" type="button" onClick={() => setAdding(false)}>
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button className="storage-add-toggle" type="button" onClick={() => setAdding(true)}>
+                + Add entry
+              </button>
+            )}
+          </div>
+        ) : null}
         <table className="storage-table">
           <thead onContextMenu={handleColumnContextMenu} title="우클릭: 열 표시 설정">
             <tr>
               {columnVisibility.key && <th>Key</th>}
               {columnVisibility.value && <th>Value</th>}
               {columnVisibility.size && <th>Size</th>}
+              {canEdit && <th className="storage-actions-col" aria-label="Actions" />}
             </tr>
           </thead>
           <tbody>
-            {entries.map((entry) => (
-              <tr
-                key={entry.key}
-                id={`storage-row-${storageTargetKey({ kind, key: entry.key })}`}
-                className={selectedItem?.kind === kind && selectedItem.key === entry.key ? 'selected' : ''}
-                onClick={() => onSelectEntry(entry.key)}
-              >
-                {columnVisibility.key && <td>{hasSearch ? highlightSearchText(entry.key, searchText, searchOptions) : entry.key}</td>}
-                {columnVisibility.value && <td>{hasSearch ? highlightSearchText(entry.value, searchText, searchOptions) : entry.value}</td>}
-                {columnVisibility.size && <td>{formatBytes(entry.size)}</td>}
+            {isEmpty ? (
+              <tr className="storage-empty-row">
+                <td colSpan={actionsColSpan}>No matching storage entries.</td>
               </tr>
-            ))}
+            ) : (
+              entries.map((entry) => (
+                <tr
+                  key={entry.key}
+                  id={`storage-row-${storageTargetKey({ kind, key: entry.key })}`}
+                  className={selectedItem?.kind === kind && selectedItem.key === entry.key ? 'selected' : ''}
+                  onClick={() => onSelectEntry(entry.key)}
+                >
+                  {columnVisibility.key && <td>{hasSearch ? highlightSearchText(entry.key, searchText, searchOptions) : entry.key}</td>}
+                  {columnVisibility.value && <td>{hasSearch ? highlightSearchText(entry.value, searchText, searchOptions) : entry.value}</td>}
+                  {columnVisibility.size && <td>{formatBytes(entry.size)}</td>}
+                  {canEdit && (
+                    <td className="storage-actions-cell">
+                      <RowDeleteButton
+                        label={`Delete ${entry.key}`}
+                        disabled={isMutating}
+                        onDelete={() => onDeleteEntry(entry.key)}
+                      />
+                    </td>
+                  )}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -455,6 +582,35 @@ function WebStoragePane({
   );
 }
 
+function RowDeleteButton({
+  label,
+  disabled,
+  onDelete,
+}: {
+  label: string;
+  disabled: boolean;
+  onDelete: () => void;
+}) {
+  return (
+    <button
+      className="storage-row-delete"
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={(event) => {
+        event.stopPropagation();
+        onDelete();
+      }}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+        <path d="M10 11v6M14 11v6" />
+      </svg>
+    </button>
+  );
+}
+
 function IndexedDbPane({
   databases,
   selectedItem,
@@ -462,6 +618,9 @@ function IndexedDbPane({
   activeSearchTarget,
   onSelectRecord,
   isLoading,
+  canEdit,
+  isMutating,
+  onDeleteRecord,
 }: {
   databases: IndexedDbDatabaseSnapshot[];
   selectedItem: SelectedStorageItem | null;
@@ -469,6 +628,9 @@ function IndexedDbPane({
   activeSearchTarget: StorageSearchTarget | null;
   onSelectRecord: (record: SelectedStorageItem) => void;
   isLoading: boolean;
+  canEdit: boolean;
+  isMutating: boolean;
+  onDeleteRecord: (databaseName: string, storeName: string, recordKey: string) => void;
 }) {
   const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
@@ -513,6 +675,9 @@ function IndexedDbPane({
                 columnVisibility={columnVisibility}
                 onSelectRecord={onSelectRecord}
                 onColumnContextMenu={handleColumnContextMenu}
+                canEdit={canEdit}
+                isMutating={isMutating}
+                onDeleteRecord={onDeleteRecord}
               />
             ))}
           </section>
@@ -540,6 +705,9 @@ function IndexedDbStore({
   columnVisibility,
   onSelectRecord,
   onColumnContextMenu,
+  canEdit,
+  isMutating,
+  onDeleteRecord,
 }: {
   databaseName: string;
   store: IndexedDbStoreSnapshot;
@@ -549,6 +717,9 @@ function IndexedDbStore({
   columnVisibility: IndexedDbColumnVisibility;
   onSelectRecord: (record: SelectedStorageItem) => void;
   onColumnContextMenu: (event: ReactMouseEvent) => void;
+  canEdit: boolean;
+  isMutating: boolean;
+  onDeleteRecord: (databaseName: string, storeName: string, recordKey: string) => void;
 }) {
   const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
@@ -588,6 +759,7 @@ function IndexedDbStore({
           <tr>
             {columnVisibility.key && <th>Key</th>}
             {columnVisibility.value && <th>Value</th>}
+            {canEdit && <th className="storage-actions-col" aria-label="Actions" />}
           </tr>
         </thead>
         <tbody>
@@ -614,6 +786,15 @@ function IndexedDbStore({
               >
                 {columnVisibility.key && <td>{hasSearch ? highlightSearchText(record.key, searchText, searchOptions) : record.key}</td>}
                 {columnVisibility.value && <td>{hasSearch ? highlightSearchText(preview, searchText, searchOptions) : preview}</td>}
+                {canEdit && (
+                  <td className="storage-actions-cell">
+                    <RowDeleteButton
+                      label="Delete record"
+                      disabled={isMutating}
+                      onDelete={() => onDeleteRecord(databaseName, store.name, record.key)}
+                    />
+                  </td>
+                )}
               </tr>
             );
           })}
@@ -630,6 +811,8 @@ type StorageDetail =
       metaRows: Array<[string, string]>;
       value: unknown;
       instanceId: string;
+      /** 값 편집이 가능한 웹 스토리지 항목이면 대상 정보. IndexedDB는 없음. */
+      editTarget?: { kind: 'local' | 'session'; key: string };
       blobPreviewRequest?: {
         databaseName: string;
         storeName: string;
@@ -644,6 +827,9 @@ function StorageDetailPanel({
   searchOccurrenceIndex,
   searchFocusKey,
   isStacked,
+  canEdit,
+  isMutating,
+  onSaveValue,
   onToggleLayout,
   onClose,
 }: {
@@ -652,12 +838,34 @@ function StorageDetailPanel({
   searchOccurrenceIndex: number;
   searchFocusKey: string;
   isStacked: boolean;
+  canEdit: boolean;
+  isMutating: boolean;
+  onSaveValue: (value: string) => Promise<boolean>;
   onToggleLayout: () => void;
   onClose: () => void;
 }) {
   const searchOptions = useSearchOptions();
   const panelRef = useRef<HTMLElement>(null);
   const hasSearch = Boolean(searchText.trim());
+  const editTarget = detail?.editTarget ?? null;
+  const editable = canEdit && Boolean(editTarget);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftValue, setDraftValue] = useState('');
+
+  // 선택 항목이 바뀌면 편집 모드를 닫는다.
+  useEffect(() => {
+    setIsEditing(false);
+  }, [detail?.instanceId]);
+
+  const startEditing = () => {
+    setDraftValue(typeof detail?.value === 'string' ? detail.value : String(detail?.value ?? ''));
+    setIsEditing(true);
+  };
+
+  const saveEditing = async () => {
+    const ok = await onSaveValue(draftValue);
+    if (ok) setIsEditing(false);
+  };
 
   useEffect(() => {
     if (!hasSearch || !detail) return;
@@ -701,6 +909,11 @@ function StorageDetailPanel({
           </h2>
         </div>
         <div className="detail-panel-title-actions">
+          {editable && !isEditing ? (
+            <button className="toolbar-button storage-detail-edit" type="button" onClick={startEditing}>
+              Edit
+            </button>
+          ) : null}
           <SplitLayoutToggleButton isStacked={isStacked} onClick={onToggleLayout} />
           <DetailPanelCloseButton onClick={onClose} label="Close storage detail" />
         </div>
@@ -722,14 +935,34 @@ function StorageDetailPanel({
         </dl>
       </DetailSection>
       <div className="storage-detail-value">
-        <JsonViewer
-          instanceId={detail.instanceId}
-          value={detail.value}
-          searchText={searchText}
-          searchFocusKey={searchFocusKey}
-          recordKey={detail.title}
-          blobPreviewRequest={detail.blobPreviewRequest}
-        />
+        {isEditing ? (
+          <div className="storage-edit">
+            <textarea
+              className="storage-edit-textarea"
+              value={draftValue}
+              onChange={(event) => setDraftValue(event.currentTarget.value)}
+              spellCheck={false}
+              autoFocus
+            />
+            <div className="storage-edit-actions">
+              <button className="toolbar-button" type="button" onClick={() => void saveEditing()} disabled={isMutating}>
+                Save
+              </button>
+              <button className="clear-button" type="button" onClick={() => setIsEditing(false)} disabled={isMutating}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <JsonViewer
+            instanceId={detail.instanceId}
+            value={detail.value}
+            searchText={searchText}
+            searchFocusKey={searchFocusKey}
+            recordKey={detail.title}
+            blobPreviewRequest={detail.blobPreviewRequest}
+          />
+        )}
       </div>
     </aside>
   );
@@ -757,6 +990,7 @@ function resolveSelectedDetail(
       ],
       value: entry.value,
       instanceId: `${selectedItem.kind}:${entry.key}`,
+      editTarget: { kind: selectedItem.kind, key: entry.key },
     };
   }
 
