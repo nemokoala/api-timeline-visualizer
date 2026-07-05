@@ -453,9 +453,9 @@ function JsonBlock({
             </div>
           ) : null}
           {isObject ? (
-            <pre className="json-viewer json-tree">
+            <div className="json-viewer json-tree">
               {renderJsonValue(value, 0, 'root', handleFieldClick, effectiveSearch, effectiveOptions, markClassName)}
-            </pre>
+            </div>
           ) : (
             <pre className="json-viewer">
               {highlightSearchText(copyText, effectiveSearch, effectiveOptions, markClassName)}
@@ -478,6 +478,9 @@ function JsonBlock({
   );
 }
 
+// 들여쓰기 가이드선 색상 개수. 이 수를 주기로 depth별 색이 순환한다. (global.css의 --json-guide-N과 일치)
+const GUIDE_COLOR_COUNT = 6;
+
 function renderJsonValue(
   value: unknown,
   depth: number,
@@ -490,19 +493,19 @@ function renderJsonValue(
   if (Array.isArray(value)) {
     if (value.length === 0) return <span className="json-punctuation">[]</span>;
 
+    // 각 중첩 레벨을 블록으로 감싸고 border-left로 들여쓰기 가이드선을 그린다.
+    // data-depth로 레벨마다 다른 색(무지개)을 입혀 어느 선인지 구분하기 쉽게 한다.
     return (
       <>
         <span className="json-punctuation">[</span>
-        {value.map((item, index) => (
-          <span key={index}>
-            {'\n'}
-            {indent(depth + 1)}
-            {renderJsonValue(item, depth + 1, `${path}.${index}`, onFieldClick, searchText, searchOptions, markClassName)}
-            {index < value.length - 1 ? <span className="json-punctuation">,</span> : null}
-          </span>
-        ))}
-        {'\n'}
-        {indent(depth)}
+        <div className="json-indent" data-depth={depth % GUIDE_COLOR_COUNT}>
+          {value.map((item, index) => (
+            <div className="json-line" key={index}>
+              {renderJsonValue(item, depth + 1, `${path}.${index}`, onFieldClick, searchText, searchOptions, markClassName)}
+              {index < value.length - 1 ? <span className="json-punctuation">,</span> : null}
+            </div>
+          ))}
+        </div>
         <span className="json-punctuation">]</span>
       </>
     );
@@ -515,25 +518,23 @@ function renderJsonValue(
     return (
       <>
         <span className="json-punctuation">{'{'}</span>
-        {entries.map(([key, item], index) => (
-          <span key={key}>
-            {'\n'}
-            {indent(depth + 1)}
-            <button
-              className="json-key json-key-button"
-              type="button"
-              onClick={(event) => onFieldClick(`${path}.${key}`, item, event)}
-              title="Copy field value"
-            >
-              "{highlightSearchText(key, searchText, searchOptions, markClassName)}"
-            </button>
-            <span className="json-punctuation">: </span>
-            {renderJsonValue(item, depth + 1, `${path}.${key}`, onFieldClick, searchText, searchOptions, markClassName)}
-            {index < entries.length - 1 ? <span className="json-punctuation">,</span> : null}
-          </span>
-        ))}
-        {'\n'}
-        {indent(depth)}
+        <div className="json-indent" data-depth={depth % GUIDE_COLOR_COUNT}>
+          {entries.map(([key, item], index) => (
+            <div className="json-line" key={key}>
+              <button
+                className="json-key json-key-button"
+                type="button"
+                onClick={(event) => onFieldClick(`${path}.${key}`, item, event)}
+                title="Copy field value"
+              >
+                "{highlightSearchText(key, searchText, searchOptions, markClassName)}"
+              </button>
+              <span className="json-punctuation">: </span>
+              {renderJsonValue(item, depth + 1, `${path}.${key}`, onFieldClick, searchText, searchOptions, markClassName)}
+              {index < entries.length - 1 ? <span className="json-punctuation">,</span> : null}
+            </div>
+          ))}
+        </div>
         <span className="json-punctuation">{'}'}</span>
       </>
     );
@@ -588,10 +589,6 @@ function coerceJson(value: unknown): unknown {
   }
 
   return value;
-}
-
-function indent(depth: number): string {
-  return '  '.repeat(depth);
 }
 
 function formatCopyValue(value: unknown): string {

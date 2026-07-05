@@ -39,6 +39,14 @@
   --purple: #7048e8;
   --json-string: #02945c;
   --json-number: #e8730a;
+  --json-guide: #dfe3e8;
+  /* 들여쓰기 가이드선 무지개 팔레트 (light, 채도 낮춤) */
+  --json-guide-0: #c1666b;
+  --json-guide-1: #c17f52;
+  --json-guide-2: #4e9160;
+  --json-guide-3: #40909e;
+  --json-guide-4: #5b8fd4;
+  --json-guide-5: #8871cf;
   --highlight-bg: #ffe28a;
   --highlight-text: #191f28;
   --highlight-deep: #6b4e00;
@@ -88,6 +96,14 @@
   --purple: #b197fc;
   --json-string: #4ec98c;
   --json-number: #ffa94d;
+  --json-guide: rgba(255, 255, 255, 0.12);
+  /* 들여쓰기 가이드선 무지개 팔레트 (dark, 채도 낮춤) */
+  --json-guide-0: #d68f8f;
+  --json-guide-1: #d6a56e;
+  --json-guide-2: #71b57f;
+  --json-guide-3: #5aa9b8;
+  --json-guide-4: #6ba3d6;
+  --json-guide-5: #ada0e0;
   --highlight-bg: #e3b341;
   --highlight-text: #1f1809;
   --highlight-deep: #4a3a05;
@@ -3081,6 +3097,11 @@ button:not(:disabled) {
   position: fixed;
   inset: 16px;
   z-index: 1000;
+  /* 임베드 컨텍스트의 고정 크기(예: .response-json-slot의 height:318px)를 덮어써
+     inset으로 화면을 가득 채우게 한다. 컨텍스트 규칙과 명시도가 같아 !important로 강제한다. */
+  height: auto !important;
+  min-height: 0;
+  overflow: hidden;
   border-color: var(--border-weak);
   border-radius: 20px;
   background: var(--surface);
@@ -3100,6 +3121,8 @@ button:not(:disabled) {
 
 .json-viewer-wrap.is-fullscreen .json-viewer-body {
   display: flex;
+  /* 컨텍스트가 flex:none으로 눌러도(예: .storage-detail-value) 전체화면에서는 늘어나야 한다. */
+  flex: 1;
   flex-direction: column;
   min-height: 0;
 }
@@ -3108,6 +3131,8 @@ button:not(:disabled) {
   flex: 1;
   max-height: none;
   min-height: 0;
+  /* 컨텍스트가 overflow:visible로 스크롤을 막아도(예: .storage-detail-value) 전체화면에서는 스크롤한다. */
+  overflow: auto;
 }
 
 /* 높이 핸들로 조절했을 때: 래퍼에 적용된 높이를 내부 body/pre가 채우고 스크롤한다. */
@@ -3174,6 +3199,26 @@ button:not(:disabled) {
 
 .json-tree {
   color: var(--text);
+}
+
+/* 중첩 레벨마다 좌측 세로선으로 들여쓰기 가이드를 그린다. */
+.json-indent {
+  padding-left: 1.15em;
+  border-left: 1px solid var(--json-guide);
+}
+
+/* 레벨마다 다른 색(무지개)으로 어느 선인지 구분하기 쉽게 한다. depth는 GUIDE_COLOR_COUNT 주기로 순환. */
+.json-indent[data-depth="0"] { border-left-color: var(--json-guide-0); }
+.json-indent[data-depth="1"] { border-left-color: var(--json-guide-1); }
+.json-indent[data-depth="2"] { border-left-color: var(--json-guide-2); }
+.json-indent[data-depth="3"] { border-left-color: var(--json-guide-3); }
+.json-indent[data-depth="4"] { border-left-color: var(--json-guide-4); }
+.json-indent[data-depth="5"] { border-left-color: var(--json-guide-5); }
+
+/* 객체/배열의 각 항목을 한 줄(블록)로 배치한다. 값이 다시 객체면 내부에 .json-indent가 들어온다. */
+.json-line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .json-tree .search-highlight,
