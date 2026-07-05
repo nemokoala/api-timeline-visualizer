@@ -2,6 +2,8 @@ import { useState, type KeyboardEvent } from 'react';
 import type { WorkspaceMode } from '../Toolbar';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { getPanelFiltersOpen, savePanelFiltersOpen } from '../../utils/panelFilterPrefs';
+import { IconButton } from '../ui/Button';
+import { SearchOptionToggles } from '../ui/SearchOptionToggles';
 
 type PanelHeaderProps = {
   scope: WorkspaceMode;
@@ -70,63 +72,50 @@ export function PanelHeader({ scope }: PanelHeaderProps) {
           placeholder={model.placeholder}
           aria-label={`Search ${scope}`}
         />
-        <div className="panel-search-options" aria-label="Search options">
-          <button
-            type="button"
-            className={`search-option-button ${matchCase ? 'active' : ''}`}
-            aria-pressed={matchCase}
-            title="Match case"
-            onClick={() => onMatchCaseChange(!matchCase)}
-          >
-            Aa
-          </button>
-          <button
-            type="button"
-            className={`search-option-button ${wholeWord ? 'active' : ''}`}
-            aria-pressed={wholeWord}
-            title="Match whole word"
-            onClick={() => onWholeWordChange(!wholeWord)}
-          >
-            ab
-          </button>
-        </div>
+        <SearchOptionToggles
+          className="panel-search-options"
+          matchCase={matchCase}
+          wholeWord={wholeWord}
+          onMatchCaseChange={onMatchCaseChange}
+          onWholeWordChange={onWholeWordChange}
+        />
         {hasActiveSearch ? (
           <div className="panel-search-nav" aria-label="Search navigation">
-            <button type="button" className="search-nav-button" onClick={model.onPrevious} title="Previous hit (Shift+Enter)">
+            <IconButton size="xs" onClick={model.onPrevious} title="Previous hit (Shift+Enter)">
               ‹
-            </button>
+            </IconButton>
             <span className="search-position">
               {searchPosition}/{model.occurrenceCount}
             </span>
-            <button type="button" className="search-nav-button" onClick={model.onNext} title="Next hit (Enter)">
+            <IconButton size="xs" onClick={model.onNext} title="Next hit (Enter)">
               ›
-            </button>
+            </IconButton>
             <span className="search-nav-divider" aria-hidden="true" />
             <span className="search-nav-label">{model.scopeLabel}</span>
-            <button
-              type="button"
-              className="search-nav-button"
+            <IconButton
+              size="xs"
               onClick={model.onPreviousScope}
               title={`Previous ${model.scopeLabel.toLowerCase()} (Ctrl+Shift+Enter)`}
             >
               «
-            </button>
+            </IconButton>
             <span className="search-position">
               {scopePosition}/{model.scopeJumpCount}
             </span>
-            <button
-              type="button"
-              className="search-nav-button"
+            <IconButton
+              size="xs"
               onClick={model.onNextScope}
               title={`Next ${model.scopeLabel.toLowerCase()} (Ctrl+Enter)`}
             >
               »
-            </button>
+            </IconButton>
           </div>
         ) : null}
-        <button
-          type="button"
-          className={`panel-filter-toggle ${filtersOpen ? 'active' : ''} ${!filtersOpen && hasFilterText ? 'has-filter' : ''}`}
+        <IconButton
+          size="xs"
+          ghost
+          active={filtersOpen}
+          className={`panel-filter-toggle ${!filtersOpen && hasFilterText ? 'has-filter' : ''}`}
           aria-expanded={filtersOpen}
           aria-label={filtersOpen ? '필터 접기' : '필터 펼치기'}
           title={filtersOpen ? '필터 접기' : hasFilterText ? '필터 펼치기 (필터 적용 중)' : '필터 펼치기'}
@@ -135,7 +124,7 @@ export function PanelHeader({ scope }: PanelHeaderProps) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
           </svg>
-        </button>
+        </IconButton>
       </div>
       {filtersOpen ? (
         <div className="panel-filters">

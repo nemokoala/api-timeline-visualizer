@@ -19,6 +19,7 @@ import { JsonViewer } from './JsonViewer';
 import { SplitPanelResizer } from './SplitPanelResizer';
 import { formatDateTime } from './formatters';
 import { ColumnMenu } from './ColumnMenu';
+import { Button } from './ui/Button';
 
 type ConsoleViewProps = {
   entries: ConsoleEntry[];
@@ -242,7 +243,7 @@ export function ConsoleView({
   return (
     <section className="console-panel">
       <div className="console-toolbar">
-        <div className="console-toolbar-filters" role="tablist" aria-label="Console level filter">
+        <div className="console-toolbar-filters pill-tabs" role="tablist" aria-label="Console level filter">
           {LEVEL_FILTERS.map((filter) => (
             <button
               key={filter.value}
@@ -277,9 +278,9 @@ export function ConsoleView({
             />
             <span>Wrap lines</span>
           </label>
-          <button className="clear-button" type="button" onClick={() => void handleClear()} disabled={!entries.length}>
+          <Button onClick={() => void handleClear()} disabled={!entries.length}>
             Clear
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -466,9 +467,9 @@ function ConsoleDetailPanel({
 
   return (
     <aside className="console-detail-panel" ref={panelRef}>
-      <div className="console-detail-title">
+      <div className="detail-title-bar">
         <div>
-          <span className="console-detail-kicker">{entry.level}</span>
+          <span className="detail-kicker detail-kicker-caps">{entry.level}</span>
           <h2 title={entry.text}>{entry.text}</h2>
         </div>
         <div className="detail-panel-title-actions">

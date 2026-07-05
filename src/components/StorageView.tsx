@@ -1,24 +1,34 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import type {
   IndexedDbDatabaseSnapshot,
   IndexedDbRecord,
   IndexedDbStoreSnapshot,
   PageStorageSnapshot,
   StorageEntry,
-} from '../types/storage';
-import { useSplitPanelLayout } from '../hooks/useSplitPanelLayout';
+} from "../types/storage";
+import { useSplitPanelLayout } from "../hooks/useSplitPanelLayout";
 import {
   canInspectPageStorage,
   deleteIndexedDbRecord,
   inspectPageStorage,
   removeWebStorageItem,
   setWebStorageItem,
-} from '../utils/storageInspector';
-import { formatStorageValuePreview } from '../utils/storageBlobValue';
-import { matchesIncludeExcludeFilters } from '../utils/textFilters';
-import { scrollSearchHitIntoView } from '../utils/searchScroll';
-import { useSearchOptions } from '../contexts/SearchOptionsContext';
-import { highlightSearchText, textMatchesSearch, type SearchOptions } from '../utils/searchHighlight';
+} from "../utils/storageInspector";
+import { formatStorageValuePreview } from "../utils/storageBlobValue";
+import { matchesIncludeExcludeFilters } from "../utils/textFilters";
+import { scrollSearchHitIntoView } from "../utils/searchScroll";
+import { useSearchOptions } from "../contexts/SearchOptionsContext";
+import {
+  highlightSearchText,
+  textMatchesSearch,
+  type SearchOptions,
+} from "../utils/searchHighlight";
 import {
   buildStorageSearchOccurrences,
   buildStorageSearchTargets,
@@ -29,13 +39,17 @@ import {
   storageTargetToSelectedItem,
   type StorageSearchOccurrence,
   type StorageSearchTarget,
-} from '../utils/storageSearch';
-import { ColumnMenu } from './ColumnMenu';
-import { DetailPanelCloseButton, SplitLayoutToggleButton } from './DetailPanelCloseButton';
-import { DetailSection } from './DetailSection';
-import { JsonViewer } from './JsonViewer';
-import { SplitPanelResizer } from './SplitPanelResizer';
-import { formatDateTime, formatLocaleDateTime } from './formatters';
+} from "../utils/storageSearch";
+import { ColumnMenu } from "./ColumnMenu";
+import {
+  DetailPanelCloseButton,
+  SplitLayoutToggleButton,
+} from "./DetailPanelCloseButton";
+import { DetailSection } from "./DetailSection";
+import { JsonViewer } from "./JsonViewer";
+import { SplitPanelResizer } from "./SplitPanelResizer";
+import { formatDateTime, formatLocaleDateTime } from "./formatters";
+import { Button, IconButton } from "./ui/Button";
 
 type StorageViewProps = {
   searchText: string;
@@ -46,29 +60,39 @@ type StorageViewProps = {
   onSearchMatchIndexChange: (index: number) => void;
 };
 
-type StorageTab = 'local' | 'session' | 'indexeddb';
+type StorageTab = "local" | "session" | "indexeddb";
 
-type WebStorageColumnId = 'key' | 'value' | 'size';
-type IndexedDbColumnId = 'key' | 'value';
+type WebStorageColumnId = "key" | "value" | "size";
+type IndexedDbColumnId = "key" | "value";
 type WebStorageColumnVisibility = Record<WebStorageColumnId, boolean>;
 type IndexedDbColumnVisibility = Record<IndexedDbColumnId, boolean>;
 
 const WEB_STORAGE_COLUMNS: Array<{ id: WebStorageColumnId; label: string }> = [
-  { id: 'key', label: 'Key' },
-  { id: 'value', label: 'Value' },
-  { id: 'size', label: 'Size' },
+  { id: "key", label: "Key" },
+  { id: "value", label: "Value" },
+  { id: "size", label: "Size" },
 ];
 
-const INDEXED_DB_RECORD_COLUMNS: Array<{ id: IndexedDbColumnId; label: string }> = [
-  { id: 'key', label: 'Key' },
-  { id: 'value', label: 'Value' },
+const INDEXED_DB_RECORD_COLUMNS: Array<{
+  id: IndexedDbColumnId;
+  label: string;
+}> = [
+  { id: "key", label: "Key" },
+  { id: "value", label: "Value" },
 ];
 
-const WEB_COLUMNS_STORAGE_KEY = 'storage-web-column-visibility';
-const INDEXED_DB_COLUMNS_STORAGE_KEY = 'storage-indexeddb-column-visibility';
+const WEB_COLUMNS_STORAGE_KEY = "storage-web-column-visibility";
+const INDEXED_DB_COLUMNS_STORAGE_KEY = "storage-indexeddb-column-visibility";
 
-const DEFAULT_WEB_COLUMN_VISIBILITY: WebStorageColumnVisibility = { key: true, value: true, size: true };
-const DEFAULT_INDEXED_DB_COLUMN_VISIBILITY: IndexedDbColumnVisibility = { key: true, value: true };
+const DEFAULT_WEB_COLUMN_VISIBILITY: WebStorageColumnVisibility = {
+  key: true,
+  value: true,
+  size: true,
+};
+const DEFAULT_INDEXED_DB_COLUMN_VISIBILITY: IndexedDbColumnVisibility = {
+  key: true,
+  value: true,
+};
 
 function loadWebColumnVisibility(): WebStorageColumnVisibility {
   try {
@@ -93,8 +117,13 @@ function loadIndexedDbColumnVisibility(): IndexedDbColumnVisibility {
 }
 
 type SelectedStorageItem =
-  | { kind: 'local' | 'session'; key: string }
-  | { kind: 'indexeddb'; databaseName: string; storeName: string; recordIndex: number };
+  | { kind: "local" | "session"; key: string }
+  | {
+      kind: "indexeddb";
+      databaseName: string;
+      storeName: string;
+      recordIndex: number;
+    };
 
 export function StorageView({
   searchText,
@@ -106,8 +135,10 @@ export function StorageView({
 }: StorageViewProps) {
   const searchOptions = useSearchOptions();
   const [snapshot, setSnapshot] = useState<PageStorageSnapshot | null>(null);
-  const [activeTab, setActiveTab] = useState<StorageTab>('local');
-  const [selectedItem, setSelectedItem] = useState<SelectedStorageItem | null>(null);
+  const [activeTab, setActiveTab] = useState<StorageTab>("local");
+  const [selectedItem, setSelectedItem] = useState<SelectedStorageItem | null>(
+    null,
+  );
   const storageWorkspaceRef = useRef<HTMLDivElement>(null);
   const {
     isStacked: isSplitStacked,
@@ -134,7 +165,10 @@ export function StorageView({
       setSnapshot(nextSnapshot);
       setSelectedItem(null);
     } catch (loadError) {
-      const message = loadError instanceof Error ? loadError.message : 'Failed to inspect page storage.';
+      const message =
+        loadError instanceof Error
+          ? loadError.message
+          : "Failed to inspect page storage.";
       setError(message);
     } finally {
       setIsLoading(false);
@@ -149,20 +183,42 @@ export function StorageView({
   }, []);
 
   const localEntries = useMemo(
-    () => filterEntries(snapshot?.localStorage ?? [], searchText, includeText, excludeText, searchOptions),
+    () =>
+      filterEntries(
+        snapshot?.localStorage ?? [],
+        searchText,
+        includeText,
+        excludeText,
+        searchOptions,
+      ),
     [excludeText, includeText, searchOptions, searchText, snapshot],
   );
   const sessionEntries = useMemo(
-    () => filterEntries(snapshot?.sessionStorage ?? [], searchText, includeText, excludeText, searchOptions),
+    () =>
+      filterEntries(
+        snapshot?.sessionStorage ?? [],
+        searchText,
+        includeText,
+        excludeText,
+        searchOptions,
+      ),
     [excludeText, includeText, searchOptions, searchText, snapshot],
   );
   const indexedDatabases = useMemo(
-    () => filterIndexedDB(snapshot?.indexedDB ?? [], searchText, includeText, excludeText, searchOptions),
+    () =>
+      filterIndexedDB(
+        snapshot?.indexedDB ?? [],
+        searchText,
+        includeText,
+        excludeText,
+        searchOptions,
+      ),
     [excludeText, includeText, searchOptions, searchText, snapshot],
   );
 
   const searchTargets = useMemo(
-    () => buildStorageSearchTargets(localEntries, sessionEntries, indexedDatabases),
+    () =>
+      buildStorageSearchTargets(localEntries, sessionEntries, indexedDatabases),
     [indexedDatabases, localEntries, sessionEntries],
   );
 
@@ -176,10 +232,18 @@ export function StorageView({
       searchText,
       searchOptions,
     );
-  }, [hasSearch, indexedDatabases, localEntries, searchOptions, searchTargets, searchText, sessionEntries]);
+  }, [
+    hasSearch,
+    indexedDatabases,
+    localEntries,
+    searchOptions,
+    searchTargets,
+    searchText,
+    sessionEntries,
+  ]);
 
   const activeSearchOccurrence = searchOccurrences[searchMatchIndex] ?? null;
-  const searchFocusKey = `${searchMatchIndex}:${activeSearchOccurrence ? storageTargetKey(activeSearchOccurrence.target) : ''}`;
+  const searchFocusKey = `${searchMatchIndex}:${activeSearchOccurrence ? storageTargetKey(activeSearchOccurrence.target) : ""}`;
 
   useEffect(() => {
     onSearchOccurrencesChange(searchOccurrences);
@@ -203,10 +267,21 @@ export function StorageView({
 
     setActiveTab(storageTargetTab(occurrence.target));
     setSelectedItem(storageTargetToSelectedItem(occurrence.target));
-  }, [hasSearch, onSearchMatchIndexChange, searchMatchIndex, searchOccurrences]);
+  }, [
+    hasSearch,
+    onSearchMatchIndexChange,
+    searchMatchIndex,
+    searchOccurrences,
+  ]);
 
   const selectedDetail = useMemo(
-    () => resolveSelectedDetail(selectedItem, localEntries, sessionEntries, indexedDatabases),
+    () =>
+      resolveSelectedDetail(
+        selectedItem,
+        localEntries,
+        sessionEntries,
+        indexedDatabases,
+      ),
     [indexedDatabases, localEntries, selectedItem, sessionEntries],
   );
   const hasDetail = Boolean(selectedDetail);
@@ -220,15 +295,18 @@ export function StorageView({
       );
 
       document
-        .querySelectorAll('.storage-table .search-highlight.is-active')
-        .forEach((mark) => mark.classList.remove('is-active'));
+        .querySelectorAll(".storage-table .search-highlight.is-active")
+        .forEach((mark) => mark.classList.remove("is-active"));
 
       if (!hasDetail) {
         if (row) scrollSearchHitIntoView(row);
 
-        const rowMarks = row?.querySelectorAll('.search-highlight');
+        const rowMarks = row?.querySelectorAll(".search-highlight");
         rowMarks?.forEach((mark, index) => {
-          mark.classList.toggle('is-active', index === activeSearchOccurrence.occurrenceIndex);
+          mark.classList.toggle(
+            "is-active",
+            index === activeSearchOccurrence.occurrenceIndex,
+          );
         });
       }
     });
@@ -256,7 +334,9 @@ export function StorageView({
     setSelectedItem(item);
   };
 
-  const runMutation = async (mutation: () => Promise<void>): Promise<boolean> => {
+  const runMutation = async (
+    mutation: () => Promise<void>,
+  ): Promise<boolean> => {
     setMutationError(null);
     setIsMutating(true);
     try {
@@ -265,7 +345,9 @@ export function StorageView({
       return true;
     } catch (mutationFailure) {
       const message =
-        mutationFailure instanceof Error ? mutationFailure.message : 'Storage operation failed.';
+        mutationFailure instanceof Error
+          ? mutationFailure.message
+          : "Storage operation failed.";
       setMutationError(message);
       return false;
     } finally {
@@ -273,18 +355,30 @@ export function StorageView({
     }
   };
 
-  const handleSaveWebEntry = (kind: 'local' | 'session', key: string, value: string) =>
-    runMutation(() => setWebStorageItem(kind, key, value));
+  const handleSaveWebEntry = (
+    kind: "local" | "session",
+    key: string,
+    value: string,
+  ) => runMutation(() => setWebStorageItem(kind, key, value));
 
-  const handleDeleteWebEntry = (kind: 'local' | 'session', key: string) => {
-    const label = kind === 'local' ? 'localStorage' : 'sessionStorage';
+  const handleDeleteWebEntry = (kind: "local" | "session", key: string) => {
+    const label = kind === "local" ? "localStorage" : "sessionStorage";
     if (!window.confirm(`Delete "${key}" from ${label}?`)) return;
     void runMutation(() => removeWebStorageItem(kind, key));
   };
 
-  const handleDeleteIdbRecord = (databaseName: string, storeName: string, recordKey: string) => {
-    if (!window.confirm(`Delete this record from ${databaseName} / ${storeName}?`)) return;
-    void runMutation(() => deleteIndexedDbRecord(databaseName, storeName, recordKey));
+  const handleDeleteIdbRecord = (
+    databaseName: string,
+    storeName: string,
+    recordKey: string,
+  ) => {
+    if (
+      !window.confirm(`Delete this record from ${databaseName} / ${storeName}?`)
+    )
+      return;
+    void runMutation(() =>
+      deleteIndexedDbRecord(databaseName, storeName, recordKey),
+    );
   };
 
   return (
@@ -293,9 +387,15 @@ export function StorageView({
         <span className="storage-header-label">Storage</span>
         <span
           className="storage-header-origin"
-          title={snapshot ? snapshot.origin : 'Inspect the active page storage for this DevTools target.'}
+          title={
+            snapshot
+              ? snapshot.origin
+              : "Inspect the active page storage for this DevTools target."
+          }
         >
-          {snapshot ? snapshot.origin : 'Inspect the active page storage for this DevTools target.'}
+          {snapshot
+            ? snapshot.origin
+            : "Inspect the active page storage for this DevTools target."}
         </span>
         {snapshot ? (
           <span
@@ -305,58 +405,64 @@ export function StorageView({
             {formatDateTime(Date.parse(snapshot.capturedAt))}
           </span>
         ) : null}
-        <button
-          className="toolbar-button storage-refresh-button"
-          type="button"
+        <Button
+          size="sm"
+          className="storage-refresh-button"
           onClick={() => void loadSnapshot()}
           disabled={isLoading}
         >
-          {isLoading ? 'Refreshing' : 'Refresh'}
-        </button>
+          {isLoading ? "Refreshing" : "Refresh"}
+        </Button>
       </div>
 
-      <div className="storage-tabs" role="tablist" aria-label="Storage type">
+      <div
+        className="storage-tabs pill-tabs"
+        role="tablist"
+        aria-label="Storage type"
+      >
         <StorageTabButton
-          active={activeTab === 'local'}
+          active={activeTab === "local"}
           label="localStorage"
           count={localEntries.length}
           onClick={() => {
-            setActiveTab('local');
+            setActiveTab("local");
             setSelectedItem(null);
           }}
         />
         <StorageTabButton
-          active={activeTab === 'session'}
+          active={activeTab === "session"}
           label="sessionStorage"
           count={sessionEntries.length}
           onClick={() => {
-            setActiveTab('session');
+            setActiveTab("session");
             setSelectedItem(null);
           }}
         />
         <StorageTabButton
-          active={activeTab === 'indexeddb'}
+          active={activeTab === "indexeddb"}
           label="IndexedDB"
           count={indexedDatabases.length}
           onClick={() => {
-            setActiveTab('indexeddb');
+            setActiveTab("indexeddb");
             setSelectedItem(null);
           }}
         />
       </div>
 
       {error ? <div className="storage-message is-error">{error}</div> : null}
-      {mutationError ? <div className="storage-message is-error">{mutationError}</div> : null}
+      {mutationError ? (
+        <div className="storage-message is-error">{mutationError}</div>
+      ) : null}
       {snapshot?.errors.length ? (
-        <div className="storage-message">{snapshot.errors.join(' ')}</div>
+        <div className="storage-message">{snapshot.errors.join(" ")}</div>
       ) : null}
 
       <div
         ref={storageWorkspaceRef}
-        className={`storage-workspace ${hasDetail ? 'has-detail' : ''} ${hasDetail && isSplitStacked ? 'split-layout-stacked' : ''}`}
+        className={`storage-workspace ${hasDetail ? "has-detail" : ""} ${hasDetail && isSplitStacked ? "split-layout-stacked" : ""}`}
         style={hasDetail ? splitLayoutStyle : undefined}
       >
-        {activeTab === 'indexeddb' ? (
+        {activeTab === "indexeddb" ? (
           <IndexedDbPane
             databases={indexedDatabases}
             selectedItem={selectedItem}
@@ -371,7 +477,7 @@ export function StorageView({
         ) : (
           <WebStoragePane
             kind={activeTab}
-            entries={activeTab === 'local' ? localEntries : sessionEntries}
+            entries={activeTab === "local" ? localEntries : sessionEntries}
             selectedItem={selectedItem}
             searchText={searchText}
             onSelectEntry={(key) => handleSelectItem({ kind: activeTab, key })}
@@ -379,29 +485,41 @@ export function StorageView({
             canEdit={canEdit}
             isMutating={isMutating}
             onDeleteEntry={(key) => handleDeleteWebEntry(activeTab, key)}
-            onAddEntry={(key, value) => handleSaveWebEntry(activeTab, key, value)}
+            onAddEntry={(key, value) =>
+              handleSaveWebEntry(activeTab, key, value)
+            }
           />
         )}
 
         {hasDetail ? (
           <>
             <SplitPanelResizer
-              orientation={isSplitStacked ? 'horizontal' : 'vertical'}
+              orientation={isSplitStacked ? "horizontal" : "vertical"}
               ariaLabel="Resize storage detail panel"
-              onMouseDown={isSplitStacked ? startHeightResize : startWidthResize}
-              onDoubleClick={isSplitStacked ? resetSplitHeight : resetSplitWidth}
+              onMouseDown={
+                isSplitStacked ? startHeightResize : startWidthResize
+              }
+              onDoubleClick={
+                isSplitStacked ? resetSplitHeight : resetSplitWidth
+              }
             />
             <StorageDetailPanel
               detail={selectedDetail}
               searchText={searchText}
-              searchOccurrenceIndex={activeSearchOccurrence?.occurrenceIndex ?? 0}
+              searchOccurrenceIndex={
+                activeSearchOccurrence?.occurrenceIndex ?? 0
+              }
               searchFocusKey={searchFocusKey}
               isStacked={isSplitStacked}
               canEdit={canEdit}
               isMutating={isMutating}
               onSaveValue={(value) =>
                 selectedDetail?.editTarget
-                  ? handleSaveWebEntry(selectedDetail.editTarget.kind, selectedDetail.editTarget.key, value)
+                  ? handleSaveWebEntry(
+                      selectedDetail.editTarget.kind,
+                      selectedDetail.editTarget.key,
+                      value,
+                    )
                   : Promise.resolve(false)
               }
               onToggleLayout={toggleSplitLayout}
@@ -426,7 +544,13 @@ function StorageTabButton({
   onClick: () => void;
 }) {
   return (
-    <button className={active ? 'active' : ''} type="button" role="tab" aria-selected={active} onClick={onClick}>
+    <button
+      className={active ? "active" : ""}
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+    >
       <span>{label}</span>
       <span className="storage-tab-count">{count}</span>
     </button>
@@ -445,7 +569,7 @@ function WebStoragePane({
   onDeleteEntry,
   onAddEntry,
 }: {
-  kind: 'local' | 'session';
+  kind: "local" | "session";
   entries: StorageEntry[];
   selectedItem: SelectedStorageItem | null;
   searchText: string;
@@ -458,11 +582,14 @@ function WebStoragePane({
 }) {
   const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
-  const [columnVisibility, setColumnVisibility] = useState<WebStorageColumnVisibility>(loadWebColumnVisibility);
-  const [columnMenu, setColumnMenu] = useState<{ x: number; y: number } | null>(null);
+  const [columnVisibility, setColumnVisibility] =
+    useState<WebStorageColumnVisibility>(loadWebColumnVisibility);
+  const [columnMenu, setColumnMenu] = useState<{ x: number; y: number } | null>(
+    null,
+  );
   const [adding, setAdding] = useState(false);
-  const [newKey, setNewKey] = useState('');
-  const [newValue, setNewValue] = useState('');
+  const [newKey, setNewKey] = useState("");
+  const [newValue, setNewValue] = useState("");
 
   const handleColumnToggle = (col: WebStorageColumnId) => {
     setColumnVisibility((prev) => {
@@ -481,15 +608,18 @@ function WebStoragePane({
     if (!newKey || isMutating) return;
     const ok = await onAddEntry(newKey, newValue);
     if (ok) {
-      setNewKey('');
-      setNewValue('');
+      setNewKey("");
+      setNewValue("");
       setAdding(false);
     }
   };
 
   const isEmpty = !entries.length && !isLoading;
   const actionsColSpan =
-    (columnVisibility.key ? 1 : 0) + (columnVisibility.value ? 1 : 0) + (columnVisibility.size ? 1 : 0) + 1;
+    (columnVisibility.key ? 1 : 0) +
+    (columnVisibility.value ? 1 : 0) +
+    (columnVisibility.size ? 1 : 0) +
+    1;
 
   return (
     <>
@@ -499,43 +629,49 @@ function WebStoragePane({
             {adding ? (
               <div className="storage-add-form">
                 <input
-                  className="storage-add-input"
+                  className="input input-md storage-add-input"
                   placeholder="Key"
                   value={newKey}
                   onChange={(event) => setNewKey(event.currentTarget.value)}
                   autoFocus
                 />
                 <input
-                  className="storage-add-input"
+                  className="input input-md storage-add-input"
                   placeholder="Value"
                   value={newValue}
                   onChange={(event) => setNewValue(event.currentTarget.value)}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter') void handleAdd();
-                    if (event.key === 'Escape') setAdding(false);
+                    if (event.key === "Enter") void handleAdd();
+                    if (event.key === "Escape") setAdding(false);
                   }}
                 />
-                <button className="toolbar-button" type="button" onClick={() => void handleAdd()} disabled={!newKey || isMutating}>
+                <Button
+                  onClick={() => void handleAdd()}
+                  disabled={!newKey || isMutating}
+                >
                   Add
-                </button>
-                <button className="clear-button" type="button" onClick={() => setAdding(false)}>
-                  Cancel
-                </button>
+                </Button>
+                <Button onClick={() => setAdding(false)}>Cancel</Button>
               </div>
             ) : (
-              <button className="storage-add-toggle" type="button" onClick={() => setAdding(true)}>
+              <Button size="sm" onClick={() => setAdding(true)}>
                 + Add entry
-              </button>
+              </Button>
             )}
           </div>
         ) : null}
         <table className="storage-table">
-          <thead onContextMenu={handleColumnContextMenu} title="우클릭: 열 표시 설정">
+          <thead
+            onContextMenu={handleColumnContextMenu}
+            title="우클릭: 열 표시 설정"
+          >
             <tr>
               {columnVisibility.key && <th>Key</th>}
               {columnVisibility.value && <th>Value</th>}
               {columnVisibility.size && <th>Size</th>}
-              {canEdit && <th className="storage-actions-col" aria-label="Actions" />}
+              {canEdit && (
+                <th className="storage-actions-col" aria-label="Actions" />
+              )}
             </tr>
           </thead>
           <tbody>
@@ -548,11 +684,36 @@ function WebStoragePane({
                 <tr
                   key={entry.key}
                   id={`storage-row-${storageTargetKey({ kind, key: entry.key })}`}
-                  className={selectedItem?.kind === kind && selectedItem.key === entry.key ? 'selected' : ''}
+                  className={
+                    selectedItem?.kind === kind &&
+                    selectedItem.key === entry.key
+                      ? "selected"
+                      : ""
+                  }
                   onClick={() => onSelectEntry(entry.key)}
                 >
-                  {columnVisibility.key && <td>{hasSearch ? highlightSearchText(entry.key, searchText, searchOptions) : entry.key}</td>}
-                  {columnVisibility.value && <td>{hasSearch ? highlightSearchText(entry.value, searchText, searchOptions) : entry.value}</td>}
+                  {columnVisibility.key && (
+                    <td>
+                      {hasSearch
+                        ? highlightSearchText(
+                            entry.key,
+                            searchText,
+                            searchOptions,
+                          )
+                        : entry.key}
+                    </td>
+                  )}
+                  {columnVisibility.value && (
+                    <td>
+                      {hasSearch
+                        ? highlightSearchText(
+                            entry.value,
+                            searchText,
+                            searchOptions,
+                          )
+                        : entry.value}
+                    </td>
+                  )}
                   {columnVisibility.size && <td>{formatBytes(entry.size)}</td>}
                   {canEdit && (
                     <td className="storage-actions-cell">
@@ -592,9 +753,10 @@ function RowDeleteButton({
   onDelete: () => void;
 }) {
   return (
-    <button
+    <IconButton
+      ghost
+      tone="danger"
       className="storage-row-delete"
-      type="button"
       aria-label={label}
       title={label}
       disabled={disabled}
@@ -603,11 +765,21 @@ function RowDeleteButton({
         onDelete();
       }}
     >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
         <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
         <path d="M10 11v6M14 11v6" />
       </svg>
-    </button>
+    </IconButton>
   );
 }
 
@@ -630,17 +802,27 @@ function IndexedDbPane({
   isLoading: boolean;
   canEdit: boolean;
   isMutating: boolean;
-  onDeleteRecord: (databaseName: string, storeName: string, recordKey: string) => void;
+  onDeleteRecord: (
+    databaseName: string,
+    storeName: string,
+    recordKey: string,
+  ) => void;
 }) {
   const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
-  const [columnVisibility, setColumnVisibility] = useState<IndexedDbColumnVisibility>(loadIndexedDbColumnVisibility);
-  const [columnMenu, setColumnMenu] = useState<{ x: number; y: number } | null>(null);
+  const [columnVisibility, setColumnVisibility] =
+    useState<IndexedDbColumnVisibility>(loadIndexedDbColumnVisibility);
+  const [columnMenu, setColumnMenu] = useState<{ x: number; y: number } | null>(
+    null,
+  );
 
   const handleColumnToggle = (col: IndexedDbColumnId) => {
     setColumnVisibility((prev) => {
       const next = { ...prev, [col]: !prev[col] };
-      localStorage.setItem(INDEXED_DB_COLUMNS_STORAGE_KEY, JSON.stringify(next));
+      localStorage.setItem(
+        INDEXED_DB_COLUMNS_STORAGE_KEY,
+        JSON.stringify(next),
+      );
       return next;
     });
   };
@@ -651,7 +833,9 @@ function IndexedDbPane({
   };
 
   if (!databases.length && !isLoading) {
-    return <div className="storage-empty">No matching IndexedDB databases.</div>;
+    return (
+      <div className="storage-empty">No matching IndexedDB databases.</div>
+    );
   }
 
   return (
@@ -660,10 +844,14 @@ function IndexedDbPane({
         {databases.map((database) => (
           <section className="indexeddb-database" key={database.name}>
             <h3>
-              {hasSearch ? highlightSearchText(database.name, searchText, searchOptions) : database.name}
+              {hasSearch
+                ? highlightSearchText(database.name, searchText, searchOptions)
+                : database.name}
               {database.version ? <span>v{database.version}</span> : null}
             </h3>
-            {database.error ? <p className="storage-inline-error">{database.error}</p> : null}
+            {database.error ? (
+              <p className="storage-inline-error">{database.error}</p>
+            ) : null}
             {database.stores.map((store) => (
               <IndexedDbStore
                 key={`${database.name}:${store.name}`}
@@ -719,18 +907,28 @@ function IndexedDbStore({
   onColumnContextMenu: (event: ReactMouseEvent) => void;
   canEdit: boolean;
   isMutating: boolean;
-  onDeleteRecord: (databaseName: string, storeName: string, recordKey: string) => void;
+  onDeleteRecord: (
+    databaseName: string,
+    storeName: string,
+    recordKey: string,
+  ) => void;
 }) {
   const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
   const containsActiveTarget =
-    activeSearchTarget?.kind === 'indexeddb' &&
+    activeSearchTarget?.kind === "indexeddb" &&
     activeSearchTarget.databaseName === databaseName &&
     activeSearchTarget.storeName === store.name;
-  const storeHaystack = store.records.map((record) => `${record.key} ${record.value}`).join(' ');
+  const storeHaystack = store.records
+    .map((record) => `${record.key} ${record.value}`)
+    .join(" ");
   const matchesSearch =
     hasSearch &&
-    (textMatchesSearch(`${databaseName} ${store.name}`, searchText, searchOptions) ||
+    (textMatchesSearch(
+      `${databaseName} ${store.name}`,
+      searchText,
+      searchOptions,
+    ) ||
       textMatchesSearch(storeHaystack, searchText, searchOptions));
   const [open, setOpen] = useState(true);
 
@@ -747,51 +945,82 @@ function IndexedDbStore({
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary>
-        <span>{hasSearch ? highlightSearchText(store.name, searchText, searchOptions) : store.name}</span>
+        <span>
+          {hasSearch
+            ? highlightSearchText(store.name, searchText, searchOptions)
+            : store.name}
+        </span>
         <span>{store.count ?? store.records.length} rows</span>
       </summary>
-      {store.error ? <p className="storage-inline-error">{store.error}</p> : null}
+      {store.error ? (
+        <p className="storage-inline-error">{store.error}</p>
+      ) : null}
       {store.truncated ? (
-        <p className="storage-note">Showing the first {store.records.length} records.</p>
+        <p className="storage-note">
+          Showing the first {store.records.length} records.
+        </p>
       ) : null}
       <table className="storage-table indexeddb-record-table">
         <thead onContextMenu={onColumnContextMenu} title="우클릭: 열 표시 설정">
           <tr>
             {columnVisibility.key && <th>Key</th>}
             {columnVisibility.value && <th>Value</th>}
-            {canEdit && <th className="storage-actions-col" aria-label="Actions" />}
+            {canEdit && (
+              <th className="storage-actions-col" aria-label="Actions" />
+            )}
           </tr>
         </thead>
         <tbody>
           {store.records.map((record, index) => {
             const isSelected =
-              selectedItem?.kind === 'indexeddb' &&
+              selectedItem?.kind === "indexeddb" &&
               selectedItem.databaseName === databaseName &&
               selectedItem.storeName === store.name &&
               selectedItem.recordIndex === index;
             const target = {
-              kind: 'indexeddb' as const,
+              kind: "indexeddb" as const,
               databaseName,
               storeName: store.name,
               recordIndex: index,
             };
-            const preview = formatStorageValuePreview(record.value, formatBytes);
+            const preview = formatStorageValuePreview(
+              record.value,
+              formatBytes,
+            );
 
             return (
               <tr
                 key={`${record.key}:${index}`}
                 id={`storage-row-${storageTargetKey(target)}`}
-                className={isSelected ? 'selected' : ''}
+                className={isSelected ? "selected" : ""}
                 onClick={() => onSelectRecord(target)}
               >
-                {columnVisibility.key && <td>{hasSearch ? highlightSearchText(record.key, searchText, searchOptions) : record.key}</td>}
-                {columnVisibility.value && <td>{hasSearch ? highlightSearchText(preview, searchText, searchOptions) : preview}</td>}
+                {columnVisibility.key && (
+                  <td>
+                    {hasSearch
+                      ? highlightSearchText(
+                          record.key,
+                          searchText,
+                          searchOptions,
+                        )
+                      : record.key}
+                  </td>
+                )}
+                {columnVisibility.value && (
+                  <td>
+                    {hasSearch
+                      ? highlightSearchText(preview, searchText, searchOptions)
+                      : preview}
+                  </td>
+                )}
                 {canEdit && (
                   <td className="storage-actions-cell">
                     <RowDeleteButton
                       label="Delete record"
                       disabled={isMutating}
-                      onDelete={() => onDeleteRecord(databaseName, store.name, record.key)}
+                      onDelete={() =>
+                        onDeleteRecord(databaseName, store.name, record.key)
+                      }
                     />
                   </td>
                 )}
@@ -804,22 +1033,20 @@ function IndexedDbStore({
   );
 }
 
-type StorageDetail =
-  | {
-      title: string;
-      subtitle: string;
-      metaRows: Array<[string, string]>;
-      value: unknown;
-      instanceId: string;
-      /** 값 편집이 가능한 웹 스토리지 항목이면 대상 정보. IndexedDB는 없음. */
-      editTarget?: { kind: 'local' | 'session'; key: string };
-      blobPreviewRequest?: {
-        databaseName: string;
-        storeName: string;
-        recordIndex: number;
-      };
-    }
-  | null;
+type StorageDetail = {
+  title: string;
+  subtitle: string;
+  metaRows: Array<[string, string]>;
+  value: unknown;
+  instanceId: string;
+  /** 값 편집이 가능한 웹 스토리지 항목이면 대상 정보. IndexedDB는 없음. */
+  editTarget?: { kind: "local" | "session"; key: string };
+  blobPreviewRequest?: {
+    databaseName: string;
+    storeName: string;
+    recordIndex: number;
+  };
+} | null;
 
 function StorageDetailPanel({
   detail,
@@ -850,7 +1077,7 @@ function StorageDetailPanel({
   const editTarget = detail?.editTarget ?? null;
   const editable = canEdit && Boolean(editTarget);
   const [isEditing, setIsEditing] = useState(false);
-  const [draftValue, setDraftValue] = useState('');
+  const [draftValue, setDraftValue] = useState("");
 
   // 선택 항목이 바뀌면 편집 모드를 닫는다.
   useEffect(() => {
@@ -858,7 +1085,11 @@ function StorageDetailPanel({
   }, [detail?.instanceId]);
 
   const startEditing = () => {
-    setDraftValue(typeof detail?.value === 'string' ? detail.value : String(detail?.value ?? ''));
+    setDraftValue(
+      typeof detail?.value === "string"
+        ? detail.value
+        : String(detail?.value ?? ""),
+    );
     setIsEditing(true);
   };
 
@@ -875,12 +1106,12 @@ function StorageDetailPanel({
       if (!panel) return;
 
       document
-        .querySelectorAll('.storage-table .search-highlight.is-active')
-        .forEach((mark) => mark.classList.remove('is-active'));
+        .querySelectorAll(".storage-table .search-highlight.is-active")
+        .forEach((mark) => mark.classList.remove("is-active"));
 
-      const marks = panel.querySelectorAll('.search-highlight');
+      const marks = panel.querySelectorAll(".search-highlight");
       marks.forEach((mark, index) => {
-        mark.classList.toggle('is-active', index === searchOccurrenceIndex);
+        mark.classList.toggle("is-active", index === searchOccurrenceIndex);
       });
 
       const target = marks[searchOccurrenceIndex] ?? marks[0];
@@ -897,25 +1128,35 @@ function StorageDetailPanel({
   const metaMatchesSearch =
     hasSearch &&
     (textMatchesSearch(detail.title, searchText, searchOptions) ||
-      detail.metaRows.some(([, value]) => textMatchesSearch(value, searchText, searchOptions)));
+      detail.metaRows.some(([, value]) =>
+        textMatchesSearch(value, searchText, searchOptions),
+      ));
 
   return (
     <aside className="storage-detail-panel" ref={panelRef}>
-      <div className="storage-detail-title">
+      <div className="detail-title-bar">
         <div>
-          <span className="storage-detail-kicker">{detail.subtitle}</span>
+          <span className="detail-kicker">{detail.subtitle}</span>
           <h2 title={detail.title}>
-            {hasSearch ? highlightSearchText(detail.title, searchText, searchOptions) : detail.title}
+            {hasSearch
+              ? highlightSearchText(detail.title, searchText, searchOptions)
+              : detail.title}
           </h2>
         </div>
         <div className="detail-panel-title-actions">
           {editable && !isEditing ? (
-            <button className="toolbar-button storage-detail-edit" type="button" onClick={startEditing}>
+            <Button size="sm" onClick={startEditing}>
               Edit
-            </button>
+            </Button>
           ) : null}
-          <SplitLayoutToggleButton isStacked={isStacked} onClick={onToggleLayout} />
-          <DetailPanelCloseButton onClick={onClose} label="Close storage detail" />
+          <SplitLayoutToggleButton
+            isStacked={isStacked}
+            onClick={onToggleLayout}
+          />
+          <DetailPanelCloseButton
+            onClick={onClose}
+            label="Close storage detail"
+          />
         </div>
       </div>
       <DetailSection
@@ -929,7 +1170,11 @@ function StorageDetailPanel({
           {detail.metaRows.map(([label, value]) => (
             <div key={label}>
               <dt>{label}</dt>
-              <dd>{hasSearch ? highlightSearchText(value, searchText, searchOptions) : value}</dd>
+              <dd>
+                {hasSearch
+                  ? highlightSearchText(value, searchText, searchOptions)
+                  : value}
+              </dd>
             </div>
           ))}
         </dl>
@@ -938,19 +1183,19 @@ function StorageDetailPanel({
         {isEditing ? (
           <div className="storage-edit">
             <textarea
-              className="storage-edit-textarea"
+              className="input storage-edit-textarea"
               value={draftValue}
               onChange={(event) => setDraftValue(event.currentTarget.value)}
               spellCheck={false}
               autoFocus
             />
             <div className="storage-edit-actions">
-              <button className="toolbar-button" type="button" onClick={() => void saveEditing()} disabled={isMutating}>
+              <Button onClick={() => void saveEditing()} disabled={isMutating}>
                 Save
-              </button>
-              <button className="clear-button" type="button" onClick={() => setIsEditing(false)} disabled={isMutating}>
+              </Button>
+              <Button onClick={() => setIsEditing(false)} disabled={isMutating}>
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
@@ -976,17 +1221,19 @@ function resolveSelectedDetail(
 ): StorageDetail {
   if (!selectedItem) return null;
 
-  if (selectedItem.kind === 'local' || selectedItem.kind === 'session') {
-    const entries = selectedItem.kind === 'local' ? localEntries : sessionEntries;
+  if (selectedItem.kind === "local" || selectedItem.kind === "session") {
+    const entries =
+      selectedItem.kind === "local" ? localEntries : sessionEntries;
     const entry = entries.find((item) => item.key === selectedItem.key);
     if (!entry) return null;
 
     return {
       title: entry.key,
-      subtitle: selectedItem.kind === 'local' ? 'localStorage' : 'sessionStorage',
+      subtitle:
+        selectedItem.kind === "local" ? "localStorage" : "sessionStorage",
       metaRows: [
-        ['Key', entry.key],
-        ['Size', formatBytes(entry.size)],
+        ["Key", entry.key],
+        ["Size", formatBytes(entry.size)],
       ],
       value: entry.value,
       instanceId: `${selectedItem.kind}:${entry.key}`,
@@ -994,10 +1241,14 @@ function resolveSelectedDetail(
     };
   }
 
-  if (selectedItem.kind !== 'indexeddb') return null;
+  if (selectedItem.kind !== "indexeddb") return null;
 
-  const database = indexedDatabases.find((item) => item.name === selectedItem.databaseName);
-  const store = database?.stores.find((item) => item.name === selectedItem.storeName);
+  const database = indexedDatabases.find(
+    (item) => item.name === selectedItem.databaseName,
+  );
+  const store = database?.stores.find(
+    (item) => item.name === selectedItem.storeName,
+  );
   const record = store?.records[selectedItem.recordIndex];
   if (!database || !store || !record) return null;
 
@@ -1005,10 +1256,10 @@ function resolveSelectedDetail(
     title: record.key,
     subtitle: `${database.name} / ${store.name}`,
     metaRows: [
-      ['Database', database.name],
-      ['Store', store.name],
-      ['Record', String(selectedItem.recordIndex + 1)],
-      ['Key path', store.keyPath ?? 'none'],
+      ["Database", database.name],
+      ["Store", store.name],
+      ["Record", String(selectedItem.recordIndex + 1)],
+      ["Key path", store.keyPath ?? "none"],
     ],
     value: record.value,
     instanceId: `indexeddb:${database.name}:${store.name}:${selectedItem.recordIndex}`,
@@ -1029,7 +1280,16 @@ function filterEntries(
 ): StorageEntry[] {
   return entries.filter((entry) => {
     const haystack = `${entry.key} ${entry.value}`;
-    if (!matchesStorageFilters(haystack, includeText, excludeText, searchText, searchOptions)) return false;
+    if (
+      !matchesStorageFilters(
+        haystack,
+        includeText,
+        excludeText,
+        searchText,
+        searchOptions,
+      )
+    )
+      return false;
     return true;
   });
 }
@@ -1042,20 +1302,37 @@ function filterIndexedDB(
   searchOptions: SearchOptions,
 ): IndexedDbDatabaseSnapshot[] {
   return databases
-    .filter((database) => matchesIncludeExcludeFilters(database.name, includeText, excludeText))
+    .filter((database) =>
+      matchesIncludeExcludeFilters(database.name, includeText, excludeText),
+    )
     .map((database) => {
       const stores = database.stores
         .filter((store) =>
-          matchesIncludeExcludeFilters(`${database.name} ${store.name}`, includeText, excludeText),
+          matchesIncludeExcludeFilters(
+            `${database.name} ${store.name}`,
+            includeText,
+            excludeText,
+          ),
         )
         .map((store) => ({
           ...store,
-          records: filterIndexedDbRecords(database, store, searchText, includeText, excludeText, searchOptions),
+          records: filterIndexedDbRecords(
+            database,
+            store,
+            searchText,
+            includeText,
+            excludeText,
+            searchOptions,
+          ),
         }))
         .filter((store) => {
           if (store.records.length > 0) return true;
           if (!searchText.trim() && !includeText.trim()) return true;
-          return textMatchesSearch(`${database.name} ${store.name}`, searchText, searchOptions);
+          return textMatchesSearch(
+            `${database.name} ${store.name}`,
+            searchText,
+            searchOptions,
+          );
         });
 
       return { ...database, stores };
@@ -1077,7 +1354,13 @@ function filterIndexedDbRecords(
 ): IndexedDbRecord[] {
   return store.records.filter((record) => {
     const haystack = `${database.name} ${store.name} ${record.key} ${record.value}`;
-    return matchesStorageFilters(haystack, includeText, excludeText, searchText, searchOptions);
+    return matchesStorageFilters(
+      haystack,
+      includeText,
+      excludeText,
+      searchText,
+      searchOptions,
+    );
   });
 }
 
@@ -1088,7 +1371,8 @@ function matchesStorageFilters(
   searchText: string,
   searchOptions: SearchOptions,
 ): boolean {
-  if (!matchesIncludeExcludeFilters(haystack, includeText, excludeText)) return false;
+  if (!matchesIncludeExcludeFilters(haystack, includeText, excludeText))
+    return false;
   if (!searchText.trim()) return true;
   return textMatchesSearch(haystack, searchText, searchOptions);
 }

@@ -14,6 +14,8 @@ import { fetchStorageRecordBlobPreviews } from '../utils/storageInspector';
 import { findStorageBlobPreviews, sanitizeStorageBlobsForDisplay } from '../utils/storageBlobValue';
 import { DetailSection } from './DetailSection';
 import { ImagePreviewGallery } from './ImagePreviewGallery';
+import { Button, IconButton } from './ui/Button';
+import { SearchOptionToggles } from './ui/SearchOptionToggles';
 
 type ActiveFieldMenu = {
   id: string;
@@ -367,72 +369,53 @@ function JsonBlock({
           <div className="json-viewer-local-search">
             <input
               type="search"
-              className="json-local-search-input"
+              className="input input-sm json-local-search-input"
               placeholder="Search in this viewer"
               value={localSearch}
               onChange={(event) => setLocalSearch(event.target.value)}
               onKeyDown={handleLocalSearchKeyDown}
               spellCheck={false}
             />
-            <div className="json-local-search-options" aria-label="검색 옵션">
-              <button
-                type="button"
-                className={`search-option-button ${localMatchCase ? 'active' : ''}`}
-                aria-pressed={localMatchCase}
-                title="대소문자 구분"
-                onClick={() => setLocalMatchCase((current) => !current)}
-              >
-                Aa
-              </button>
-              <button
-                type="button"
-                className={`search-option-button search-option-whole-word ${localWholeWord ? 'active' : ''}`}
-                aria-pressed={localWholeWord}
-                title="단어 단위 검색"
-                onClick={() => setLocalWholeWord((current) => !current)}
-              >
-                ab
-              </button>
-            </div>
+            <SearchOptionToggles
+              className="json-local-search-options"
+              matchCase={localMatchCase}
+              wholeWord={localWholeWord}
+              onMatchCaseChange={setLocalMatchCase}
+              onWholeWordChange={setLocalWholeWord}
+            />
             {localActive ? (
               <>
                 <span className="json-local-search-count">
                   {shownHitOrder}/{localHitCount}
                 </span>
-                <button
-                  type="button"
-                  className="json-local-search-nav"
+                <IconButton
+                  tone="accent"
                   onClick={() => goToLocalHit(-1)}
                   disabled={localHitCount === 0}
                   aria-label="이전 검색 결과"
                   title="이전 (Shift+Enter)"
                 >
                   ↑
-                </button>
-                <button
-                  type="button"
-                  className="json-local-search-nav"
+                </IconButton>
+                <IconButton
+                  tone="accent"
                   onClick={() => goToLocalHit(1)}
                   disabled={localHitCount === 0}
                   aria-label="다음 검색 결과"
                   title="다음 (Enter)"
                 >
                   ↓
-                </button>
+                </IconButton>
               </>
             ) : null}
           </div>
           <div className="json-viewer-actions">
-            <button
-              className="json-fullscreen-button"
-              type="button"
-              onClick={() => setIsFullscreen((current) => !current)}
-            >
+            <Button size="sm" tone="accent" onClick={() => setIsFullscreen((current) => !current)}>
               {isFullscreen ? 'Close' : 'Fullscreen'}
-            </button>
-            <button className="json-copy-button" type="button" onClick={handleCopy}>
+            </Button>
+            <Button size="sm" tone="accent" onClick={handleCopy}>
               {copied ? 'Copied' : 'Copy'}
-            </button>
+            </Button>
           </div>
         </div>
         <div className="json-viewer-body" ref={viewerBodyRef}>

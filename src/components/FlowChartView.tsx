@@ -44,6 +44,7 @@ import type { RequestSearchSummary } from "../utils/requestSearch";
 import { formatDateTime, formatDuration, getStatusTone } from "./formatters";
 import { ImagePreview } from "./ImagePreview";
 import { SearchHitBadge } from "./SearchHitBadge";
+import { Button, IconButton } from "./ui/Button";
 
 type FlowChartViewProps = {
   items: TimelineItem[];
@@ -229,24 +230,24 @@ function ZOrderButtons({
 }) {
   return (
     <>
-      <button
-        type="button"
-        className="flow-shape-icon-button"
+      <IconButton
+        size="xs"
+        tone="accent"
         title="맨 앞으로"
         aria-label="맨 앞으로"
         onClick={() => onZOrder(id, true)}
       >
         <BringToFrontIcon />
-      </button>
-      <button
-        type="button"
-        className="flow-shape-icon-button"
+      </IconButton>
+      <IconButton
+        size="xs"
+        tone="accent"
         title="맨 뒤로"
         aria-label="맨 뒤로"
         onClick={() => onZOrder(id, false)}
       >
         <SendToBackIcon />
-      </button>
+      </IconButton>
     </>
   );
 }
@@ -326,9 +327,10 @@ function TextNoteNodeView({ id, data, selected }: NodeProps) {
             />
           ))}
           <span className="flow-shape-toolbar-divider" />
-          <button
-            type="button"
-            className="flow-shape-icon-button flow-shape-font-button"
+          <IconButton
+            size="xs"
+            tone="accent"
+            className="flow-shape-font-button"
             title="글자 작게"
             aria-label="글자 작게"
             disabled={fontSize <= TEXT_NOTE_MIN_FONT_SIZE}
@@ -342,10 +344,11 @@ function TextNoteNodeView({ id, data, selected }: NodeProps) {
             }
           >
             A−
-          </button>
-          <button
-            type="button"
-            className="flow-shape-icon-button flow-shape-font-button"
+          </IconButton>
+          <IconButton
+            size="xs"
+            tone="accent"
+            className="flow-shape-font-button"
             title="글자 크게"
             aria-label="글자 크게"
             disabled={fontSize >= TEXT_NOTE_MAX_FONT_SIZE}
@@ -359,31 +362,30 @@ function TextNoteNodeView({ id, data, selected }: NodeProps) {
             }
           >
             A+
-          </button>
+          </IconButton>
           <span className="flow-shape-toolbar-divider" />
-          <button
-            type="button"
-            className={`flow-shape-fill-toggle ${
-              noteData.background ? "active" : ""
-            }`}
+          <IconButton
+            size="xs"
+            active={noteData.background}
+            className="flow-shape-fill-toggle"
             title={noteData.background ? "배경 없애기" : "배경 표시"}
             onClick={() =>
               noteData.onStyleChange(id, { background: !noteData.background })
             }
           >
             BG
-          </button>
+          </IconButton>
           <span className="flow-shape-toolbar-divider" />
           <ZOrderButtons id={id} onZOrder={noteData.onZOrder} />
-          <button
-            type="button"
-            className="flow-shape-icon-button"
+          <IconButton
+            size="xs"
+            tone="accent"
             title="복사"
             aria-label="복사"
             onClick={() => noteData.onDuplicate(id)}
           >
             <CopyIcon />
-          </button>
+          </IconButton>
         </div>
       ) : null}
     </div>
@@ -442,27 +444,26 @@ function ShapeNodeView({ id, data, selected }: NodeProps) {
             />
           ))}
           <span className="flow-shape-toolbar-divider" />
-          <button
-            type="button"
-            className={`flow-shape-fill-toggle ${
-              shapeData.filled ? "active" : ""
-            }`}
+          <IconButton
+            size="xs"
+            active={shapeData.filled}
+            className="flow-shape-fill-toggle"
             title={shapeData.filled ? "테두리만 표시" : "색 채우기"}
             onClick={() => shapeData.onChange(id, { filled: !shapeData.filled })}
           >
             {shapeData.filled ? "Fill" : "Line"}
-          </button>
+          </IconButton>
           <span className="flow-shape-toolbar-divider" />
           <ZOrderButtons id={id} onZOrder={shapeData.onZOrder} />
-          <button
-            type="button"
-            className="flow-shape-icon-button"
+          <IconButton
+            size="xs"
+            tone="accent"
             title="복사"
             aria-label="복사"
             onClick={() => shapeData.onDuplicate(id)}
           >
             <CopyIcon />
-          </button>
+          </IconButton>
         </div>
       ) : null}
     </>
@@ -1341,11 +1342,10 @@ export function FlowChartView({
             <Panel position="top-right" className="flow-export-panel">
               <div className="flow-export-controls">
                 <div className="flow-export-buttons">
-                  <button
-                    className={`flow-export-button ${
-                      showQuery ? "active" : ""
-                    }`}
-                    type="button"
+                  <Button
+                    tone="accent"
+                    float
+                    active={showQuery}
                     aria-pressed={showQuery}
                     title="카드 타이틀에 쿼리 문자열 표시"
                     onPointerDown={(event) => event.stopPropagation()}
@@ -1355,10 +1355,10 @@ export function FlowChartView({
                     }}
                   >
                     {showQuery ? "Query ✓" : "Query"}
-                  </button>
-                  <button
-                    className="flow-export-button"
-                    type="button"
+                  </Button>
+                  <Button
+                    tone="accent"
+                    float
                     onPointerDown={(event) => event.stopPropagation()}
                     onClick={(event) => {
                       event.stopPropagation();
@@ -1367,7 +1367,7 @@ export function FlowChartView({
                     disabled={isExporting}
                   >
                     {isExporting ? "Exporting..." : "Download PNG"}
-                  </button>
+                  </Button>
                 </div>
                 {exportError ? (
                   <span className="flow-export-error">{exportError}</span>
@@ -1376,9 +1376,10 @@ export function FlowChartView({
             </Panel>
             <Panel position="bottom-center" className="flow-tool-panel">
               <div className="flow-toolbar">
-                <button
-                  className="flow-tool-button"
-                  type="button"
+                <IconButton
+                  size="lg"
+                  ghost
+                  tone="accent"
                   title="텍스트 메모 추가"
                   aria-label="텍스트 메모 추가"
                   onPointerDown={(event) => event.stopPropagation()}
@@ -1388,10 +1389,11 @@ export function FlowChartView({
                   }}
                 >
                   <TextIcon />
-                </button>
-                <button
-                  className="flow-tool-button"
-                  type="button"
+                </IconButton>
+                <IconButton
+                  size="lg"
+                  ghost
+                  tone="accent"
                   title="사각형 도형 추가"
                   aria-label="사각형 도형 추가"
                   onPointerDown={(event) => event.stopPropagation()}
@@ -1401,13 +1403,14 @@ export function FlowChartView({
                   }}
                 >
                   <SquareIcon />
-                </button>
+                </IconButton>
                 {hasEdits ? (
                   <>
                     <span className="flow-toolbar-divider" />
-                    <button
-                      className="flow-tool-button flow-tool-button-danger"
-                      type="button"
+                    <IconButton
+                      size="lg"
+                      ghost
+                      tone="danger"
                       title="편집 초기화"
                       aria-label="편집 초기화"
                       onPointerDown={(event) => event.stopPropagation()}
@@ -1417,7 +1420,7 @@ export function FlowChartView({
                       }}
                     >
                       <ResetIcon />
-                    </button>
+                    </IconButton>
                   </>
                 ) : null}
               </div>

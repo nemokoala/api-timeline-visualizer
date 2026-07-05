@@ -5,6 +5,7 @@ import { FlowChartView } from '../FlowChartView';
 import { RequestDetailPanel } from '../RequestDetailPanel';
 import { SplitPanelResizer } from '../SplitPanelResizer';
 import { TimelineView } from '../TimelineView';
+import { Button } from '../ui/Button';
 import { PanelHeader } from './PanelHeader';
 
 /** 도킹 패널로 렌더링되는 네트워크 뷰(Flow/Timeline + 요청 상세 분할). */
@@ -58,15 +59,13 @@ export function NetworkPanel() {
         ) : null}
         {ctx.sessionNotice ? <p className="toolbar-notice">{ctx.sessionNotice}</p> : null}
         <div className="toolbar-button-group" aria-label="Session actions">
-          <button className="toolbar-button" type="button" onClick={ctx.onExportSession} disabled={!ctx.canExport}>
+          <Button onClick={ctx.onExportSession} disabled={!ctx.canExport}>
             Export
-          </button>
-          <button className="toolbar-button" type="button" onClick={ctx.onImportSession}>
-            Import
-          </button>
-          <button className="clear-button" type="button" onClick={ctx.onClear} disabled={!ctx.canClear}>
+          </Button>
+          <Button onClick={ctx.onImportSession}>Import</Button>
+          <Button onClick={ctx.onClear} disabled={!ctx.canClear}>
             Clear
-          </button>
+          </Button>
         </div>
       </div>
       <div

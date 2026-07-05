@@ -189,66 +189,6 @@ button:not(:disabled) {
   padding-bottom: 10px;
 }
 
-.toolbar-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-  border: 0;
-  border-radius: 9px;
-  padding: 0;
-  color: var(--text-weak);
-  background: var(--fill);
-  cursor: pointer;
-}
-
-.toolbar-toggle:hover {
-  color: var(--text-sub);
-  background: var(--fill-hover);
-}
-
-.toolbar-toggle-icon {
-  display: block;
-  width: 7px;
-  height: 7px;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  transform: rotate(45deg);
-  margin-top: -3px;
-  transition: transform 140ms ease;
-}
-
-.toolbar.is-collapsed .toolbar-toggle-icon {
-  transform: rotate(-45deg);
-  margin-top: 2px;
-}
-
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  border: 0;
-  border-radius: 10px;
-  padding: 0;
-  color: var(--text-weak);
-  background: var(--fill);
-  cursor: pointer;
-}
-
-.theme-toggle:hover {
-  color: var(--text-sub);
-  background: var(--fill-hover);
-}
-
-.theme-toggle:active {
-  transform: scale(0.95);
-}
-
 .toolbar-row {
   display: flex;
   align-items: center;
@@ -257,11 +197,6 @@ button:not(:disabled) {
 }
 
 .toolbar-row-primary {
-  gap: 12px;
-}
-
-.toolbar-row-secondary {
-  justify-content: space-between;
   gap: 12px;
 }
 
@@ -300,97 +235,9 @@ button:not(:disabled) {
   white-space: nowrap;
 }
 
-.toolbar-chip-accent {
-  color: var(--blue-strong);
-  background: var(--blue-soft);
-}
-
-.toolbar-search {
-  display: flex;
-  align-items: center;
-  flex: 1 1 200px;
-  min-width: 0;
-  height: 34px;
-  border: 1.5px solid transparent;
-  border-radius: 11px;
-  padding: 0 6px 0 12px;
-  background: var(--fill);
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease;
-}
-
-.toolbar-search:focus-within {
-  border-color: var(--blue);
-  background: var(--surface);
-}
-
-.toolbar-search-input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  color: var(--text-strong);
-  background: transparent;
-  font: inherit;
-  font-size: 12px;
-}
-
-.toolbar-search-input::placeholder {
-  color: var(--text-faint);
-}
-
-.toolbar-search-input::-webkit-search-cancel-button {
-  margin-right: 2px;
-}
-
-.toolbar-search-options {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-  margin-left: 4px;
-  padding-left: 6px;
-  border-left: 1px solid var(--border);
-}
-
-.search-option-button {
-  min-width: 24px;
-  height: 22px;
-  border: 0;
-  border-radius: 6px;
-  padding: 0 5px;
-  color: var(--text-weak);
-  background: transparent;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.search-option-button:hover {
-  color: var(--text-sub);
-  background: var(--fill-hover);
-}
-
-.search-option-button.active {
-  color: #ffffff;
-  background: var(--blue);
-}
-
 .search-option-whole-word {
   font-size: 10px;
   letter-spacing: -0.02em;
-}
-
-.toolbar-search-nav {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  margin-left: 6px;
-  padding-left: 8px;
-  border-left: 1px solid var(--border);
 }
 
 .toolbar-cluster {
@@ -400,37 +247,10 @@ button:not(:disabled) {
   flex: 0 0 auto;
 }
 
-.toolbar-cluster-sep {
-  width: 1px;
-  height: 18px;
-  background: var(--border);
-  flex-shrink: 0;
-}
-
 .toolbar-button-group {
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.toolbar-filters {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-}
-
-.toolbar-secondary-end {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  flex: 0 0 auto;
-  min-width: 0;
 }
 
 .toolbar-notice {
@@ -439,59 +259,6 @@ button:not(:disabled) {
   font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
-}
-
-.filter-field {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  width: 200px;
-  height: 32px;
-  flex: 0 0 200px;
-  border: 1.5px solid transparent;
-  border-radius: 10px;
-  padding: 0 10px;
-  color: var(--text-weak);
-  background: var(--fill);
-  font-size: 12px;
-  min-width: 0;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease;
-}
-
-.filter-field:focus-within {
-  border-color: var(--blue);
-  background: var(--surface);
-}
-
-.filter-label {
-  flex: 0 0 auto;
-  white-space: nowrap;
-  font-weight: 500;
-}
-
-.filter-field input {
-  flex: 1 1 auto;
-  min-width: 0;
-  width: 0;
-  height: 28px;
-  border: 0;
-  outline: 0;
-  color: var(--text-strong);
-  background: transparent;
-  font: inherit;
-  line-height: 28px;
-}
-
-.filter-field input::placeholder {
-  color: var(--text-faint);
-}
-
-.search-nav-section {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
 }
 
 .search-nav-label {
@@ -508,28 +275,6 @@ button:not(:disabled) {
   height: 16px;
   background: var(--border);
   flex-shrink: 0;
-}
-
-.search-nav-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border: 0;
-  border-radius: 6px;
-  padding: 0;
-  color: var(--text-sub);
-  background: var(--fill-hover);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.search-nav-button:hover {
-  color: var(--text-strong);
-  background: var(--fill-press);
 }
 
 .search-position {
@@ -551,24 +296,9 @@ button:not(:disabled) {
     flex: 1 1 auto;
   }
 
-  .toolbar-search {
-    flex: 1 1 100%;
-    order: 3;
-  }
-
   .toolbar-cluster {
     flex: 0 0 auto;
     margin-left: auto;
-  }
-
-  .toolbar-row-secondary {
-    flex-wrap: wrap;
-    row-gap: 8px;
-  }
-
-  .toolbar-secondary-end {
-    flex-wrap: wrap;
-    justify-content: flex-start;
   }
 }
 
@@ -576,41 +306,158 @@ button:not(:disabled) {
   .toolbar-stats {
     display: none;
   }
-
-  .filter-field {
-    flex: 1 1 140px;
-    width: auto;
-  }
-
-  .toolbar-secondary-end {
-    width: 100%;
-    justify-content: space-between;
-  }
 }
 
-.toolbar-button {
-  height: 28px;
+/* ---------------------------------------------------------------------------
+   공통 버튼 시스템 (components/ui/Button.tsx)
+   .btn + 크기(.btn-sm/.btn-md 텍스트, .btn-icon-* 정사각) + 톤(.btn-ghost /
+   .btn-accent / .btn-danger / .btn-float) 조합으로 모든 버튼을 표현한다. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
   border: 0;
-  border-radius: 9px;
-  padding: 0 12px;
+  padding: 0;
   color: var(--text-sub);
   background: var(--fill);
-  font-size: 12px;
   font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
 }
 
-.toolbar-button:hover:not(:disabled) {
+.btn:hover:not(:disabled) {
   background: var(--fill-hover);
 }
 
-.toolbar-button:active:not(:disabled) {
+.btn:active:not(:disabled) {
   transform: scale(0.97);
 }
 
-.toolbar-button:disabled {
+.btn:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+
+/* 텍스트 버튼 크기 */
+.btn-md {
+  height: 28px;
+  border-radius: 9px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.btn-sm {
+  height: 24px;
+  border-radius: 8px;
+  padding: 0 9px;
+  font-size: 11px;
+}
+
+/* 정사각 아이콘 버튼 크기 */
+.btn-icon-xs {
+  min-width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  padding: 0 4px;
+  font-size: 12px;
+}
+
+.btn-icon-sm {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.btn-icon-md {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+}
+
+.btn-icon-lg {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+/* 배경 없는 버튼 */
+.btn-ghost {
+  color: var(--text-weak);
+  background: transparent;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  color: var(--text-sub);
+  background: var(--fill-hover);
+}
+
+/* hover 시 파랑 강조 */
+.btn-accent:hover:not(:disabled) {
+  color: #ffffff;
+  background: var(--blue);
+}
+
+/* hover 시 위험(빨강) 강조 */
+.btn-danger:hover:not(:disabled) {
+  color: #ffffff;
+  background: var(--red);
+}
+
+/* 캔버스 위에 떠 있는 버튼 */
+.btn-float {
+  background: var(--surface);
+  box-shadow: var(--shadow-float);
+}
+
+/* 토글형 버튼의 켜짐 상태 */
+.btn.active,
+.btn.active:hover:not(:disabled) {
+  color: #ffffff;
+  background: var(--blue);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+/* ---------------------------------------------------------------------------
+   공통 입력 필드 시스템
+   .input + 크기(.input-sm/.input-md) 조합. 포커스 시 파란 테두리로 통일한다. */
+.input {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-strong);
+  background: var(--surface);
+  font: inherit;
+  transition: border-color 0.12s ease;
+}
+
+.input::placeholder {
+  color: var(--text-faint);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.input-md {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.input-sm {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
 }
 
 .toggle-control {
@@ -659,35 +506,6 @@ button:not(:disabled) {
   color: var(--text-strong);
   background: var(--seg-active-bg);
   box-shadow: 0 1px 3px rgba(25, 31, 40, 0.12);
-}
-
-.clear-button,
-.response-actions button {
-  height: 28px;
-  border: 0;
-  border-radius: 9px;
-  padding: 0 12px;
-  color: var(--text-sub);
-  background: var(--fill);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.clear-button:hover:not(:disabled),
-.response-actions button:hover:not(:disabled) {
-  background: var(--fill-hover);
-}
-
-.clear-button:active:not(:disabled),
-.response-actions button:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-.clear-button:disabled,
-.response-actions button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
 }
 
 .workspace {
@@ -777,14 +595,12 @@ button:not(:disabled) {
 }
 
 .detail-resizer:hover,
-.resizing-detail-panel .detail-resizer,
 .resizing-split-panel-width .detail-resizer-vertical,
 .resizing-split-panel-height .detail-resizer-horizontal {
   background: var(--fill-hover);
 }
 
 .detail-resizer-vertical:hover::after,
-.resizing-detail-panel .detail-resizer-vertical::after,
 .resizing-split-panel-width .detail-resizer-vertical::after,
 .detail-resizer-horizontal:hover::after,
 .resizing-split-panel-height .detail-resizer-horizontal::after {
@@ -848,9 +664,6 @@ button:not(:disabled) {
 .storage-refresh-button {
   grid-column: 4;
   grid-row: 1;
-  height: 24px;
-  padding: 0 10px;
-  font-size: 11px;
 }
 
 .storage-header:not(:has(.storage-header-captured)) .storage-header-origin {
@@ -888,6 +701,34 @@ button:not(:disabled) {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   공통 알약형 탭/필터 (스토리지 탭, 콘솔 레벨 필터 공용) */
+.pill-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 12px;
+  color: var(--text-weak);
+  background: var(--fill);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pill-tabs button:hover {
+  color: var(--text-sub);
+  background: var(--fill-hover);
+}
+
+.pill-tabs button.active {
+  color: var(--blue-strong);
+  background: var(--blue-soft);
+}
+
 .storage-tabs {
   display: flex;
   align-items: center;
@@ -895,30 +736,6 @@ button:not(:disabled) {
   padding: 10px 14px;
   border-bottom: 1px solid var(--border-weak);
   background: var(--surface);
-}
-
-.storage-tabs button {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 32px;
-  border: 0;
-  border-radius: 999px;
-  padding: 0 13px;
-  color: var(--text-weak);
-  background: var(--fill);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.storage-tabs button:hover {
-  color: var(--text-sub);
-  background: var(--fill-hover);
-}
-
-.storage-tabs button.active {
-  color: var(--blue-strong);
-  background: var(--blue-soft);
 }
 
 .storage-tab-count {
@@ -932,7 +749,7 @@ button:not(:disabled) {
   text-align: center;
 }
 
-.storage-tabs button.active .storage-tab-count {
+.pill-tabs button.active .storage-tab-count {
   color: var(--blue-strong);
   background: rgba(49, 130, 246, 0.14);
 }
@@ -955,15 +772,6 @@ button:not(:disabled) {
   background: var(--red-soft);
 }
 
-.storage-split {
-  display: grid;
-  grid-template-columns: minmax(320px, 0.92fr) minmax(320px, 1fr);
-  gap: 12px;
-  min-height: 0;
-  padding: 12px;
-  overflow: hidden;
-}
-
 .storage-workspace {
   display: grid;
   min-height: 0;
@@ -978,8 +786,7 @@ button:not(:disabled) {
 }
 
 .storage-table-wrap,
-.indexeddb-tree,
-.storage-value-panel {
+.indexeddb-tree {
   min-width: 0;
   min-height: 0;
   overflow: auto;
@@ -1044,12 +851,6 @@ button:not(:disabled) {
   text-align: right;
 }
 
-.storage-value-panel {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  padding: 0;
-}
-
 .storage-detail-panel {
   display: flex;
   flex-direction: column;
@@ -1060,7 +861,12 @@ button:not(:disabled) {
   background: var(--surface);
 }
 
-.storage-detail-title {
+/* ---------------------------------------------------------------------------
+   상세 패널 상단 타이틀 바 (콘솔/스토리지 공용) */
+.detail-title-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   flex-shrink: 0;
   display: flex;
   align-items: flex-start;
@@ -1072,11 +878,11 @@ button:not(:disabled) {
   background: var(--surface);
 }
 
-.storage-detail-title > div {
+.detail-title-bar > div {
   min-width: 0;
 }
 
-.storage-detail-kicker {
+.detail-kicker {
   display: block;
   overflow: hidden;
   color: var(--text-weak);
@@ -1086,7 +892,11 @@ button:not(:disabled) {
   white-space: nowrap;
 }
 
-.storage-detail-title h2 {
+.detail-kicker-caps {
+  text-transform: uppercase;
+}
+
+.detail-title-bar h2 {
   margin: 2px 0 0;
   overflow: hidden;
   color: var(--text-strong);
@@ -1147,35 +957,15 @@ button:not(:disabled) {
   text-align: center;
 }
 
-.storage-row-delete {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border: 0;
-  border-radius: 7px;
-  padding: 0;
-  color: var(--text-faint);
-  background: transparent;
-  cursor: pointer;
+/* 행 hover 때만 드러나는 삭제 버튼(시각 스타일은 공통 .btn 사용). */
+.storage-table .storage-row-delete {
   opacity: 0;
   transition: opacity 0.12s ease, color 0.12s ease, background 0.12s ease;
 }
 
 .storage-table tbody tr:hover .storage-row-delete,
-.storage-row-delete:focus-visible {
+.storage-table .storage-row-delete:focus-visible {
   opacity: 1;
-}
-
-.storage-row-delete:hover:not(:disabled) {
-  color: var(--danger, #e5484d);
-  background: var(--fill-hover);
-}
-
-.storage-row-delete:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
 }
 
 .storage-add {
@@ -1184,37 +974,10 @@ button:not(:disabled) {
   background: var(--surface-sub);
 }
 
-.storage-add-toggle {
-  border: 0;
-  border-radius: 7px;
-  padding: 5px 10px;
-  color: var(--text-sub);
-  background: var(--fill);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.storage-add-toggle:hover {
-  background: var(--fill-hover);
-}
-
 .storage-add-form {
   display: flex;
   gap: 6px;
   align-items: center;
-}
-
-.storage-add-input {
-  min-width: 0;
-  height: 28px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  padding: 0 8px;
-  color: var(--text-strong);
-  background: var(--surface);
-  font: inherit;
-  font-size: 12px;
 }
 
 .storage-add-input:first-child {
@@ -1233,12 +996,6 @@ button:not(:disabled) {
   cursor: default;
 }
 
-.storage-detail-edit {
-  height: 26px;
-  padding: 0 10px;
-  font-size: 11px;
-}
-
 .storage-edit {
   display: flex;
   flex-direction: column;
@@ -1252,11 +1009,7 @@ button:not(:disabled) {
   flex: 1;
   min-height: 160px;
   resize: vertical;
-  border: 1px solid var(--border);
-  border-radius: 10px;
   padding: 10px;
-  color: var(--text-strong);
-  background: var(--surface);
   font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   font-size: 12px;
   line-height: 1.5;
@@ -1338,44 +1091,6 @@ button:not(:disabled) {
 .storage-detail-value .json-viewer {
   max-height: none;
   overflow: visible;
-}
-
-.storage-value-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border-weak);
-  background: var(--surface-sub);
-}
-
-.storage-value-heading strong,
-.storage-value-heading span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.storage-value-heading strong {
-  color: var(--text-strong);
-  font-size: 12px;
-}
-
-.storage-value-heading span {
-  color: var(--text-weak);
-  font-size: 11px;
-}
-
-.storage-value-panel .json-viewer-wrap {
-  height: 100%;
-  border: 0;
-  border-radius: 0;
-}
-
-.storage-value-panel .json-viewer {
-  max-height: none;
 }
 
 .indexeddb-tree {
@@ -1489,29 +1204,6 @@ button:not(:disabled) {
   gap: 6px;
   min-width: 0;
   overflow-x: auto;
-}
-
-.console-toolbar-filters button {
-  flex: 0 0 auto;
-  height: 28px;
-  border: 0;
-  border-radius: 999px;
-  padding: 0 12px;
-  color: var(--text-weak);
-  background: var(--fill);
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.console-toolbar-filters button:hover {
-  color: var(--text-sub);
-  background: var(--fill-hover);
-}
-
-.console-toolbar-filters button.active {
-  color: var(--blue-strong);
-  background: var(--blue-soft);
 }
 
 .console-toolbar-actions {
@@ -1709,46 +1401,6 @@ button:not(:disabled) {
   padding-bottom: 30px;
 }
 
-.console-detail-title {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border-weak);
-  background: var(--surface);
-}
-
-.console-detail-title > div {
-  min-width: 0;
-}
-
-.console-detail-kicker {
-  display: block;
-  overflow: hidden;
-  color: var(--text-weak);
-  font-size: 10px;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-transform: uppercase;
-}
-
-.console-detail-title h2 {
-  margin: 2px 0 0;
-  overflow: hidden;
-  color: var(--text-strong);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.3;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .console-detail-timestamp {
   flex: 0 0 auto;
   color: var(--text-weak);
@@ -1826,11 +1478,6 @@ button:not(:disabled) {
   min-height: 120px;
 }
 
-.resizing-detail-panel {
-  cursor: col-resize;
-  user-select: none;
-}
-
 .resizing-split-panel-width {
   cursor: col-resize;
   user-select: none;
@@ -1844,29 +1491,6 @@ button:not(:disabled) {
 .flow-panel {
   position: relative;
   background: var(--bg);
-}
-
-.flow-caption {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 4;
-  display: grid;
-  gap: 3px;
-  max-width: min(460px, calc(100% - 24px));
-  border: 1px solid var(--border-weak);
-  border-radius: 14px;
-  padding: 10px 14px;
-  background: var(--overlay-surface);
-  color: var(--text-weak);
-  font-size: 12px;
-  box-shadow: var(--shadow-card);
-  backdrop-filter: blur(6px);
-}
-
-.flow-caption strong {
-  color: var(--text-strong);
-  font-size: 13px;
 }
 
 .flow-panel .react-flow {
@@ -2032,35 +1656,6 @@ button:not(:disabled) {
   text-align: right;
 }
 
-.flow-export-button {
-  height: 30px;
-  border: 0;
-  border-radius: 10px;
-  padding: 0 12px;
-  color: var(--text-sub);
-  background: var(--surface);
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  box-shadow: var(--shadow-float);
-}
-
-.flow-export-button:hover:not(:disabled) {
-  color: #ffffff;
-  background: var(--blue);
-}
-
-.flow-export-button.active {
-  color: #ffffff;
-  background: var(--blue);
-}
-
-.flow-export-button:disabled {
-  opacity: 0.6;
-  cursor: wait;
-}
-
 /* 하단 중앙 편집 도구막대 */
 .flow-tool-panel {
   margin-bottom: 16px;
@@ -2075,29 +1670,6 @@ button:not(:disabled) {
   border-radius: 14px;
   background: var(--surface);
   box-shadow: var(--shadow-float);
-}
-
-.flow-tool-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 0;
-  border-radius: 10px;
-  color: var(--text-sub);
-  background: transparent;
-  cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
-}
-
-.flow-tool-button:hover {
-  color: #ffffff;
-  background: var(--blue);
-}
-
-.flow-tool-button-danger:hover {
-  background: var(--red, #f04452);
 }
 
 .flow-toolbar-divider {
@@ -2152,49 +1724,14 @@ button:not(:disabled) {
   background: var(--border-weak);
 }
 
+/* 도형 채움 토글: 짧은 글자(BG/Fill/Line)라 여백만 넓힌다. */
 .flow-shape-fill-toggle {
-  height: 22px;
-  border: 0;
-  border-radius: 7px;
-  padding: 0 9px;
-  color: var(--text-sub);
-  background: var(--fill);
+  padding: 0 8px;
   font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.flow-shape-fill-toggle.active {
-  color: #ffffff;
-  background: var(--blue);
-}
-
-.flow-shape-icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 22px;
-  border: 0;
-  border-radius: 7px;
-  color: var(--text-sub);
-  background: var(--fill);
-  cursor: pointer;
-}
-
-.flow-shape-icon-button:hover:not(:disabled) {
-  color: #ffffff;
-  background: var(--blue);
-}
-
-.flow-shape-icon-button:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 
 .flow-shape-font-button {
   font-size: 11px;
-  font-weight: 700;
 }
 
 .flow-shape-resize-line {
@@ -2643,8 +2180,7 @@ button:not(:disabled) {
   color: var(--red);
 }
 
-.empty-state,
-.detail-empty {
+.empty-state {
   display: grid;
   place-content: center;
   gap: 7px;
@@ -2653,8 +2189,7 @@ button:not(:disabled) {
   text-align: center;
 }
 
-.empty-state strong,
-.detail-empty strong {
+.empty-state strong {
   color: var(--text-strong);
   font-size: 14px;
 }
@@ -2675,48 +2210,6 @@ button:not(:disabled) {
   align-items: center;
   gap: 8px;
   flex: 0 0 auto;
-}
-
-.detail-panel-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-  border: 0;
-  border-radius: 8px;
-  padding: 0;
-  color: var(--text-weak);
-  background: var(--fill);
-  font-size: 16px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.detail-panel-close:hover {
-  color: #ffffff;
-  background: var(--blue);
-}
-
-.split-layout-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-  border: 0;
-  border-radius: 8px;
-  padding: 0;
-  color: var(--text-weak);
-  background: var(--fill);
-  cursor: pointer;
-}
-
-.split-layout-toggle:hover {
-  color: var(--text-sub);
-  background: var(--fill-hover);
 }
 
 .detail-title {
@@ -2952,7 +2445,11 @@ button:not(:disabled) {
   min-height: 38px;
   padding: 7px 10px;
   border-bottom: 1px solid var(--border-weak);
-  background: var(--surface);
+  /* 래퍼가 overflow:visible인 컨텍스트(스토리지 상세)에서도 카드의 둥근 상단이 잘려 보이지 않도록
+     래퍼 radius(12px)에서 테두리 1px를 뺀 곡률을 직접 가진다.
+     배경도 래퍼와 같은 색을 써서 패널 배경과 구분되는 하나의 카드로 읽히게 한다. */
+  border-radius: 11px 11px 0 0;
+  background: var(--surface-sub);
 }
 
 .json-viewer-actions {
@@ -2974,20 +2471,7 @@ button:not(:disabled) {
 .json-local-search-input {
   flex: 1 1 auto;
   width: 100%;
-  min-width: 0;
   max-width: 240px;
-  height: 24px;
-  border: 1px solid var(--border-weak);
-  border-radius: 8px;
-  padding: 0 8px;
-  color: var(--text);
-  background: var(--bg);
-  font-size: 11px;
-}
-
-.json-local-search-input:focus {
-  outline: none;
-  border-color: var(--blue);
 }
 
 .json-local-search-options {
@@ -3003,29 +2487,6 @@ button:not(:disabled) {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-
-.json-local-search-nav {
-  flex: 0 0 auto;
-  width: 24px;
-  height: 24px;
-  border: 0;
-  border-radius: 8px;
-  color: var(--text-sub);
-  background: var(--fill);
-  font-size: 12px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.json-local-search-nav:hover:not(:disabled) {
-  color: #ffffff;
-  background: var(--blue);
-}
-
-.json-local-search-nav:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 
 .json-local-hit {
@@ -3047,7 +2508,9 @@ button:not(:disabled) {
   justify-content: center;
   height: 9px;
   border-top: 1px solid var(--border-weak);
-  background: var(--surface);
+  /* 툴바와 같은 이유로 카드의 둥근 하단 곡률과 카드 배경색을 직접 가진다. */
+  border-radius: 0 0 11px 11px;
+  background: var(--surface-sub);
   cursor: ns-resize;
   touch-action: none;
 }
@@ -3063,27 +2526,6 @@ button:not(:disabled) {
 
 .json-viewer-resize-handle:hover::before {
   opacity: 0.7;
-}
-
-.json-copy-button,
-.json-fullscreen-button {
-  flex: 0 0 auto;
-  height: 24px;
-  border: 0;
-  border-radius: 8px;
-  padding: 0 9px;
-  color: var(--text-sub);
-  background: var(--fill);
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.json-copy-button:hover,
-.json-fullscreen-button:hover {
-  color: #ffffff;
-  background: var(--blue);
 }
 
 .json-fullscreen-backdrop {
@@ -3267,11 +2709,6 @@ button:not(:disabled) {
 
 .json-punctuation {
   color: var(--text-weak);
-}
-
-.image-value-viewer {
-  display: grid;
-  gap: 10px;
 }
 
 .image-preview-frame {
@@ -3507,19 +2944,9 @@ button:not(:disabled) {
     padding: 6px 8px;
   }
 
-  .storage-tabs button {
-    height: 26px;
-    padding: 0 10px;
-  }
-
   .storage-actions {
     width: 100%;
     justify-content: space-between;
-  }
-
-  .storage-split {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(220px, 1fr) minmax(260px, 1fr);
   }
 
   .storage-workspace.has-detail.split-layout-stacked {
@@ -3614,31 +3041,9 @@ button:not(:disabled) {
   flex-shrink: 0;
 }
 
-/* 필터 접기/펴기 토글(검색바 끝). */
+/* 필터 접기/펴기 토글(검색바 끝). 시각 스타일은 공통 .btn 사용. */
 .panel-filter-toggle {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-  border: 0;
-  border-radius: 6px;
-  padding: 0;
-  color: var(--text-weak);
-  background: transparent;
-  cursor: pointer;
-}
-
-.panel-filter-toggle:hover {
-  color: var(--text-sub);
-  background: var(--fill-hover);
-}
-
-.panel-filter-toggle.active {
-  color: var(--text-strong);
-  background: var(--fill);
 }
 
 /* 필터가 걸려 있는데 접혀 있으면 점으로 표시. */
@@ -3691,10 +3096,17 @@ button:not(:disabled) {
   min-width: 0;
   height: 24px;
   padding: 0 8px;
-  border-radius: 7px;
+  border: 1px solid transparent;
+  border-radius: 8px;
   color: var(--text-weak);
   background: var(--fill);
   font-size: 11px;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.panel-filter-field:focus-within {
+  border-color: var(--blue);
+  background: var(--surface);
 }
 
 .panel-filter-label {
@@ -3781,22 +3193,3 @@ button:not(:disabled) {
   min-width: 8px;
 }
 
-.toolbar-icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  border: 0;
-  border-radius: 10px;
-  padding: 0;
-  color: var(--text-weak);
-  background: var(--fill);
-  cursor: pointer;
-}
-
-.toolbar-icon-button:hover {
-  color: var(--text-sub);
-  background: var(--fill-hover);
-}

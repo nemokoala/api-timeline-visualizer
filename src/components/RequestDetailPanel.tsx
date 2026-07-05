@@ -11,6 +11,7 @@ import { formatDateTime, formatDuration, formatLocaleDateTime } from './formatte
 import { ImagePreview } from './ImagePreview';
 import { DetailPanelCloseButton, SplitLayoutToggleButton } from './DetailPanelCloseButton';
 import { JsonViewer } from './JsonViewer';
+import { Button } from './ui/Button';
 
 type RequestDetailPanelProps = {
   request: ApiRequest;
@@ -153,8 +154,7 @@ export function RequestDetailPanel({
         expandForSearch={matchingSections.has('response')}
       >
         <div className="response-actions">
-          <button
-            type="button"
+          <Button
             onClick={() => onLoadResponseBody(request.id)}
             disabled={isBodyLoading || isBodyPending}
           >
@@ -163,7 +163,7 @@ export function RequestDetailPanel({
               : request.responseContent === undefined
                 ? 'Load body'
                 : 'Reload body'}
-          </button>
+          </Button>
         </div>
         <div className={`response-json-slot ${showLoadingOverlay ? 'is-loading' : ''}`}>
           <div
@@ -282,9 +282,7 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
             fetch
           </button>
         </div>
-        <button className="toolbar-button" type="button" onClick={() => void handleCopy()}>
-          {copied ? 'Copied' : 'Copy'}
-        </button>
+        <Button onClick={() => void handleCopy()}>{copied ? 'Copied' : 'Copy'}</Button>
       </div>
       <pre className="code-snippet-viewer">
         {hasSearch ? highlightSearchText(snippet, searchText, searchOptions) : snippet}

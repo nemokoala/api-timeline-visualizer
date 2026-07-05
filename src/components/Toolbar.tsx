@@ -1,4 +1,5 @@
 import { useTheme } from '../hooks/useTheme';
+import { IconButton } from './ui/Button';
 
 export type WorkspaceMode = 'network' | 'storage' | 'console';
 export type NetworkViewMode = 'flow' | 'timeline';
@@ -70,9 +71,8 @@ export function Toolbar({
               );
             })}
           </div>
-          <button
-            className="toolbar-icon-button"
-            type="button"
+          <IconButton
+            size="md"
             aria-label="레이아웃 초기화"
             title="레이아웃 초기화 (기본 배치로)"
             onClick={onResetLayout}
@@ -81,7 +81,7 @@ export function Toolbar({
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <path d="M14 3v18M14 12h7" />
             </svg>
-          </button>
+          </IconButton>
           <ThemeToggleButton />
         </div>
       </div>
@@ -94,9 +94,8 @@ function ThemeToggleButton() {
   const isDark = theme === 'dark';
 
   return (
-    <button
-      className="theme-toggle"
-      type="button"
+    <IconButton
+      size="md"
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       onClick={toggleTheme}
@@ -131,6 +130,6 @@ function ThemeToggleButton() {
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
         </svg>
       )}
-    </button>
+    </IconButton>
   );
 }
