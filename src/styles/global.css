@@ -952,7 +952,6 @@ button:not(:disabled) {
   display: grid;
   min-height: 0;
   height: 100%;
-  padding: 12px;
   overflow: hidden;
 }
 
@@ -962,20 +961,13 @@ button:not(:disabled) {
   min-height: 0;
 }
 
-.storage-workspace.has-detail:not(.split-layout-stacked) {
-  padding-right: 0;
-}
-
 .storage-table-wrap,
 .indexeddb-tree,
 .storage-value-panel {
   min-width: 0;
   min-height: 0;
   overflow: auto;
-  border: 1px solid var(--border-weak);
-  border-radius: 14px;
   background: var(--surface);
-  box-shadow: var(--shadow-card);
 }
 
 .storage-table {
@@ -1517,7 +1509,6 @@ button:not(:disabled) {
   display: grid;
   min-height: 0;
   height: 100%;
-  padding: 12px;
   overflow: hidden;
 }
 
@@ -1526,18 +1517,11 @@ button:not(:disabled) {
   min-height: 0;
 }
 
-.console-workspace.has-detail:not(.split-layout-stacked) {
-  padding-right: 0;
-}
-
 .console-log-list {
   min-width: 0;
   min-height: 0;
   overflow: auto;
-  border: 1px solid var(--border-weak);
-  border-radius: 14px;
   background: var(--surface);
-  box-shadow: var(--shadow-card);
 }
 
 .console-empty {
