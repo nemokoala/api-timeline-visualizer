@@ -20,6 +20,7 @@ import {
   removeWebStorageItem,
   setWebStorageItem,
 } from "../utils/storageInspector";
+import { getMockStorageSnapshot, shouldUseMockData } from "../mocks/mockData";
 import { formatStorageValuePreview } from "../utils/storageBlobValue";
 import { matchesIncludeExcludeFilters } from "../utils/textFilters";
 import { scrollSearchHitIntoView } from "../utils/searchScroll";
@@ -176,7 +177,11 @@ export function StorageView({
   };
 
   useEffect(() => {
-    if (!canInspectPageStorage()) return;
+    if (!canInspectPageStorage()) {
+      // 로컬 개발: DevTools가 없으면 목업 스냅샷으로 채운다.
+      if (shouldUseMockData()) setSnapshot(getMockStorageSnapshot());
+      return;
+    }
     void loadSnapshot();
     // Load once when the storage workspace first mounts.
     // eslint-disable-next-line react-hooks/exhaustive-deps

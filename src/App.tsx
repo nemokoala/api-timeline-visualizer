@@ -80,6 +80,7 @@ import {
   saveNetworkViewMode,
 } from './utils/networkFlowPrefs';
 import { getWorkspaceMode, saveWorkspaceMode } from './utils/workspacePrefs';
+import { getMockConsoleEntries, getMockRequests, shouldUseMockData } from './mocks/mockData';
 
 const PRELOAD_CONCURRENCY = 4;
 const PRELOAD_MAX = 100;
@@ -348,6 +349,14 @@ export default function App() {
     return () => {
       chrome.devtools.network.onRequestFinished.removeListener(handleRequestFinished);
     };
+  }, []);
+
+  // 로컬 개발(npm run dev): DevTools 컨텍스트가 아니라 실데이터 소스가 없으므로 목업을 주입한다.
+  // 확장 프로그램 빌드에서는 shouldUseMockData()가 false라 실행되지 않는다.
+  useEffect(() => {
+    if (!shouldUseMockData()) return;
+    setRequests(getMockRequests());
+    setConsoleEntries(getMockConsoleEntries());
   }, []);
 
   const handleClear = useCallback(() => {
