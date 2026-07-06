@@ -1084,7 +1084,11 @@ button:not(:disabled) {
 }
 
 .storage-detail-value .json-viewer-body {
-  flex: none;
+  /* 내용이 적어도 body가 wrap의 min-height(180px)를 채우게 해서 리사이즈 핸들을 카드 바닥에
+     고정한다. flex:none이면 핸들이 콘텐츠 바로 아래에 뜨고, 드래그 시작 시 is-resized로 body가
+     flex:1이 되며 핸들이 최소높이 바닥으로 갑자기 튀어 내려간다. basis:auto·shrink:0이라
+     내용이 많으면 기존처럼 콘텐츠 높이로 자라난다(overflow:visible 유지). */
+  flex: 1 0 auto;
   min-height: 0;
 }
 
