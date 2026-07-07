@@ -10,6 +10,7 @@ import {
 } from '../../utils/timelinePrefs';
 import type { RequestSearchSummary } from '../../utils/requestSearch';
 import { formatDateTime, formatDuration, getRequestKindLabel, getStatusTone } from '../../utils/formatters';
+import { getResponseImageThumbnail } from '../../utils/imageSource';
 import { SearchHitBadge } from './SearchHitBadge';
 import { ColumnMenu } from '../shared/ColumnMenu';
 
@@ -21,6 +22,8 @@ type TimelineViewProps = {
   searchOccurrenceByRequest: Map<string, RequestSearchSummary>;
   activeGlobalSearchIndex: number | null;
   onSelectRequest: (requestId: string) => void;
+  /** 이미지 행이 화면에 들어오면 썸네일용 응답 본문을 지연 로드한다. */
+  onEnsureThumbnailBody?: (requestId: string) => void;
 };
 
 const COLUMN_WIDTHS: Record<TimelineColumnId, string> = {
@@ -76,6 +79,7 @@ export function TimelineView({
   searchOccurrenceByRequest,
   activeGlobalSearchIndex,
   onSelectRequest,
+  onEnsureThumbnailBody,
 }: TimelineViewProps) {
   const [prefs, setPrefs] = useState<TimelinePrefs>(getTimelinePrefs);
   const [columnMenu, setColumnMenu] = useState<{ x: number; y: number } | null>(null);
@@ -84,6 +88,9 @@ export function TimelineView({
     [requests],
   );
   const rowRefs = useRef(new Map<string, HTMLButtonElement>());
+  const thumbObserverRef = useRef<IntersectionObserver | null>(null);
+  const onEnsureThumbnailBodyRef = useRef(onEnsureThumbnailBody);
+  onEnsureThumbnailBodyRef.current = onEnsureThumbnailBody;
   const hasSearch = Boolean(searchText.trim());
 
   const sortedItems = useMemo(() => {
@@ -137,6 +144,35 @@ export function TimelineView({
     if (!selectedRequestId) return;
     rowRefs.current.get(selectedRequestId)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [sortedItems, selectedRequestId]);
+
+  // 이미지 썸네일: 화면(근처)에 들어온 이미지 행의 응답 본문을 지연 로드한다.
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const requestId = (entry.target as HTMLElement).dataset.requestId;
+          if (requestId) onEnsureThumbnailBodyRef.current?.(requestId);
+        }
+      },
+      { rootMargin: '150px' },
+    );
+    thumbObserverRef.current = observer;
+    return () => observer.disconnect();
+  }, []);
+
+  // 본문이 아직 없는 이미지 행만 관찰(로드되면 다음 렌더에서 관찰 대상에서 빠진다).
+  useEffect(() => {
+    const observer = thumbObserverRef.current;
+    if (!observer) return;
+    observer.disconnect();
+    for (const item of sortedItems) {
+      const request = requestById.get(item.requestId);
+      if (request?.type !== 'image' || request.responseContent !== undefined) continue;
+      const element = rowRefs.current.get(item.requestId);
+      if (element) observer.observe(element);
+    }
+  }, [sortedItems, requestById]);
 
   return (
     <section className="timeline-panel" aria-label="Timeline">
@@ -197,6 +233,10 @@ export function TimelineView({
             const isSelected = selectedRequestId === item.requestId;
             const searchSummary = searchOccurrenceByRequest.get(item.requestId);
             const queryString = prefs.showQuery ? getQueryString(request?.url) : '';
+            const thumbnailSrc =
+              request?.type === 'image'
+                ? getResponseImageThumbnail(request.responseContent, request.mimeType)
+                : null;
 
             return (
               <button
@@ -205,6 +245,7 @@ export function TimelineView({
                   if (element) rowRefs.current.set(item.requestId, element);
                   else rowRefs.current.delete(item.requestId);
                 }}
+                data-request-id={item.requestId}
                 className={`request-row ${isSelected ? 'selected' : ''} ${hasSearch ? 'search-match' : ''}`}
                 type="button"
                 style={{ gridTemplateColumns }}
@@ -217,6 +258,9 @@ export function TimelineView({
                   <span className="request-main">
                     <span className="request-meta">
                       <span className={`method method-${item.method.toLowerCase()}`}>{item.method}</span>
+                      {thumbnailSrc ? (
+                        <img className="row-thumb" src={thumbnailSrc} alt="" loading="lazy" />
+                      ) : null}
                       <span className="path">
                         {item.normalizedPath}
                         {queryString ? <span className="path-query">{queryString}</span> : null}

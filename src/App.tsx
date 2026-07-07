@@ -589,6 +589,23 @@ export default function App() {
     [bodyLoadingId, fetchResponseContent, requests],
   );
 
+  // 이미지 썸네일용: 상세 패널 스피너(bodyLoadingId)를 건드리지 않고 본문만 채운다.
+  // 여러 이미지 행이 동시에 요청될 수 있으므로 in-flight 집합으로 중복을 막는다.
+  const ensureResponseBody = useCallback(
+    (requestId: string) => {
+      const target = requests.find((request) => request.id === requestId);
+      if (!target || target.responseContent !== undefined) return;
+      if (preloadInFlightRef.current.has(requestId)) return;
+      if (!networkRequestById.current.has(requestId)) return;
+
+      preloadInFlightRef.current.add(requestId);
+      fetchResponseContent(requestId, () => {
+        preloadInFlightRef.current.delete(requestId);
+      });
+    },
+    [fetchResponseContent, requests],
+  );
+
   const drainPreloadQueue = useCallback(() => {
     while (preloadInFlightRef.current.size < PRELOAD_CONCURRENCY && preloadQueueRef.current.length > 0) {
       const requestId = preloadQueueRef.current.shift();
@@ -809,6 +826,7 @@ export default function App() {
     networkSearchMatchIndex,
     activeSearchOccurrence,
     onLoadResponseBody: loadResponseBody,
+    onEnsureThumbnailBody: ensureResponseBody,
     onCloseDetail: handleCloseDetail,
     storageSearchText,
     storageSearchMatchIndex,

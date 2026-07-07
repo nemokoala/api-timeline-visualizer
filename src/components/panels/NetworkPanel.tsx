@@ -102,6 +102,7 @@ export function NetworkPanel() {
           searchOccurrenceByRequest={ctx.searchOccurrenceByRequest}
           activeGlobalSearchIndex={ctx.activeGlobalSearchIndex}
           onSelectRequest={ctx.onSelectRequest}
+          onEnsureThumbnailBody={ctx.onEnsureThumbnailBody}
         />
       )}
       {selectedRequest ? (

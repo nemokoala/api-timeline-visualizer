@@ -85,6 +85,8 @@ export type WorkspaceContextValue = {
   networkSearchMatchIndex: number;
   activeSearchOccurrence: SearchOccurrence | null;
   onLoadResponseBody: (requestId: string) => void;
+  /** 이미지 썸네일용 응답 본문 지연 로드(상세 스피너 미표시). */
+  onEnsureThumbnailBody: (requestId: string) => void;
   onCloseDetail: () => void;
   // Storage
   storageSearchText: string;

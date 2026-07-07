@@ -174,7 +174,8 @@ const SEEDS: MockRequestSeed[] = [
     duration: 34,
     type: 'image',
     mimeType: 'image/svg+xml',
-    response: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"></svg>',
+    response:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><circle cx="12" cy="12" r="10" fill="#7048e8"/></svg>',
   },
   {
     id: 'mock-11',
@@ -220,6 +221,19 @@ const SEEDS: MockRequestSeed[] = [
     type: 'media',
     mimeType: 'video/mp4',
     response: 'Response body is not available.',
+  },
+  {
+    id: 'mock-15',
+    method: 'GET',
+    path: '/assets/avatar.png',
+    status: 200,
+    offset: 140,
+    duration: 52,
+    type: 'image',
+    mimeType: 'image/png',
+    // 실제 확장에서 getContent가 돌려주는 것과 동일한 bare base64(썸네일 경로 검증용).
+    response:
+      'iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAIAAADZF8uwAAAAE0lEQVR4nGNQyf9GEDGMKhqMigBKrd0RN+JkhwAAAABJRU5ErkJggg==',
   },
 ];
 

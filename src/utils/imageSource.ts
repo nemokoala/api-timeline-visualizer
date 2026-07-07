@@ -30,6 +30,24 @@ export function getImageSource(value: unknown, mimeType?: string, recordKey?: st
   return null;
 }
 
+/**
+ * 이미지 요청의 응답 본문(getContent 결과)에서 썸네일용 data URL을 만든다.
+ * 바이너리 이미지는 base64 문자열로, SVG는 텍스트로 들어오므로 각각 처리한다.
+ */
+export function getResponseImageThumbnail(content: string | undefined, mimeType?: string): string | null {
+  if (!content || !mimeType?.startsWith('image/')) return null;
+
+  const direct = getImageSource(content, mimeType);
+  if (direct) return direct;
+
+  // getContent가 SVG를 base64가 아니라 원본 텍스트로 돌려주는 경우.
+  if (mimeType.includes('svg') && content.includes('<svg')) {
+    return `data:image/svg+xml;utf8,${encodeURIComponent(content)}`;
+  }
+
+  return null;
+}
+
 function findImageCandidate(value: unknown): string | null {
   if (typeof value === 'string') return value.trim();
 
