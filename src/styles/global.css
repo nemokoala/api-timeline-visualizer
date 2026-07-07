@@ -2027,6 +2027,161 @@ button:not(:disabled) {
   background: var(--border-weak);
 }
 
+/* ---------------------------------------------------------------------------
+   공용 DataTable (components/shared/DataTable.tsx)
+   Network·Storage·Console이 공유하는 헤더/행/셀/리사이즈 스타일.
+   도메인 셀(.method, .kind-tag, .bar-track, .console-level-badge 등)은 각자 유지. */
+.data-table {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+}
+
+.data-table-header {
+  display: grid;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-weak);
+}
+
+.data-table-header-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 7px 12px;
+  color: var(--text-weak);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.data-table-header-cell.is-sortable {
+  cursor: pointer;
+}
+
+.data-table-header-cell.is-sorted {
+  color: var(--text-strong);
+}
+
+.data-table-header-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.data-table-sort-indicator {
+  color: var(--blue);
+  font-size: 10px;
+}
+
+.data-table-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 9px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.data-table-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 22%;
+  right: 4px;
+  width: 2px;
+  height: 56%;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.data-table-resize-handle:hover::after,
+.data-table-resize-handle.is-resizing::after {
+  top: 0;
+  height: 100%;
+  background: var(--blue);
+}
+
+.data-table-body {
+  flex: 0 0 auto;
+}
+
+.data-table-row {
+  border-bottom: 1px solid var(--border-weak);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.data-table-row:hover {
+  background: var(--row-hover);
+}
+
+.data-table-row.selected {
+  background: var(--blue-soft);
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+
+.data-table-row-cells {
+  display: grid;
+  align-items: center;
+}
+
+.data-table-cell {
+  min-width: 0;
+  overflow: hidden;
+  padding: 7px 12px;
+  font-size: 12px;
+}
+
+.data-table-empty {
+  padding: 16px 12px;
+  color: var(--text-weak);
+  font-size: 12px;
+}
+
+/* Console 레벨 색조(행 클래스 is-error/is-warn). 기본 hover/selected 뒤에 와서 우선. */
+.data-table-row.is-error {
+  background: rgba(240, 68, 82, 0.05);
+}
+
+.data-table-row.is-error:hover,
+.data-table-row.is-error.selected {
+  background: rgba(240, 68, 82, 0.1);
+}
+
+.data-table-row.is-warn {
+  background: rgba(255, 158, 44, 0.07);
+}
+
+/* Console wrap lines: 메시지/소스 줄바꿈 허용. */
+.data-table.wrap-lines .data-table-row-cells {
+  align-items: flex-start;
+}
+
+.data-table.wrap-lines .console-log-message {
+  overflow: visible;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.data-table.wrap-lines .console-log-source {
+  overflow: visible;
+  max-width: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .timeline-list {
   padding: 4px 0 12px;
 }

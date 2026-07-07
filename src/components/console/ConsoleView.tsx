@@ -19,6 +19,9 @@ import { JsonViewer } from '../shared/JsonViewer';
 import { SplitPanelResizer } from '../shared/SplitPanelResizer';
 import { formatDateTime } from '../../utils/formatters';
 import { ColumnMenu } from '../shared/ColumnMenu';
+import { DataTable } from '../shared/DataTable';
+import { getTablePrefs, saveTablePrefs, type TablePrefs } from '../../utils/tablePrefs';
+import type { ColumnDef, ColumnSizingState, OnChangeFn } from '@tanstack/react-table';
 import { Button } from '../ui/Button';
 
 type ConsoleViewProps = {
@@ -44,7 +47,6 @@ const LEVEL_FILTERS: Array<{ value: ConsoleLevelFilter; label: string }> = [
 ];
 
 type ConsoleColumnId = 'level' | 'timestamp' | 'source';
-type ColumnVisibility = Record<ConsoleColumnId, boolean>;
 
 const CONSOLE_COLUMNS: Array<{ id: ConsoleColumnId; label: string }> = [
   { id: 'level', label: 'Level' },
@@ -52,20 +54,13 @@ const CONSOLE_COLUMNS: Array<{ id: ConsoleColumnId; label: string }> = [
   { id: 'source', label: 'Source' },
 ];
 
-const COLUMNS_STORAGE_KEY = 'console-column-visibility';
 const WRAP_LINES_STORAGE_KEY = 'console-wrap-lines';
-const DEFAULT_COLUMN_VISIBILITY: ColumnVisibility = { level: true, timestamp: true, source: true };
+const CONSOLE_PREFS_KEY = 'console-table-prefs';
 
-function loadColumnVisibility(): ColumnVisibility {
-  try {
-    const raw = localStorage.getItem(COLUMNS_STORAGE_KEY);
-    if (!raw) return DEFAULT_COLUMN_VISIBILITY;
-    const parsed = JSON.parse(raw) as Partial<ColumnVisibility>;
-    return { ...DEFAULT_COLUMN_VISIBILITY, ...parsed };
-  } catch {
-    return DEFAULT_COLUMN_VISIBILITY;
-  }
-}
+const CONSOLE_DEFAULT_PREFS: TablePrefs = {
+  columnVisibility: { level: true, timestamp: true, message: true, repeat: true, source: true },
+  columnWidths: { level: 60, timestamp: 96, repeat: 48, source: 150 },
+};
 
 function loadWrapLines(): boolean {
   try {
@@ -73,16 +68,6 @@ function loadWrapLines(): boolean {
   } catch {
     return false;
   }
-}
-
-function buildGridStyle(vis: ColumnVisibility): { gridTemplateColumns: string } {
-  const tracks: string[] = [];
-  if (vis.level) tracks.push('56px');
-  if (vis.timestamp) tracks.push('88px');
-  tracks.push('minmax(0, 1fr)');
-  tracks.push('auto');
-  if (vis.source) tracks.push('auto');
-  return { gridTemplateColumns: tracks.join(' ') };
 }
 
 export function ConsoleView({
@@ -101,20 +86,93 @@ export function ConsoleView({
   const [levelFilter, setLevelFilter] = useState<ConsoleLevelFilter>('all');
   const [autoScroll, setAutoScroll] = useState(true);
   const [wrapLines, setWrapLines] = useState(loadWrapLines);
-  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(loadColumnVisibility);
+  const [tablePrefs, setTablePrefs] = useState<TablePrefs>(() =>
+    getTablePrefs(CONSOLE_PREFS_KEY, CONSOLE_DEFAULT_PREFS),
+  );
   const [columnMenu, setColumnMenu] = useState<{ x: number; y: number } | null>(null);
   const consoleWorkspaceRef = useRef<HTMLDivElement>(null);
-  const logListRef = useRef<HTMLDivElement>(null);
+  const logListRef = useRef<HTMLDivElement | null>(null);
 
-  const gridStyle = buildGridStyle(columnVisibility);
+  const persistTablePrefs = (next: TablePrefs) => {
+    setTablePrefs(next);
+    saveTablePrefs(CONSOLE_PREFS_KEY, next);
+  };
 
   const handleColumnToggle = (col: ConsoleColumnId) => {
-    setColumnVisibility((prev) => {
-      const next = { ...prev, [col]: !prev[col] };
-      localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(next));
-      return next;
+    persistTablePrefs({
+      ...tablePrefs,
+      columnVisibility: { ...tablePrefs.columnVisibility, [col]: !tablePrefs.columnVisibility[col] },
     });
   };
+
+  const handleColumnSizingChange: OnChangeFn<ColumnSizingState> = (updater) => {
+    const next = typeof updater === 'function' ? updater(tablePrefs.columnWidths) : updater;
+    persistTablePrefs({ ...tablePrefs, columnWidths: next });
+  };
+
+  const columns = useMemo<ColumnDef<ConsoleEntry, unknown>[]>(
+    () => [
+      {
+        id: 'level',
+        header: 'Level',
+        size: 60,
+        minSize: 44,
+        cell: ({ row }) => (
+          <span className={`console-level-badge is-${row.original.level}`}>{row.original.level}</span>
+        ),
+      },
+      {
+        id: 'timestamp',
+        header: 'Time',
+        size: 96,
+        minSize: 72,
+        cell: ({ row }) => (
+          <span className="console-log-timestamp">{formatDateTime(row.original.timestamp)}</span>
+        ),
+      },
+      {
+        id: 'message',
+        header: 'Message',
+        enableResizing: false,
+        meta: { flex: true, minWidth: 160 },
+        cell: ({ row }) => {
+          const preview = formatConsoleMessagePreview(row.original.text);
+          return (
+            <span className="console-log-message" title={row.original.text}>
+              {searchText.trim() ? highlightSearchText(preview, searchText, searchOptions) : preview}
+            </span>
+          );
+        },
+      },
+      {
+        id: 'repeat',
+        header: '',
+        size: 48,
+        minSize: 32,
+        enableResizing: false,
+        cell: ({ row }) =>
+          row.original.repeatCount && row.original.repeatCount > 1 ? (
+            <span className="console-repeat-badge">{row.original.repeatCount}</span>
+          ) : null,
+      },
+      {
+        id: 'source',
+        header: 'Source',
+        size: 150,
+        minSize: 80,
+        cell: ({ row }) => {
+          const source = row.original.source;
+          if (!source) return null;
+          return (
+            <span className="console-log-source" title={source}>
+              {searchText.trim() ? highlightSearchText(source, searchText, searchOptions) : source}
+            </span>
+          );
+        },
+      },
+    ],
+    [searchOptions, searchText],
+  );
 
   const handleColumnContextMenu = (event: ReactMouseEvent) => {
     event.preventDefault();
@@ -200,15 +258,18 @@ export function ConsoleView({
     if (!activeSearchOccurrence) return;
 
     const frameId = window.requestAnimationFrame(() => {
-      const row = document.getElementById(`console-log-${activeSearchOccurrence.entryId}`);
+      const list = logListRef.current;
+      const row = list?.querySelector<HTMLElement>(
+        `[data-row-id="${CSS.escape(activeSearchOccurrence.entryId)}"]`,
+      );
 
       // Always scroll the list to the active hit, even while a detail panel is
       // open — otherwise navigating hits leaves the list (and the detail panel,
       // which stays on the clicked entry) frozen in place.
       if (row) scrollSearchHitIntoView(row);
 
-      document
-        .querySelectorAll('.console-log-list .search-highlight.is-active')
+      list
+        ?.querySelectorAll('.search-highlight.is-active')
         .forEach((mark) => mark.classList.remove('is-active'));
 
       if (!hasDetail) {
@@ -295,35 +356,24 @@ export function ConsoleView({
         className={`console-workspace ${hasDetail ? 'has-detail' : ''} ${hasDetail && isSplitStacked ? 'split-layout-stacked' : ''}`}
         style={hasDetail ? splitLayoutStyle : undefined}
       >
-        <div className={`console-log-list ${wrapLines ? 'wrap-lines' : ''}`} ref={logListRef}>
-          <div
-            className="console-log-header"
-            style={gridStyle}
-            onContextMenu={handleColumnContextMenu}
-            title="우클릭: 열 표시 설정"
-          >
-            {columnVisibility.level && <span className="console-log-header-cell">Level</span>}
-            {columnVisibility.timestamp && <span className="console-log-header-cell">Timestamp</span>}
-            <span className="console-log-header-cell">Message</span>
-            <span />
-            {columnVisibility.source && <span className="console-log-header-cell">Source</span>}
-          </div>
-          {!displayEntries.length ? (
-            <div className="console-empty">No console output yet. Logs appear after the panel opens.</div>
-          ) : (
-            displayEntries.map((entry) => (
-              <ConsoleLogRow
-                key={entry.id}
-                entry={entry}
-                selected={selectedEntryId === entry.id}
-                searchText={searchText}
-                columnVisibility={columnVisibility}
-                gridStyle={gridStyle}
-                onSelect={() => handleSelectEntry(entry.id)}
-              />
-            ))
-          )}
-        </div>
+        <DataTable
+          ariaLabel="Console logs"
+          className={`console-log-list ${wrapLines ? 'wrap-lines' : ''}`}
+          rootRef={(element) => {
+            logListRef.current = element;
+          }}
+          columns={columns}
+          data={displayEntries}
+          getRowId={(entry) => entry.id}
+          columnSizing={tablePrefs.columnWidths}
+          onColumnSizingChange={handleColumnSizingChange}
+          columnVisibility={tablePrefs.columnVisibility}
+          selectedRowId={selectedEntryId}
+          onRowClick={(entry) => handleSelectEntry(entry.id)}
+          rowClassName={(entry) => `is-${entry.level}`}
+          onHeaderContextMenu={handleColumnContextMenu}
+          emptyState="No console output yet. Logs appear after the panel opens."
+        />
 
         {hasDetail && selectedEntry ? (
           <>
@@ -349,7 +399,7 @@ export function ConsoleView({
       {columnMenu ? (
         <ColumnMenu
           columns={CONSOLE_COLUMNS}
-          visibility={columnVisibility}
+          visibility={tablePrefs.columnVisibility as Record<ConsoleColumnId, boolean>}
           position={columnMenu}
           minVisible={0}
           onToggle={handleColumnToggle}
@@ -357,61 +407,6 @@ export function ConsoleView({
         />
       ) : null}
     </section>
-  );
-}
-
-function ConsoleLogRow({
-  entry,
-  selected,
-  searchText,
-  columnVisibility,
-  gridStyle,
-  onSelect,
-}: {
-  entry: ConsoleEntry;
-  selected: boolean;
-  searchText: string;
-  columnVisibility: ColumnVisibility;
-  gridStyle: { gridTemplateColumns: string };
-  onSelect: () => void;
-}) {
-  const searchOptions = useSearchOptions();
-  const hasSearch = Boolean(searchText.trim());
-  const levelClass = `is-${entry.level}`;
-  const displayText = formatConsoleMessagePreview(entry.text);
-
-  return (
-    <button
-      id={`console-log-${entry.id}`}
-      type="button"
-      className={`console-log-row ${levelClass} ${selected ? 'selected' : ''}`}
-      style={gridStyle}
-      onClick={onSelect}
-    >
-      {columnVisibility.level && (
-        <span className={`console-level-badge ${levelClass}`}>{entry.level}</span>
-      )}
-      {columnVisibility.timestamp && (
-        <span className="console-log-timestamp">{formatDateTime(entry.timestamp)}</span>
-      )}
-      <span className="console-log-message" title={entry.text}>
-        {hasSearch ? highlightSearchText(displayText, searchText, searchOptions) : displayText}
-      </span>
-      <span>
-        {entry.repeatCount && entry.repeatCount > 1 ? (
-          <span className="console-repeat-badge">{entry.repeatCount}</span>
-        ) : null}
-      </span>
-      {columnVisibility.source && (
-        <span className="console-log-source" title={entry.source ?? ''}>
-          {entry.source
-            ? hasSearch
-              ? highlightSearchText(entry.source, searchText, searchOptions)
-              : entry.source
-            : null}
-        </span>
-      )}
-    </button>
   );
 }
 

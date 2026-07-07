@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-table": "^8.21.3",
     "@vitejs/plugin-react": "^4.5.2",
     "@xyflow/react": "^12.11.0",
     "dockview-react": "^7.0.2",
