@@ -140,9 +140,20 @@ export function TimelineView({
     });
   };
 
+  // 선택한 행을 화면에 보이게 스크롤하되, "선택이 바뀔 때"만 한 번 스크롤한다.
+  // (새 요청이 계속 들어와 sortedItems가 갱신될 때마다 선택 행으로 스크롤이 튀는 것을 막는다.)
+  const scrolledSelectionRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!selectedRequestId) return;
-    rowRefs.current.get(selectedRequestId)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (!selectedRequestId) {
+      scrolledSelectionRef.current = null;
+      return;
+    }
+    if (scrolledSelectionRef.current === selectedRequestId) return;
+    const element = rowRefs.current.get(selectedRequestId);
+    if (element) {
+      element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      scrolledSelectionRef.current = selectedRequestId;
+    }
   }, [sortedItems, selectedRequestId]);
 
   // 이미지 썸네일: 화면(근처)에 들어온 이미지 행의 응답 본문을 지연 로드한다.

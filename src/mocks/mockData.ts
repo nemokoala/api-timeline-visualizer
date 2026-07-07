@@ -213,7 +213,7 @@ const SEEDS: MockRequestSeed[] = [
   {
     id: 'mock-14',
     method: 'GET',
-    path: '/assets/intro.mp4',
+    path: '/private/development/:id/:id/analysis-output/:id/videos/74754257-8123-4abc-9def-intro.mp4',
     status: 206,
     statusText: 'Partial Content',
     offset: 4200,

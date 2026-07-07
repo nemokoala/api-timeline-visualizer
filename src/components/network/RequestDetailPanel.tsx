@@ -11,7 +11,7 @@ import { formatDateTime, formatDuration, formatLocaleDateTime } from '../../util
 import { ImagePreview } from '../shared/ImagePreview';
 import { DetailPanelCloseButton, SplitLayoutToggleButton } from '../shared/DetailPanelCloseButton';
 import { JsonViewer } from '../shared/JsonViewer';
-import { Button } from '../ui/Button';
+import { Button, IconButton } from '../ui/Button';
 
 type RequestDetailPanelProps = {
   request: ApiRequest;
@@ -72,6 +72,8 @@ export function RequestDetailPanel({
     getImageSource(request.normalizedPath) ?? getImageSource(request.path) ?? getImageSource(request.url);
   const title = titleImageSource ? 'Image payload' : request.normalizedPath;
   const displayUrl = titleImageSource ? summarizeImageUrl(request.url) : request.url;
+  const canOpenInNewTab =
+    request.type === 'media' || /^(video|audio)\//.test(request.mimeType ?? '');
   const responseBodyValue = request.responsePreview ?? request.responseContent;
   const isBodyPending = responseBodyValue === undefined;
   const showLoadingOverlay = isBodyPending || (isBodyLoading && request.responseContent === undefined);
@@ -93,6 +95,30 @@ export function RequestDetailPanel({
         </div>
         <div className="detail-panel-title-actions">
           <span className={`detail-status ${request.status >= 400 ? 'bad' : 'good'}`}>{request.status || 'n/a'}</span>
+          {canOpenInNewTab ? (
+            <IconButton
+              size="md"
+              aria-label="새 탭에서 열기"
+              title="새 탭에서 열기"
+              onClick={() => window.open(request.url, '_blank', 'noopener,noreferrer')}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </IconButton>
+          ) : null}
           <SplitLayoutToggleButton isStacked={isStacked} onClick={onToggleLayout} />
           <DetailPanelCloseButton onClick={onClose} label="Close request detail" />
         </div>
