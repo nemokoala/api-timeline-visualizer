@@ -216,14 +216,7 @@ export function TimelineView({
                 {prefs.columnVisibility.request ? (
                   <span className="request-main">
                     <span className="request-meta">
-                      <span className="method-cell">
-                        <span className={`method method-${item.method.toLowerCase()}`}>{item.method}</span>
-                        {request ? (
-                          <span className={`kind-tag kind-${request.type}`}>
-                            {getRequestKindLabel(request.type)}
-                          </span>
-                        ) : null}
-                      </span>
+                      <span className={`method method-${item.method.toLowerCase()}`}>{item.method}</span>
                       <span className="path">
                         {item.normalizedPath}
                         {queryString ? <span className="path-query">{queryString}</span> : null}
@@ -235,11 +228,18 @@ export function TimelineView({
                         />
                       ) : null}
                     </span>
-                    <span className="bar-track" aria-hidden="true">
-                      <span
-                        className={`bar ${item.isError ? 'error' : item.isSlow ? 'slow' : 'ok'}`}
-                        style={{ left: `${startPercent}%`, width: `${widthPercent}%` }}
-                      />
+                    <span className="request-timing">
+                      {request ? (
+                        <span className={`kind-tag kind-${request.type}`}>
+                          {getRequestKindLabel(request.type)}
+                        </span>
+                      ) : null}
+                      <span className="bar-track" aria-hidden="true">
+                        <span
+                          className={`bar ${item.isError ? 'error' : item.isSlow ? 'slow' : 'ok'}`}
+                          style={{ left: `${startPercent}%`, width: `${widthPercent}%` }}
+                        />
+                      </span>
                     </span>
                   </span>
                 ) : null}

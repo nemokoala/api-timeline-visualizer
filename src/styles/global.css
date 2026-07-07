@@ -1218,6 +1218,12 @@ button:not(:disabled) {
   flex: 0 0 auto;
 }
 
+/* Auto-scroll / Wrap lines 토글을 Clear 버튼(.btn-md)과 같은 크기로 맞춘다. */
+.console-toolbar-actions .toggle-control {
+  height: 28px;
+  border-radius: 9px;
+}
+
 .console-workspace {
   display: grid;
   min-height: 0;
@@ -2085,22 +2091,24 @@ button:not(:disabled) {
   min-width: 0;
 }
 
-.request-row .method-cell {
-  display: flex;
-  flex: 0 0 auto;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 2px;
-}
-
 .request-row .method {
   min-width: 40px;
   padding: 1px 5px;
   font-size: 10px;
 }
 
-/* 메소드 배지 아래 2행에 표시하는 리소스 종류(Fetch/XHR/CSS/JS/…). */
-.request-row .kind-tag {
+/* 두 번째 줄: 리소스 종류 라벨 + 시간 막대를 한 줄에 배치. */
+.request-timing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* 라벨은 메소드 열 폭에 맞춰 정렬하고, 막대가 나머지 폭을 채운다. */
+.request-timing .kind-tag {
+  flex: 0 0 auto;
+  min-width: 40px;
   text-align: center;
   font-size: 9px;
   font-weight: 700;
@@ -2108,6 +2116,11 @@ button:not(:disabled) {
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--text-weak);
+}
+
+.request-timing .bar-track {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 /* 종류별 색상. API 계열은 blue/purple, 정적 리소스는 각기 다른 색으로 구분. */
@@ -3090,6 +3103,15 @@ button:not(:disabled) {
 
 .network-actions .segmented-control {
   flex-shrink: 0;
+  padding: 2px;
+  border-radius: 9px;
+}
+
+.network-actions .segmented-control button {
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 7px;
+  font-size: 11px;
 }
 
 .network-actions-sep {
@@ -3104,25 +3126,72 @@ button:not(:disabled) {
   flex-shrink: 0;
 }
 
-/* 리소스 타입 표시 토글(CSS/JS/Img/Font/Media). */
-.resource-type-filter {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
+/* 리소스 타입 표시 드롭다운("Types" 버튼 + 팝오버). */
+.resource-type-count {
+  margin-left: 5px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--fill);
+  color: var(--text-sub);
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
-.resource-type-filter .toggle-control {
-  padding: 0 8px;
-  gap: 5px;
+.btn.active .resource-type-count {
+  background: rgba(255, 255, 255, 0.24);
+  color: inherit;
 }
 
-.resource-type-filter-sep {
-  width: 1px;
-  height: 16px;
-  margin: 0 2px;
+.resource-type-popover {
+  min-width: 168px;
+}
+
+.resource-type-group-label {
+  padding: 4px 9px 2px;
+  color: var(--text-weak);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.kind-dot {
+  width: 8px;
+  height: 8px;
   flex-shrink: 0;
-  background: var(--border);
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+.kind-dot.kind-fetch,
+.kind-dot.kind-document {
+  background: var(--blue);
+}
+
+.kind-dot.kind-xhr,
+.kind-dot.kind-websocket {
+  background: var(--purple);
+}
+
+.kind-dot.kind-stylesheet {
+  background: var(--teal);
+}
+
+.kind-dot.kind-script {
+  background: var(--orange-text);
+}
+
+.kind-dot.kind-image {
+  background: var(--green-text);
+}
+
+.kind-dot.kind-font {
+  background: var(--pink);
+}
+
+.kind-dot.kind-media {
+  background: var(--red-text);
 }
 
 /* 필터 접기/펴기 토글(검색바 끝). 시각 스타일은 공통 .btn 사용. */
@@ -3255,9 +3324,18 @@ button:not(:disabled) {
   color: var(--text-weak);
 }
 
+.segmented-control-dock {
+  padding: 2px;
+  border-radius: 9px;
+}
+
 /* 열려 있지만 포커스되지 않은 패널 표시(작은 점). */
 .segmented-control-dock button {
   position: relative;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font-size: 12px;
 }
 
 .segmented-control-dock button.is-open:not(.active)::after {
