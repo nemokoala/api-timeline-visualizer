@@ -1,10 +1,10 @@
 import { useRef } from 'react';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useSplitPanelLayout } from '../../hooks/useSplitPanelLayout';
-import { FlowChartView } from '../FlowChartView';
-import { RequestDetailPanel } from '../RequestDetailPanel';
-import { SplitPanelResizer } from '../SplitPanelResizer';
-import { TimelineView } from '../TimelineView';
+import { FlowChartView } from '../network/FlowChartView';
+import { RequestDetailPanel } from '../network/RequestDetailPanel';
+import { SplitPanelResizer } from '../shared/SplitPanelResizer';
+import { TimelineView } from '../network/TimelineView';
 import { Button } from '../ui/Button';
 import { PanelHeader } from './PanelHeader';
 

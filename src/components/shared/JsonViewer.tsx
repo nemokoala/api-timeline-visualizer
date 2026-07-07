@@ -6,16 +6,16 @@ import {
   type MouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { useSearchOptions } from '../contexts/SearchOptionsContext';
-import { highlightSearchText, textMatchesSearch, type SearchOptions } from '../utils/searchHighlight';
-import { scrollSearchHitIntoView } from '../utils/searchScroll';
-import { getImagePreviews, mergeBlobPreviewItems, type ImagePreviewItem } from '../utils/imageSource';
-import { fetchStorageRecordBlobPreviews } from '../utils/storageInspector';
-import { findStorageBlobPreviews, sanitizeStorageBlobsForDisplay } from '../utils/storageBlobValue';
+import { useSearchOptions } from '../../contexts/SearchOptionsContext';
+import { highlightSearchText, textMatchesSearch, type SearchOptions } from '../../utils/searchHighlight';
+import { scrollSearchHitIntoView } from '../../utils/searchScroll';
+import { getImagePreviews, mergeBlobPreviewItems, type ImagePreviewItem } from '../../utils/imageSource';
+import { fetchStorageRecordBlobPreviews } from '../../utils/storageInspector';
+import { findStorageBlobPreviews, sanitizeStorageBlobsForDisplay } from '../../utils/storageBlobValue';
 import { DetailSection } from './DetailSection';
 import { ImagePreviewGallery } from './ImagePreviewGallery';
-import { Button, IconButton } from './ui/Button';
-import { SearchOptionToggles } from './ui/SearchOptionToggles';
+import { Button, IconButton } from '../ui/Button';
+import { SearchOptionToggles } from '../ui/SearchOptionToggles';
 
 type ActiveFieldMenu = {
   id: string;

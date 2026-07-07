@@ -1,4 +1,4 @@
-import { IconButton } from './ui/Button';
+import { IconButton } from '../ui/Button';
 
 type DetailPanelCloseButtonProps = {
   onClick: () => void;

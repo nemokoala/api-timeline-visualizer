@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { NetworkViewMode, WorkspaceMode } from '../components/Toolbar';
+import type { NetworkViewMode, WorkspaceMode } from '../components/layout/Toolbar';
 import type { ConsoleEntry } from '../types/console';
 import type { ApiRequest, TimelineItem } from '../types/network';
 import type { ConsoleSearchOccurrence } from '../utils/consoleSearch';

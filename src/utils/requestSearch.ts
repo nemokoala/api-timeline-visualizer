@@ -1,4 +1,4 @@
-import { formatDateTime, formatDuration, formatLocaleDateTime } from '../components/formatters';
+import { formatDateTime, formatDuration, formatLocaleDateTime } from './formatters';
 import type { ApiRequest } from '../types/network';
 import { getImageSource } from './imageSource';
 import { generateCurl, generateFetch } from './requestCodeSnippets';

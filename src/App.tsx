@@ -4,10 +4,10 @@ import {
   buildDefaultWorkspaceLayout,
   focusOrOpenWorkspacePanel,
   WorkspaceDock,
-} from './components/WorkspaceDock';
+} from './components/layout/WorkspaceDock';
 import { WorkspaceProvider, type WorkspaceContextValue } from './contexts/WorkspaceContext';
 import { SearchOptionsProvider } from './contexts/SearchOptionsContext';
-import { Toolbar, type NetworkViewMode, type WorkspaceMode } from './components/Toolbar';
+import { Toolbar, type NetworkViewMode, type WorkspaceMode } from './components/layout/Toolbar';
 import type { ConsoleEntry } from './types/console';
 import type { DevtoolsNetworkRequest } from './types/chrome-har';
 import type { ApiRequest } from './types/network';

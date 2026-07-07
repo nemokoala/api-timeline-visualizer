@@ -29,22 +29,22 @@ import {
   type NodeTypes,
 } from "@xyflow/react";
 import type { ReactFlowInstance } from "@xyflow/react";
-import type { ApiRequest, TimelineItem } from "../types/network";
-import { useTheme } from "../hooks/useTheme";
-import { exportFlowChartToPng } from "../utils/exportFlowImage";
-import { getImageSource } from "../utils/imageSource";
+import type { ApiRequest, TimelineItem } from "../../types/network";
+import { useTheme } from "../../hooks/useTheme";
+import { exportFlowChartToPng } from "../../utils/exportFlowImage";
+import { getImageSource } from "../../utils/imageSource";
 import {
   type FlowLayout,
   type FlowManualEdge,
   type FlowShape,
   type FlowTextNote,
-} from "../utils/flowLayoutPrefs";
-import { getFlowShowQuery, saveFlowShowQuery } from "../utils/networkFlowPrefs";
-import type { RequestSearchSummary } from "../utils/requestSearch";
-import { formatDateTime, formatDuration, getStatusTone } from "./formatters";
-import { ImagePreview } from "./ImagePreview";
+} from "../../utils/flowLayoutPrefs";
+import { getFlowShowQuery, saveFlowShowQuery } from "../../utils/networkFlowPrefs";
+import type { RequestSearchSummary } from "../../utils/requestSearch";
+import { formatDateTime, formatDuration, getStatusTone } from "../../utils/formatters";
+import { ImagePreview } from "../shared/ImagePreview";
 import { SearchHitBadge } from "./SearchHitBadge";
-import { Button, IconButton } from "./ui/Button";
+import { Button, IconButton } from "../ui/Button";
 
 type FlowChartViewProps = {
   items: TimelineItem[];

@@ -1,25 +1,25 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
-import type { ConsoleEntry, ConsoleLevelFilter } from '../types/console';
-import { useSplitPanelLayout } from '../hooks/useSplitPanelLayout';
-import { clearInspectedConsoleBuffer } from '../utils/consoleInspector';
-import { scrollSearchHitIntoView } from '../utils/searchScroll';
-import { useSearchOptions } from '../contexts/SearchOptionsContext';
-import { highlightSearchText, textMatchesSearch } from '../utils/searchHighlight';
-import { matchesIncludeExcludeFilters } from '../utils/textFilters';
+import type { ConsoleEntry, ConsoleLevelFilter } from '../../types/console';
+import { useSplitPanelLayout } from '../../hooks/useSplitPanelLayout';
+import { clearInspectedConsoleBuffer } from '../../utils/consoleInspector';
+import { scrollSearchHitIntoView } from '../../utils/searchScroll';
+import { useSearchOptions } from '../../contexts/SearchOptionsContext';
+import { highlightSearchText, textMatchesSearch } from '../../utils/searchHighlight';
+import { matchesIncludeExcludeFilters } from '../../utils/textFilters';
 import {
   buildConsoleSearchOccurrences,
   consoleArgsMatchSearch,
   getSearchMatchIndexForConsoleEntry,
   type ConsoleSearchOccurrence,
-} from '../utils/consoleSearch';
-import { formatConsoleMessagePreview } from '../utils/consoleMessagePreview';
-import { DetailPanelCloseButton, SplitLayoutToggleButton } from './DetailPanelCloseButton';
-import { DetailSection } from './DetailSection';
-import { JsonViewer } from './JsonViewer';
-import { SplitPanelResizer } from './SplitPanelResizer';
-import { formatDateTime } from './formatters';
-import { ColumnMenu } from './ColumnMenu';
-import { Button } from './ui/Button';
+} from '../../utils/consoleSearch';
+import { formatConsoleMessagePreview } from '../../utils/consoleMessagePreview';
+import { DetailPanelCloseButton, SplitLayoutToggleButton } from '../shared/DetailPanelCloseButton';
+import { DetailSection } from '../shared/DetailSection';
+import { JsonViewer } from '../shared/JsonViewer';
+import { SplitPanelResizer } from '../shared/SplitPanelResizer';
+import { formatDateTime } from '../../utils/formatters';
+import { ColumnMenu } from '../shared/ColumnMenu';
+import { Button } from '../ui/Button';
 
 type ConsoleViewProps = {
   entries: ConsoleEntry[];

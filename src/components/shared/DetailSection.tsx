@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { getDetailSectionOpen, setDetailSectionOpen } from '../utils/detailSectionPrefs';
+import { getDetailSectionOpen, setDetailSectionOpen } from '../../utils/detailSectionPrefs';
 
 type DetailSectionProps = {
   sectionId: string;

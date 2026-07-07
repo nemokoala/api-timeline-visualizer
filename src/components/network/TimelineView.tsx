@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
-import type { ApiRequest, TimelineItem } from '../types/network';
+import type { ApiRequest, TimelineItem } from '../../types/network';
 import {
   getTimelinePrefs,
   saveTimelinePrefs,
@@ -7,11 +7,11 @@ import {
   TIMELINE_COLUMNS,
   type TimelineColumnId,
   type TimelinePrefs,
-} from '../utils/timelinePrefs';
-import type { RequestSearchSummary } from '../utils/requestSearch';
-import { formatDateTime, formatDuration, getStatusTone } from './formatters';
+} from '../../utils/timelinePrefs';
+import type { RequestSearchSummary } from '../../utils/requestSearch';
+import { formatDateTime, formatDuration, getStatusTone } from '../../utils/formatters';
 import { SearchHitBadge } from './SearchHitBadge';
-import { ColumnMenu } from './ColumnMenu';
+import { ColumnMenu } from '../shared/ColumnMenu';
 
 type TimelineViewProps = {
   items: TimelineItem[];

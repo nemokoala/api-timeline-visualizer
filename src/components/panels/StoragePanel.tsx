@@ -1,5 +1,5 @@
 import { useWorkspace } from '../../contexts/WorkspaceContext';
-import { StorageView } from '../StorageView';
+import { StorageView } from '../storage/StorageView';
 import { PanelHeader } from './PanelHeader';
 
 /** 도킹 패널로 렌더링되는 스토리지 뷰. */

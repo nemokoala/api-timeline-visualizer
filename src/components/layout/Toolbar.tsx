@@ -1,5 +1,5 @@
-import { useTheme } from '../hooks/useTheme';
-import { IconButton } from './ui/Button';
+import { useTheme } from '../../hooks/useTheme';
+import { IconButton } from '../ui/Button';
 
 export type WorkspaceMode = 'network' | 'storage' | 'console';
 export type NetworkViewMode = 'flow' | 'timeline';

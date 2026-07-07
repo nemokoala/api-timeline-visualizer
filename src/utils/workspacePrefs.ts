@@ -1,5 +1,5 @@
 /** 활성 워크스페이스 탭(network / storage / console)을 저장합니다. */
-import type { WorkspaceMode } from '../components/Toolbar';
+import type { WorkspaceMode } from '../components/layout/Toolbar';
 import { readEnum, writeString } from './localStoragePrefs';
 
 const WORKSPACE_MODE_KEY = 'api-flow-workspace-mode';

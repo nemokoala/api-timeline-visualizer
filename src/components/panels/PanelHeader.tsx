@@ -1,5 +1,5 @@
 import { useState, type KeyboardEvent } from 'react';
-import type { WorkspaceMode } from '../Toolbar';
+import type { WorkspaceMode } from '../layout/Toolbar';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { getPanelFiltersOpen, savePanelFiltersOpen } from '../../utils/panelFilterPrefs';
 import { IconButton } from '../ui/Button';

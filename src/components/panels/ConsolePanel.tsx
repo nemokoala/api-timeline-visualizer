@@ -1,5 +1,5 @@
 import { useWorkspace } from '../../contexts/WorkspaceContext';
-import { ConsoleView } from '../ConsoleView';
+import { ConsoleView } from '../console/ConsoleView';
 import { PanelHeader } from './PanelHeader';
 
 /** 도킹 패널로 렌더링되는 콘솔 뷰. */

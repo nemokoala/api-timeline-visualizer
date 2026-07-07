@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { ApiRequest } from '../types/network';
-import { DetailSection } from './DetailSection';
-import { generateCurl, generateFetch } from '../utils/requestCodeSnippets';
-import { getMatchingDetailSections } from '../utils/requestSearch';
-import { scrollSearchHitIntoView } from '../utils/searchScroll';
-import { useSearchOptions } from '../contexts/SearchOptionsContext';
-import { highlightSearchText } from '../utils/searchHighlight';
-import { getImageSource } from '../utils/imageSource';
-import { formatDateTime, formatDuration, formatLocaleDateTime } from './formatters';
-import { ImagePreview } from './ImagePreview';
-import { DetailPanelCloseButton, SplitLayoutToggleButton } from './DetailPanelCloseButton';
-import { JsonViewer } from './JsonViewer';
-import { Button } from './ui/Button';
+import type { ApiRequest } from '../../types/network';
+import { DetailSection } from '../shared/DetailSection';
+import { generateCurl, generateFetch } from '../../utils/requestCodeSnippets';
+import { getMatchingDetailSections } from '../../utils/requestSearch';
+import { scrollSearchHitIntoView } from '../../utils/searchScroll';
+import { useSearchOptions } from '../../contexts/SearchOptionsContext';
+import { highlightSearchText } from '../../utils/searchHighlight';
+import { getImageSource } from '../../utils/imageSource';
+import { formatDateTime, formatDuration, formatLocaleDateTime } from '../../utils/formatters';
+import { ImagePreview } from '../shared/ImagePreview';
+import { DetailPanelCloseButton, SplitLayoutToggleButton } from '../shared/DetailPanelCloseButton';
+import { JsonViewer } from '../shared/JsonViewer';
+import { Button } from '../ui/Button';
 
 type RequestDetailPanelProps = {
   request: ApiRequest;

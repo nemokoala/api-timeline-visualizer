@@ -1,4 +1,4 @@
-import type { RequestSearchSummary } from '../utils/requestSearch';
+import type { RequestSearchSummary } from '../../utils/requestSearch';
 
 type SearchHitBadgeProps = {
   summary: RequestSearchSummary;

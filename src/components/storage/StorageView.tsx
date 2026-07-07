@@ -11,25 +11,25 @@ import type {
   IndexedDbStoreSnapshot,
   PageStorageSnapshot,
   StorageEntry,
-} from "../types/storage";
-import { useSplitPanelLayout } from "../hooks/useSplitPanelLayout";
+} from "../../types/storage";
+import { useSplitPanelLayout } from "../../hooks/useSplitPanelLayout";
 import {
   canInspectPageStorage,
   deleteIndexedDbRecord,
   inspectPageStorage,
   removeWebStorageItem,
   setWebStorageItem,
-} from "../utils/storageInspector";
-import { getMockStorageSnapshot, shouldUseMockData } from "../mocks/mockData";
-import { formatStorageValuePreview } from "../utils/storageBlobValue";
-import { matchesIncludeExcludeFilters } from "../utils/textFilters";
-import { scrollSearchHitIntoView } from "../utils/searchScroll";
-import { useSearchOptions } from "../contexts/SearchOptionsContext";
+} from "../../utils/storageInspector";
+import { getMockStorageSnapshot, shouldUseMockData } from "../../mocks/mockData";
+import { formatStorageValuePreview } from "../../utils/storageBlobValue";
+import { matchesIncludeExcludeFilters } from "../../utils/textFilters";
+import { scrollSearchHitIntoView } from "../../utils/searchScroll";
+import { useSearchOptions } from "../../contexts/SearchOptionsContext";
 import {
   highlightSearchText,
   textMatchesSearch,
   type SearchOptions,
-} from "../utils/searchHighlight";
+} from "../../utils/searchHighlight";
 import {
   buildStorageSearchOccurrences,
   buildStorageSearchTargets,
@@ -40,17 +40,17 @@ import {
   storageTargetToSelectedItem,
   type StorageSearchOccurrence,
   type StorageSearchTarget,
-} from "../utils/storageSearch";
-import { ColumnMenu } from "./ColumnMenu";
+} from "../../utils/storageSearch";
+import { ColumnMenu } from "../shared/ColumnMenu";
 import {
   DetailPanelCloseButton,
   SplitLayoutToggleButton,
-} from "./DetailPanelCloseButton";
-import { DetailSection } from "./DetailSection";
-import { JsonViewer } from "./JsonViewer";
-import { SplitPanelResizer } from "./SplitPanelResizer";
-import { formatDateTime, formatLocaleDateTime } from "./formatters";
-import { Button, IconButton } from "./ui/Button";
+} from "../shared/DetailPanelCloseButton";
+import { DetailSection } from "../shared/DetailSection";
+import { JsonViewer } from "../shared/JsonViewer";
+import { SplitPanelResizer } from "../shared/SplitPanelResizer";
+import { formatDateTime, formatLocaleDateTime } from "../../utils/formatters";
+import { Button, IconButton } from "../ui/Button";
 
 type StorageViewProps = {
   searchText: string;

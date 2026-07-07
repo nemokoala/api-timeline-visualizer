@@ -10,11 +10,11 @@ import {
 } from 'dockview-react';
 import 'dockview-react/dist/styles/dockview.css';
 import type { WorkspaceMode } from './Toolbar';
-import { useTheme } from '../hooks/useTheme';
-import { getDockLayout, saveDockLayout } from '../utils/dockLayoutPrefs';
-import { ConsolePanel } from './panels/ConsolePanel';
-import { NetworkPanel } from './panels/NetworkPanel';
-import { StoragePanel } from './panels/StoragePanel';
+import { useTheme } from '../../hooks/useTheme';
+import { getDockLayout, saveDockLayout } from '../../utils/dockLayoutPrefs';
+import { ConsolePanel } from '../panels/ConsolePanel';
+import { NetworkPanel } from '../panels/NetworkPanel';
+import { StoragePanel } from '../panels/StoragePanel';
 
 /** 도킹 패널 메타. id는 WorkspaceMode와 1:1로 매칭된다. */
 export const WORKSPACE_PANEL_ORDER: WorkspaceMode[] = ['network', 'storage', 'console'];

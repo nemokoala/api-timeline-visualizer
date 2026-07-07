@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import type { ImagePreviewItem } from '../utils/imageSource';
+import type { ImagePreviewItem } from '../../utils/imageSource';
 import {
   getStorageImageLayoutMode,
   saveStorageImageLayoutMode,
   type StorageImageLayoutMode,
-} from '../utils/storageImagePrefs';
+} from '../../utils/storageImagePrefs';
 import { ImagePreview } from './ImagePreview';
 
 type ImagePreviewGalleryProps = {
