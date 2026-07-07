@@ -42,6 +42,9 @@ import {
   type StorageSearchTarget,
 } from "../../utils/storageSearch";
 import { ColumnMenu } from "../shared/ColumnMenu";
+import { DataTable } from "../shared/DataTable";
+import { getTablePrefs, saveTablePrefs, type TablePrefs } from "../../utils/tablePrefs";
+import type { ColumnDef, ColumnSizingState, OnChangeFn } from "@tanstack/react-table";
 import {
   DetailPanelCloseButton,
   SplitLayoutToggleButton,
@@ -82,40 +85,17 @@ const INDEXED_DB_RECORD_COLUMNS: Array<{
   { id: "value", label: "Value" },
 ];
 
-const WEB_COLUMNS_STORAGE_KEY = "storage-web-column-visibility";
-const INDEXED_DB_COLUMNS_STORAGE_KEY = "storage-indexeddb-column-visibility";
+const WEB_PREFS_KEY = "storage-web-table-prefs";
+const IDB_PREFS_KEY = "storage-idb-table-prefs";
 
-const DEFAULT_WEB_COLUMN_VISIBILITY: WebStorageColumnVisibility = {
-  key: true,
-  value: true,
-  size: true,
+const WEB_DEFAULT_PREFS: TablePrefs = {
+  columnVisibility: { key: true, value: true, size: true },
+  columnWidths: { key: 200, size: 80, actions: 44 },
 };
-const DEFAULT_INDEXED_DB_COLUMN_VISIBILITY: IndexedDbColumnVisibility = {
-  key: true,
-  value: true,
+const IDB_DEFAULT_PREFS: TablePrefs = {
+  columnVisibility: { key: true, value: true },
+  columnWidths: { key: 200, actions: 44 },
 };
-
-function loadWebColumnVisibility(): WebStorageColumnVisibility {
-  try {
-    const raw = localStorage.getItem(WEB_COLUMNS_STORAGE_KEY);
-    if (!raw) return DEFAULT_WEB_COLUMN_VISIBILITY;
-    const parsed = JSON.parse(raw) as Partial<WebStorageColumnVisibility>;
-    return { ...DEFAULT_WEB_COLUMN_VISIBILITY, ...parsed };
-  } catch {
-    return DEFAULT_WEB_COLUMN_VISIBILITY;
-  }
-}
-
-function loadIndexedDbColumnVisibility(): IndexedDbColumnVisibility {
-  try {
-    const raw = localStorage.getItem(INDEXED_DB_COLUMNS_STORAGE_KEY);
-    if (!raw) return DEFAULT_INDEXED_DB_COLUMN_VISIBILITY;
-    const parsed = JSON.parse(raw) as Partial<IndexedDbColumnVisibility>;
-    return { ...DEFAULT_INDEXED_DB_COLUMN_VISIBILITY, ...parsed };
-  } catch {
-    return DEFAULT_INDEXED_DB_COLUMN_VISIBILITY;
-  }
-}
 
 type SelectedStorageItem =
   | { kind: "local" | "session"; key: string }
@@ -295,12 +275,13 @@ export function StorageView({
     if (!activeSearchOccurrence) return;
 
     const frameId = window.requestAnimationFrame(() => {
-      const row = document.getElementById(
-        `storage-row-${storageTargetKey(activeSearchOccurrence.target)}`,
+      const rowId = `storage-row-${storageTargetKey(activeSearchOccurrence.target)}`;
+      const row = document.querySelector<HTMLElement>(
+        `.storage-panel [data-row-id="${CSS.escape(rowId)}"]`,
       );
 
       document
-        .querySelectorAll(".storage-table .search-highlight.is-active")
+        .querySelectorAll(".storage-panel .search-highlight.is-active")
         .forEach((mark) => mark.classList.remove("is-active"));
 
       if (!hasDetail) {
@@ -596,9 +577,9 @@ function WebStoragePane({
   onAddEntry: (key: string, value: string) => Promise<boolean>;
 }) {
   const searchOptions = useSearchOptions();
-  const hasSearch = Boolean(searchText.trim());
-  const [columnVisibility, setColumnVisibility] =
-    useState<WebStorageColumnVisibility>(loadWebColumnVisibility);
+  const [tablePrefs, setTablePrefs] = useState<TablePrefs>(() =>
+    getTablePrefs(WEB_PREFS_KEY, WEB_DEFAULT_PREFS),
+  );
   const [columnMenu, setColumnMenu] = useState<{ x: number; y: number } | null>(
     null,
   );
@@ -606,12 +587,24 @@ function WebStoragePane({
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
 
+  const persistTablePrefs = (next: TablePrefs) => {
+    setTablePrefs(next);
+    saveTablePrefs(WEB_PREFS_KEY, next);
+  };
+
   const handleColumnToggle = (col: WebStorageColumnId) => {
-    setColumnVisibility((prev) => {
-      const next = { ...prev, [col]: !prev[col] };
-      localStorage.setItem(WEB_COLUMNS_STORAGE_KEY, JSON.stringify(next));
-      return next;
+    persistTablePrefs({
+      ...tablePrefs,
+      columnVisibility: {
+        ...tablePrefs.columnVisibility,
+        [col]: !tablePrefs.columnVisibility[col],
+      },
     });
+  };
+
+  const handleColumnSizingChange: OnChangeFn<ColumnSizingState> = (updater) => {
+    const next = typeof updater === "function" ? updater(tablePrefs.columnWidths) : updater;
+    persistTablePrefs({ ...tablePrefs, columnWidths: next });
   };
 
   const handleColumnContextMenu = (event: ReactMouseEvent) => {
@@ -629,12 +622,55 @@ function WebStoragePane({
     }
   };
 
-  const isEmpty = !entries.length && !isLoading;
-  const actionsColSpan =
-    (columnVisibility.key ? 1 : 0) +
-    (columnVisibility.value ? 1 : 0) +
-    (columnVisibility.size ? 1 : 0) +
-    1;
+  const columns = useMemo<ColumnDef<StorageEntry, unknown>[]>(() => {
+    const cols: ColumnDef<StorageEntry, unknown>[] = [
+      {
+        id: "key",
+        header: "Key",
+        size: 200,
+        minSize: 80,
+        cell: ({ row }) =>
+          searchText.trim()
+            ? highlightSearchText(row.original.key, searchText, searchOptions)
+            : row.original.key,
+      },
+      {
+        id: "value",
+        header: "Value",
+        enableResizing: false,
+        meta: { flex: true, minWidth: 160 },
+        cell: ({ row }) =>
+          searchText.trim()
+            ? highlightSearchText(row.original.value, searchText, searchOptions)
+            : row.original.value,
+      },
+      {
+        id: "size",
+        header: "Size",
+        size: 80,
+        minSize: 56,
+        cell: ({ row }) => formatBytes(row.original.size),
+      },
+    ];
+    if (canEdit) {
+      cols.push({
+        id: "actions",
+        header: "",
+        size: 44,
+        minSize: 44,
+        enableResizing: false,
+        meta: { cellClassName: "storage-actions-cell" },
+        cell: ({ row }) => (
+          <RowDeleteButton
+            label={`Delete ${row.original.key}`}
+            disabled={isMutating}
+            onDelete={() => onDeleteEntry(row.original.key)}
+          />
+        ),
+      });
+    }
+    return cols;
+  }, [canEdit, isMutating, onDeleteEntry, searchOptions, searchText]);
 
   return (
     <>
@@ -675,80 +711,28 @@ function WebStoragePane({
             )}
           </div>
         ) : null}
-        <table className="storage-table">
-          <thead
-            onContextMenu={handleColumnContextMenu}
-            title="우클릭: 열 표시 설정"
-          >
-            <tr>
-              {columnVisibility.key && <th>Key</th>}
-              {columnVisibility.value && <th>Value</th>}
-              {columnVisibility.size && <th>Size</th>}
-              {canEdit && (
-                <th className="storage-actions-col" aria-label="Actions" />
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {isEmpty ? (
-              <tr className="storage-empty-row">
-                <td colSpan={actionsColSpan}>No matching storage entries.</td>
-              </tr>
-            ) : (
-              entries.map((entry) => (
-                <tr
-                  key={entry.key}
-                  id={`storage-row-${storageTargetKey({ kind, key: entry.key })}`}
-                  className={
-                    selectedItem?.kind === kind &&
-                    selectedItem.key === entry.key
-                      ? "selected"
-                      : ""
-                  }
-                  onClick={() => onSelectEntry(entry.key)}
-                >
-                  {columnVisibility.key && (
-                    <td>
-                      {hasSearch
-                        ? highlightSearchText(
-                            entry.key,
-                            searchText,
-                            searchOptions,
-                          )
-                        : entry.key}
-                    </td>
-                  )}
-                  {columnVisibility.value && (
-                    <td>
-                      {hasSearch
-                        ? highlightSearchText(
-                            entry.value,
-                            searchText,
-                            searchOptions,
-                          )
-                        : entry.value}
-                    </td>
-                  )}
-                  {columnVisibility.size && <td>{formatBytes(entry.size)}</td>}
-                  {canEdit && (
-                    <td className="storage-actions-cell">
-                      <RowDeleteButton
-                        label={`Delete ${entry.key}`}
-                        disabled={isMutating}
-                        onDelete={() => onDeleteEntry(entry.key)}
-                      />
-                    </td>
-                  )}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+        <DataTable
+          ariaLabel={`${kind}Storage entries`}
+          columns={columns}
+          data={entries}
+          getRowId={(entry) => `storage-row-${storageTargetKey({ kind, key: entry.key })}`}
+          columnSizing={tablePrefs.columnWidths}
+          onColumnSizingChange={handleColumnSizingChange}
+          columnVisibility={tablePrefs.columnVisibility}
+          selectedRowId={
+            selectedItem?.kind === kind
+              ? `storage-row-${storageTargetKey({ kind, key: selectedItem.key })}`
+              : null
+          }
+          onRowClick={(entry) => onSelectEntry(entry.key)}
+          onHeaderContextMenu={handleColumnContextMenu}
+          emptyState={isLoading ? "Loading…" : "No matching storage entries."}
+        />
       </div>
       {columnMenu ? (
         <ColumnMenu
           columns={WEB_STORAGE_COLUMNS}
-          visibility={columnVisibility}
+          visibility={tablePrefs.columnVisibility as WebStorageColumnVisibility}
           position={columnMenu}
           onToggle={handleColumnToggle}
           onClose={() => setColumnMenu(null)}
@@ -825,21 +809,31 @@ function IndexedDbPane({
 }) {
   const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
-  const [columnVisibility, setColumnVisibility] =
-    useState<IndexedDbColumnVisibility>(loadIndexedDbColumnVisibility);
+  const [tablePrefs, setTablePrefs] = useState<TablePrefs>(() =>
+    getTablePrefs(IDB_PREFS_KEY, IDB_DEFAULT_PREFS),
+  );
   const [columnMenu, setColumnMenu] = useState<{ x: number; y: number } | null>(
     null,
   );
 
+  const persistTablePrefs = (next: TablePrefs) => {
+    setTablePrefs(next);
+    saveTablePrefs(IDB_PREFS_KEY, next);
+  };
+
   const handleColumnToggle = (col: IndexedDbColumnId) => {
-    setColumnVisibility((prev) => {
-      const next = { ...prev, [col]: !prev[col] };
-      localStorage.setItem(
-        INDEXED_DB_COLUMNS_STORAGE_KEY,
-        JSON.stringify(next),
-      );
-      return next;
+    persistTablePrefs({
+      ...tablePrefs,
+      columnVisibility: {
+        ...tablePrefs.columnVisibility,
+        [col]: !tablePrefs.columnVisibility[col],
+      },
     });
+  };
+
+  const handleColumnSizingChange: OnChangeFn<ColumnSizingState> = (updater) => {
+    const next = typeof updater === "function" ? updater(tablePrefs.columnWidths) : updater;
+    persistTablePrefs({ ...tablePrefs, columnWidths: next });
   };
 
   const handleColumnContextMenu = (event: ReactMouseEvent) => {
@@ -875,7 +869,9 @@ function IndexedDbPane({
                 selectedItem={selectedItem}
                 searchText={searchText}
                 activeSearchTarget={activeSearchTarget}
-                columnVisibility={columnVisibility}
+                columnVisibility={tablePrefs.columnVisibility}
+                columnSizing={tablePrefs.columnWidths}
+                onColumnSizingChange={handleColumnSizingChange}
                 onSelectRecord={onSelectRecord}
                 onColumnContextMenu={handleColumnContextMenu}
                 canEdit={canEdit}
@@ -889,7 +885,7 @@ function IndexedDbPane({
       {columnMenu ? (
         <ColumnMenu
           columns={INDEXED_DB_RECORD_COLUMNS}
-          visibility={columnVisibility}
+          visibility={tablePrefs.columnVisibility as IndexedDbColumnVisibility}
           position={columnMenu}
           onToggle={handleColumnToggle}
           onClose={() => setColumnMenu(null)}
@@ -906,6 +902,8 @@ function IndexedDbStore({
   searchText,
   activeSearchTarget,
   columnVisibility,
+  columnSizing,
+  onColumnSizingChange,
   onSelectRecord,
   onColumnContextMenu,
   canEdit,
@@ -917,7 +915,9 @@ function IndexedDbStore({
   selectedItem: SelectedStorageItem | null;
   searchText: string;
   activeSearchTarget: StorageSearchTarget | null;
-  columnVisibility: IndexedDbColumnVisibility;
+  columnVisibility: Record<string, boolean>;
+  columnSizing: ColumnSizingState;
+  onColumnSizingChange: OnChangeFn<ColumnSizingState>;
   onSelectRecord: (record: SelectedStorageItem) => void;
   onColumnContextMenu: (event: ReactMouseEvent) => void;
   canEdit: boolean;
@@ -930,6 +930,50 @@ function IndexedDbStore({
 }) {
   const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
+  const columns = useMemo<ColumnDef<{ record: IndexedDbRecord; index: number }, unknown>[]>(() => {
+    const cols: ColumnDef<{ record: IndexedDbRecord; index: number }, unknown>[] = [
+      {
+        id: "key",
+        header: "Key",
+        size: 200,
+        minSize: 80,
+        cell: ({ row }) =>
+          searchText.trim()
+            ? highlightSearchText(row.original.record.key, searchText, searchOptions)
+            : row.original.record.key,
+      },
+      {
+        id: "value",
+        header: "Value",
+        enableResizing: false,
+        meta: { flex: true, minWidth: 160 },
+        cell: ({ row }) => {
+          const preview = formatStorageValuePreview(row.original.record.value, formatBytes);
+          return searchText.trim()
+            ? highlightSearchText(preview, searchText, searchOptions)
+            : preview;
+        },
+      },
+    ];
+    if (canEdit) {
+      cols.push({
+        id: "actions",
+        header: "",
+        size: 44,
+        minSize: 44,
+        enableResizing: false,
+        meta: { cellClassName: "storage-actions-cell" },
+        cell: ({ row }) => (
+          <RowDeleteButton
+            label="Delete record"
+            disabled={isMutating}
+            onDelete={() => onDeleteRecord(databaseName, store.name, row.original.record.key)}
+          />
+        ),
+      });
+    }
+    return cols;
+  }, [canEdit, databaseName, isMutating, onDeleteRecord, searchOptions, searchText, store.name]);
   const containsActiveTarget =
     activeSearchTarget?.kind === "indexeddb" &&
     activeSearchTarget.databaseName === databaseName &&
@@ -975,75 +1019,45 @@ function IndexedDbStore({
           Showing the first {store.records.length} records.
         </p>
       ) : null}
-      <table className="storage-table indexeddb-record-table">
-        <thead onContextMenu={onColumnContextMenu} title="우클릭: 열 표시 설정">
-          <tr>
-            {columnVisibility.key && <th>Key</th>}
-            {columnVisibility.value && <th>Value</th>}
-            {canEdit && (
-              <th className="storage-actions-col" aria-label="Actions" />
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {store.records.map((record, index) => {
-            const isSelected =
-              selectedItem?.kind === "indexeddb" &&
-              selectedItem.databaseName === databaseName &&
-              selectedItem.storeName === store.name &&
-              selectedItem.recordIndex === index;
-            const target = {
-              kind: "indexeddb" as const,
-              databaseName,
-              storeName: store.name,
-              recordIndex: index,
-            };
-            const preview = formatStorageValuePreview(
-              record.value,
-              formatBytes,
-            );
-
-            return (
-              <tr
-                key={`${record.key}:${index}`}
-                id={`storage-row-${storageTargetKey(target)}`}
-                className={isSelected ? "selected" : ""}
-                onClick={() => onSelectRecord(target)}
-              >
-                {columnVisibility.key && (
-                  <td>
-                    {hasSearch
-                      ? highlightSearchText(
-                          record.key,
-                          searchText,
-                          searchOptions,
-                        )
-                      : record.key}
-                  </td>
-                )}
-                {columnVisibility.value && (
-                  <td>
-                    {hasSearch
-                      ? highlightSearchText(preview, searchText, searchOptions)
-                      : preview}
-                  </td>
-                )}
-                {canEdit && (
-                  <td className="storage-actions-cell">
-                    <RowDeleteButton
-                      label="Delete record"
-                      disabled={isMutating}
-                      onDelete={() =>
-                        onDeleteRecord(databaseName, store.name, record.key)
-                      }
-                    />
-                  </td>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <DataTable
+        className="indexeddb-record-table"
+        ariaLabel={`${store.name} records`}
+        columns={columns}
+        data={store.records.map((record, index) => ({ record, index }))}
+        getRowId={(row) =>
+          `storage-row-${storageTargetKey({
+            kind: "indexeddb",
+            databaseName,
+            storeName: store.name,
+            recordIndex: row.index,
+          })}`
+        }
+        columnSizing={columnSizing}
+        onColumnSizingChange={onColumnSizingChange}
+        columnVisibility={columnVisibility}
+        selectedRowId={
+          selectedItem?.kind === "indexeddb" &&
+          selectedItem.databaseName === databaseName &&
+          selectedItem.storeName === store.name
+            ? `storage-row-${storageTargetKey({
+                kind: "indexeddb",
+                databaseName,
+                storeName: store.name,
+                recordIndex: selectedItem.recordIndex,
+              })}`
+            : null
+        }
+        onRowClick={(row) =>
+          onSelectRecord({
+            kind: "indexeddb",
+            databaseName,
+            storeName: store.name,
+            recordIndex: row.index,
+          })
+        }
+        onHeaderContextMenu={onColumnContextMenu}
+        emptyState="No records."
+      />
     </details>
   );
 }
@@ -1121,7 +1135,7 @@ function StorageDetailPanel({
       if (!panel) return;
 
       document
-        .querySelectorAll(".storage-table .search-highlight.is-active")
+        .querySelectorAll(".storage-panel .search-highlight.is-active")
         .forEach((mark) => mark.classList.remove("is-active"));
 
       const marks = panel.querySelectorAll(".search-highlight");
