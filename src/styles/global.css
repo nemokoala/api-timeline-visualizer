@@ -2980,6 +2980,19 @@ button:not(:disabled) {
   gap: 8px;
 }
 
+/* cURL/fetch 토글을 다른 세그먼트 토글(Flow/Timeline)과 같은 크기로. */
+.code-snippet-actions .segmented-control {
+  padding: 2px;
+  border-radius: 9px;
+}
+
+.code-snippet-actions .segmented-control button {
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 7px;
+  font-size: 11px;
+}
+
 .code-snippet-viewer {
   max-height: 220px;
   margin: 0;
