@@ -1,8 +1,8 @@
 :root {
   color-scheme: light;
-  font-family:
-    "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui,
-    "Segoe UI", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+  font-family: "Pretendard Variable", Pretendard, -apple-system,
+    BlinkMacSystemFont, system-ui, "Segoe UI", "Noto Sans KR",
+    "Apple SD Gothic Neo", sans-serif;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -58,7 +58,8 @@
   --scroll-thumb: #d1d6db;
   --scroll-thumb-hover: #b0b8c1;
   --seg-active-bg: #ffffff;
-  --shadow-card: 0 1px 3px rgba(25, 31, 40, 0.04), 0 1px 2px rgba(25, 31, 40, 0.03);
+  --shadow-card: 0 1px 3px rgba(25, 31, 40, 0.04),
+    0 1px 2px rgba(25, 31, 40, 0.03);
   --shadow-float: 0 8px 24px rgba(25, 31, 40, 0.12);
   --shadow-node: 0 2px 8px rgba(25, 31, 40, 0.06);
 }
@@ -136,12 +137,8 @@ button {
 }
 
 button:not(:disabled) {
-  transition:
-    background 0.15s ease,
-    color 0.15s ease,
-    border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    transform 0.1s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease, transform 0.1s ease;
 }
 
 ::-webkit-scrollbar {
@@ -943,7 +940,7 @@ button:not(:disabled) {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 0 12px 12px;
+  padding: 12px;
   scrollbar-gutter: stable;
 }
 
@@ -1878,7 +1875,7 @@ button:not(:disabled) {
 }
 
 .flow-node-top .flow-status::before {
-  content: '·';
+  content: "·";
   margin-right: 5px;
   color: var(--text-faint);
   font-weight: 400;
@@ -2393,7 +2390,7 @@ button:not(:disabled) {
 }
 
 .detail-section-body {
-  padding: 0 16px 16px;
+  padding: 12px;
 }
 
 .detail-section-body > :first-child {
@@ -2654,12 +2651,24 @@ button:not(:disabled) {
 }
 
 /* 레벨마다 다른 색(무지개)으로 어느 선인지 구분하기 쉽게 한다. depth는 GUIDE_COLOR_COUNT 주기로 순환. */
-.json-indent[data-depth="0"] { border-left-color: var(--json-guide-0); }
-.json-indent[data-depth="1"] { border-left-color: var(--json-guide-1); }
-.json-indent[data-depth="2"] { border-left-color: var(--json-guide-2); }
-.json-indent[data-depth="3"] { border-left-color: var(--json-guide-3); }
-.json-indent[data-depth="4"] { border-left-color: var(--json-guide-4); }
-.json-indent[data-depth="5"] { border-left-color: var(--json-guide-5); }
+.json-indent[data-depth="0"] {
+  border-left-color: var(--json-guide-0);
+}
+.json-indent[data-depth="1"] {
+  border-left-color: var(--json-guide-1);
+}
+.json-indent[data-depth="2"] {
+  border-left-color: var(--json-guide-2);
+}
+.json-indent[data-depth="3"] {
+  border-left-color: var(--json-guide-3);
+}
+.json-indent[data-depth="4"] {
+  border-left-color: var(--json-guide-4);
+}
+.json-indent[data-depth="5"] {
+  border-left-color: var(--json-guide-5);
+}
 
 /* 객체/배열의 각 항목을 한 줄(블록)로 배치한다. 값이 다시 객체면 내부에 .json-indent가 들어온다. */
 .json-line {
@@ -2725,17 +2734,12 @@ button:not(:disabled) {
   border: 1px solid var(--border-weak);
   border-radius: 12px;
   padding: 14px;
-  background:
-    linear-gradient(45deg, var(--checker) 25%, transparent 25%),
+  background: linear-gradient(45deg, var(--checker) 25%, transparent 25%),
     linear-gradient(-45deg, var(--checker) 25%, transparent 25%),
     linear-gradient(45deg, transparent 75%, var(--checker) 75%),
     linear-gradient(-45deg, transparent 75%, var(--checker) 75%),
     var(--surface-sub);
-  background-position:
-    0 0,
-    0 8px,
-    8px -8px,
-    -8px 0;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
   background-size: 16px 16px;
 }
 
@@ -2811,7 +2815,8 @@ button:not(:disabled) {
   height: 318px;
 }
 
-.response-json-slot:not(.is-loading) .json-viewer-wrap:not(.response-json-skeleton) {
+.response-json-slot:not(.is-loading)
+  .json-viewer-wrap:not(.response-json-skeleton) {
   animation: response-body-in 140ms ease;
 }
 
@@ -3196,4 +3201,3 @@ button:not(:disabled) {
   flex: 1 1 auto;
   min-width: 8px;
 }
-
