@@ -1,4 +1,14 @@
-export type RequestKind = 'fetch' | 'xhr' | 'document' | 'websocket' | 'other';
+export type RequestKind =
+  | 'fetch'
+  | 'xhr'
+  | 'document'
+  | 'websocket'
+  | 'stylesheet'
+  | 'script'
+  | 'image'
+  | 'font'
+  | 'media'
+  | 'other';
 
 export type HeaderMap = Record<string, string>;
 

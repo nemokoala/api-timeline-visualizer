@@ -80,6 +80,13 @@ import {
   saveNetworkViewMode,
 } from './utils/networkFlowPrefs';
 import { getWorkspaceMode, saveWorkspaceMode } from './utils/workspacePrefs';
+import {
+  getEnabledResourceKinds,
+  isToggleableResourceKind,
+  TOGGLEABLE_RESOURCE_KINDS,
+  saveEnabledResourceKinds,
+  type ToggleableResourceKind,
+} from './utils/resourceTypePrefs';
 import { getMockConsoleEntries, getMockRequests, shouldUseMockData } from './mocks/mockData';
 
 const PRELOAD_CONCURRENCY = 4;
@@ -94,6 +101,9 @@ export default function App() {
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(() => getWorkspaceMode());
   const [networkViewMode, setNetworkViewMode] = useState<NetworkViewMode>(() => getNetworkViewMode());
   const [groupFlowByTime, setGroupFlowByTime] = useState(() => getGroupFlowByTime());
+  const [enabledResourceKinds, setEnabledResourceKinds] = useState<ToggleableResourceKind[]>(() =>
+    getEnabledResourceKinds(),
+  );
   const [networkIncludeText, setNetworkIncludeText] = useState(() => getNetworkIncludeText());
   const [networkExcludeText, setNetworkExcludeText] = useState(() => getNetworkExcludeText());
   const [storageIncludeText, setStorageIncludeText] = useState(() => getStorageIncludeText());
@@ -122,6 +132,10 @@ export default function App() {
   const networkRequestById = useRef(new Map<string, chrome.devtools.network.Request>());
   const preloadQueueRef = useRef<string[]>([]);
   const preloadInFlightRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    saveEnabledResourceKinds(enabledResourceKinds);
+  }, [enabledResourceKinds]);
 
   useEffect(() => {
     saveNetworkIncludeText(networkIncludeText);
@@ -186,9 +200,20 @@ export default function App() {
 
   const isConsoleMode = workspaceMode === 'console';
 
+  const enabledResourceKindSet = useMemo(
+    () => new Set<ToggleableResourceKind>(enabledResourceKinds),
+    [enabledResourceKinds],
+  );
+
   const filteredRequests = useMemo(
-    () => requests.filter((request) => matchesTextFilters(request, networkIncludeText, networkExcludeText)),
-    [networkExcludeText, networkIncludeText, requests],
+    () =>
+      requests.filter(
+        (request) =>
+          // 토글 대상 종류는 켜졌을 때만 표시, 그 외('other' 등)는 항상 표시.
+          (!isToggleableResourceKind(request.type) || enabledResourceKindSet.has(request.type)) &&
+          matchesTextFilters(request, networkIncludeText, networkExcludeText),
+      ),
+    [enabledResourceKindSet, networkExcludeText, networkIncludeText, requests],
   );
 
   const searchOccurrences = useMemo(() => {
@@ -367,6 +392,14 @@ export default function App() {
     setNetworkSearchMatchIndex(0);
     flowLayoutRef.current = EMPTY_FLOW_LAYOUT;
     setFlowLayoutRevision((revision) => revision + 1);
+  }, []);
+
+  const handleToggleResourceKind = useCallback((kind: ToggleableResourceKind, enabled: boolean) => {
+    setEnabledResourceKinds((current) => {
+      const next = enabled ? [...current, kind] : current.filter((item) => item !== kind);
+      // 저장 순서를 표준 순서로 정규화하고 중복을 제거한다.
+      return TOGGLEABLE_RESOURCE_KINDS.filter((item) => next.includes(item));
+    });
   }, []);
 
   const handleFlowLayoutChange = useCallback((layout: FlowLayout) => {
@@ -752,6 +785,8 @@ export default function App() {
     displayedRequests,
     selectedRequestId,
     groupFlowByTime,
+    enabledResourceKinds,
+    onToggleResourceKind: handleToggleResourceKind,
     networkSearchText,
     searchOccurrenceByRequest,
     activeGlobalSearchIndex,

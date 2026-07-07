@@ -9,7 +9,7 @@ import {
   type TimelinePrefs,
 } from '../../utils/timelinePrefs';
 import type { RequestSearchSummary } from '../../utils/requestSearch';
-import { formatDateTime, formatDuration, getStatusTone } from '../../utils/formatters';
+import { formatDateTime, formatDuration, getRequestKindLabel, getStatusTone } from '../../utils/formatters';
 import { SearchHitBadge } from './SearchHitBadge';
 import { ColumnMenu } from '../shared/ColumnMenu';
 
@@ -216,7 +216,14 @@ export function TimelineView({
                 {prefs.columnVisibility.request ? (
                   <span className="request-main">
                     <span className="request-meta">
-                      <span className={`method method-${item.method.toLowerCase()}`}>{item.method}</span>
+                      <span className="method-cell">
+                        <span className={`method method-${item.method.toLowerCase()}`}>{item.method}</span>
+                        {request ? (
+                          <span className={`kind-tag kind-${request.type}`}>
+                            {getRequestKindLabel(request.type)}
+                          </span>
+                        ) : null}
+                      </span>
                       <span className="path">
                         {item.normalizedPath}
                         {queryString ? <span className="path-query">{queryString}</span> : null}

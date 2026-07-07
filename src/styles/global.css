@@ -37,6 +37,8 @@
   --orange-strong: #c9670a;
   --orange-soft: #fff3e0;
   --purple: #7048e8;
+  --teal: #0ca678;
+  --pink: #e64980;
   --json-string: #02945c;
   --json-number: #e8730a;
   --json-guide: #dfe3e8;
@@ -95,6 +97,8 @@
   --orange-strong: #ffb35c;
   --orange-soft: rgba(255, 158, 44, 0.14);
   --purple: #b197fc;
+  --teal: #38d9a9;
+  --pink: #f783ac;
   --json-string: #4ec98c;
   --json-number: #ffa94d;
   --json-guide: rgba(255, 255, 255, 0.12);
@@ -2081,10 +2085,60 @@ button:not(:disabled) {
   min-width: 0;
 }
 
+.request-row .method-cell {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+
 .request-row .method {
   min-width: 40px;
   padding: 1px 5px;
   font-size: 10px;
+}
+
+/* 메소드 배지 아래 2행에 표시하는 리소스 종류(Fetch/XHR/CSS/JS/…). */
+.request-row .kind-tag {
+  text-align: center;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-weak);
+}
+
+/* 종류별 색상. API 계열은 blue/purple, 정적 리소스는 각기 다른 색으로 구분. */
+.request-row .kind-fetch,
+.request-row .kind-document {
+  color: var(--blue);
+}
+
+.request-row .kind-xhr,
+.request-row .kind-websocket {
+  color: var(--purple);
+}
+
+.request-row .kind-stylesheet {
+  color: var(--teal);
+}
+
+.request-row .kind-script {
+  color: var(--orange-text);
+}
+
+.request-row .kind-image {
+  color: var(--green-text);
+}
+
+.request-row .kind-font {
+  color: var(--pink);
+}
+
+.request-row .kind-media {
+  color: var(--red-text);
 }
 
 .request-row .path {
@@ -3048,6 +3102,27 @@ button:not(:disabled) {
 .network-actions .toolbar-button-group {
   margin-left: auto;
   flex-shrink: 0;
+}
+
+/* 리소스 타입 표시 토글(CSS/JS/Img/Font/Media). */
+.resource-type-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.resource-type-filter .toggle-control {
+  padding: 0 8px;
+  gap: 5px;
+}
+
+.resource-type-filter-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 2px;
+  flex-shrink: 0;
+  background: var(--border);
 }
 
 /* 필터 접기/펴기 토글(검색바 끝). 시각 스타일은 공통 .btn 사용. */

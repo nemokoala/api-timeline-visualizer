@@ -5,6 +5,7 @@ import type { ApiRequest, TimelineItem } from '../types/network';
 import type { ConsoleSearchOccurrence } from '../utils/consoleSearch';
 import type { FlowLayout } from '../utils/flowLayoutPrefs';
 import type { RequestSearchSummary, SearchOccurrence } from '../utils/requestSearch';
+import type { ToggleableResourceKind } from '../utils/resourceTypePrefs';
 import type { StorageSearchOccurrence } from '../utils/storageSearch';
 
 /**
@@ -60,6 +61,8 @@ export type WorkspaceContextValue = {
   displayedRequests: ApiRequest[];
   selectedRequestId: string | null;
   groupFlowByTime: boolean;
+  enabledResourceKinds: ToggleableResourceKind[];
+  onToggleResourceKind: (kind: ToggleableResourceKind, enabled: boolean) => void;
   networkSearchText: string;
   searchOccurrenceByRequest: Map<string, RequestSearchSummary>;
   activeGlobalSearchIndex: number | null;

@@ -7,6 +7,25 @@ import { SplitPanelResizer } from '../shared/SplitPanelResizer';
 import { TimelineView } from '../network/TimelineView';
 import { Button } from '../ui/Button';
 import { PanelHeader } from './PanelHeader';
+import type { ToggleableResourceKind } from '../../utils/resourceTypePrefs';
+
+type ResourceKindOption = { kind: ToggleableResourceKind; label: string };
+
+// API 계열과 정적 리소스를 구분자로 나눠 표시.
+const API_RESOURCE_KIND_OPTIONS: ResourceKindOption[] = [
+  { kind: 'fetch', label: 'Fetch' },
+  { kind: 'xhr', label: 'XHR' },
+  { kind: 'document', label: 'Doc' },
+  { kind: 'websocket', label: 'WS' },
+];
+
+const STATIC_RESOURCE_KIND_OPTIONS: ResourceKindOption[] = [
+  { kind: 'stylesheet', label: 'CSS' },
+  { kind: 'script', label: 'JS' },
+  { kind: 'image', label: 'Img' },
+  { kind: 'font', label: 'Font' },
+  { kind: 'media', label: 'Media' },
+];
 
 /** 도킹 패널로 렌더링되는 네트워크 뷰(Flow/Timeline + 요청 상세 분할). */
 export function NetworkPanel() {
@@ -43,6 +62,30 @@ export function NetworkPanel() {
           >
             Timeline
           </button>
+        </div>
+        <span className="network-actions-sep" aria-hidden="true" />
+        <div className="resource-type-filter" role="group" aria-label="리소스 타입 표시">
+          {API_RESOURCE_KIND_OPTIONS.map(({ kind, label }) => (
+            <label key={kind} className="toggle-control">
+              <input
+                type="checkbox"
+                checked={ctx.enabledResourceKinds.includes(kind)}
+                onChange={(event) => ctx.onToggleResourceKind(kind, event.currentTarget.checked)}
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+          <span className="resource-type-filter-sep" aria-hidden="true" />
+          {STATIC_RESOURCE_KIND_OPTIONS.map(({ kind, label }) => (
+            <label key={kind} className="toggle-control">
+              <input
+                type="checkbox"
+                checked={ctx.enabledResourceKinds.includes(kind)}
+                onChange={(event) => ctx.onToggleResourceKind(kind, event.currentTarget.checked)}
+              />
+              <span>{label}</span>
+            </label>
+          ))}
         </div>
         {ctx.networkViewMode === 'flow' ? (
           <>

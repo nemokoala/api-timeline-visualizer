@@ -3,42 +3,19 @@ import type { DevtoolsNetworkRequest, HarHeader, HarPostData } from '../types/ch
 import { getUrlParts } from './normalizeUrl';
 import { matchesIncludeExcludeFilters } from './textFilters';
 
-const EXCLUDED_RESOURCE_TYPES = new Set(['image', 'font', 'stylesheet', 'script', 'media']);
-const INCLUDED_RESOURCE_TYPES = new Set(['fetch', 'xhr', 'document', 'websocket']);
-
 const INCLUDE_PATTERNS = ['/api', '/graphql', '/v1', '/v2'];
 const EXCLUDE_PATTERNS = ['google-analytics', 'sentry', 'datadog', 'amplitude', 'hotjar', 'segment'];
-const STATIC_ASSET_EXTENSIONS = [
-  '.js',
-  '.mjs',
-  '.css',
-  '.map',
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.gif',
-  '.svg',
-  '.webp',
-  '.ico',
-  '.woff',
-  '.woff2',
-  '.ttf',
-  '.otf',
-  '.mp4',
-  '.webm',
-  '.mp3',
-];
 
+// 정적 리소스(css/js/이미지/폰트/미디어)까지 수집하되, 표시 여부는 뷰의 리소스 타입 토글에서
+// 거른다. 여기서는 인식 가능한 모든 종류를 저장소에 담아 두어 토글을 켤 때 과거 요청까지
+// 소급 표시되게 한다. 알 수 없는 종류('other')만 api/graphql 패턴으로 한 번 더 좁힌다.
 export function shouldCollectRequest(request: DevtoolsNetworkRequest): boolean {
   const url = request.request?.url ?? '';
   const lowerUrl = url.toLowerCase();
   const resourceType = getRequestKind(request);
 
-  if (EXCLUDED_RESOURCE_TYPES.has(resourceType)) return false;
   if (EXCLUDE_PATTERNS.some((pattern) => lowerUrl.includes(pattern))) return false;
-  if (isStaticAssetUrl(lowerUrl)) return false;
-  if (isStaticMimeType(request.response?.content?.mimeType)) return false;
-  if (INCLUDED_RESOURCE_TYPES.has(resourceType)) return true;
+  if (resourceType !== 'other') return true;
 
   return INCLUDE_PATTERNS.some((pattern) => lowerUrl.includes(pattern));
 }
@@ -107,6 +84,11 @@ function getRequestKind(request: DevtoolsNetworkRequest): RequestKind {
   if (resourceType === 'xhr') return 'xhr';
   if (resourceType === 'document') return 'document';
   if (resourceType === 'websocket') return 'websocket';
+  if (resourceType === 'stylesheet') return 'stylesheet';
+  if (resourceType === 'script') return 'script';
+  if (resourceType === 'image') return 'image';
+  if (resourceType === 'font') return 'font';
+  if (resourceType === 'media') return 'media';
 
   return 'other';
 }
@@ -148,25 +130,6 @@ function parseResponsePreview(text?: string, mimeType?: string): unknown {
 function looksLikeJson(value: string): boolean {
   const trimmed = value.trim();
   return (trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'));
-}
-
-function isStaticAssetUrl(url: string): boolean {
-  const path = getUrlParts(url).path.toLowerCase();
-  return STATIC_ASSET_EXTENSIONS.some((extension) => path.endsWith(extension));
-}
-
-function isStaticMimeType(mimeType?: string): boolean {
-  if (!mimeType) return false;
-  const normalized = mimeType.toLowerCase();
-
-  return (
-    normalized.includes('javascript') ||
-    normalized.includes('text/css') ||
-    normalized.startsWith('image/') ||
-    normalized.startsWith('font/') ||
-    normalized.startsWith('video/') ||
-    normalized.startsWith('audio/')
-  );
 }
 
 function getErrorLabel(status: number): string | undefined {
