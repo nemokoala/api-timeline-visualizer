@@ -11,6 +11,8 @@ export type TimelinePrefs = {
   sortColumn: TimelineColumnId;
   sortDirection: SortDirection;
   columnVisibility: Record<TimelineColumnId, boolean>;
+  /** 컬럼 id → 폭(px). 리사이즈로 변경된 값만 저장. request(flex)는 없음. */
+  columnWidths: Record<string, number>;
   /** Request 열에 쿼리 문자열(?a=1&b=2)까지 표시할지 여부. */
   showQuery: boolean;
 };
@@ -35,6 +37,7 @@ const DEFAULT_PREFS: TimelinePrefs = {
     status: true,
     duration: true,
   },
+  columnWidths: { time: 92, status: 52, duration: 60 },
   showQuery: true,
 };
 
@@ -67,6 +70,7 @@ export function getTimelinePrefs(): TimelinePrefs {
     sortColumn,
     sortDirection,
     columnVisibility: normalizeVisibility(stored.columnVisibility),
+    columnWidths: { ...DEFAULT_PREFS.columnWidths, ...(stored.columnWidths ?? {}) },
     showQuery: stored.showQuery !== false,
   };
 }

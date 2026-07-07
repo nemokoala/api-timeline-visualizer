@@ -81,6 +81,7 @@ export function DataTable<T>({
     onColumnSizingChange,
     onSortingChange,
     enableSorting,
+    enableSortingRemoval: false,
     columnResizeMode: 'onChange',
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: enableSorting ? getSortedRowModel() : undefined,

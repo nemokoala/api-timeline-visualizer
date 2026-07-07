@@ -1164,7 +1164,7 @@ button:not(:disabled) {
 .storage-note {
   margin: 8px 12px;
   border-radius: 10px;
-  padding: 7px 10px;
+  padding: 7px 12px;
   font-size: 11px;
   line-height: 1.4;
 }
@@ -1283,7 +1283,7 @@ button:not(:disabled) {
   min-width: 0;
   border: 0;
   border-bottom: 1px solid var(--border-weak);
-  padding: 7px 12px;
+  padding: 7px 10px;
   color: var(--text);
   background: transparent;
   font: inherit;
@@ -2054,7 +2054,7 @@ button:not(:disabled) {
   align-items: center;
   gap: 4px;
   min-width: 0;
-  padding: 7px 12px;
+  padding: 7px 10px;
   color: var(--text-weak);
   font-size: 11px;
   font-weight: 600;
@@ -2138,7 +2138,7 @@ button:not(:disabled) {
 .data-table-cell {
   min-width: 0;
   overflow: hidden;
-  padding: 7px 12px;
+  padding: 7px 10px;
   font-size: 12px;
 }
 
@@ -2208,7 +2208,7 @@ button:not(:disabled) {
   border-left-color: var(--blue);
 }
 
-.request-row.search-match:not(.selected) {
+.data-table-row.search-match:not(.selected) {
   background: rgba(49, 130, 246, 0.05);
 }
 
@@ -2246,7 +2246,7 @@ button:not(:disabled) {
   min-width: 0;
 }
 
-.request-row .method {
+.timeline-table .method {
   min-width: 40px;
   padding: 1px 5px;
   font-size: 10px;
@@ -2279,37 +2279,37 @@ button:not(:disabled) {
 }
 
 /* 종류별 색상. API 계열은 blue/purple, 정적 리소스는 각기 다른 색으로 구분. */
-.request-row .kind-fetch,
-.request-row .kind-document {
+.timeline-table .kind-fetch,
+.timeline-table .kind-document {
   color: var(--blue);
 }
 
-.request-row .kind-xhr,
-.request-row .kind-websocket {
+.timeline-table .kind-xhr,
+.timeline-table .kind-websocket {
   color: var(--purple);
 }
 
-.request-row .kind-stylesheet {
+.timeline-table .kind-stylesheet {
   color: var(--teal);
 }
 
-.request-row .kind-script {
+.timeline-table .kind-script {
   color: var(--orange-text);
 }
 
-.request-row .kind-image {
+.timeline-table .kind-image {
   color: var(--green-text);
 }
 
-.request-row .kind-font {
+.timeline-table .kind-font {
   color: var(--pink);
 }
 
-.request-row .kind-media {
+.timeline-table .kind-media {
   color: var(--red-text);
 }
 
-.request-row .path {
+.timeline-table .path {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -2694,7 +2694,7 @@ button:not(:disabled) {
   justify-content: flex-end;
   gap: 8px;
   min-height: 38px;
-  padding: 7px 10px;
+  padding: 7px 12px;
   border-bottom: 1px solid var(--border-weak);
   /* 래퍼가 overflow:visible인 컨텍스트(스토리지 상세)에서도 카드의 둥근 상단이 잘려 보이지 않도록
      래퍼 radius(12px)에서 테두리 1px를 뺀 곡률을 직접 가진다.
