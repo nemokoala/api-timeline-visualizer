@@ -7,6 +7,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { useSearchOptions } from '../../contexts/SearchOptionsContext';
+import { useWorkspaceOptional } from '../../contexts/WorkspaceContext';
 import { highlightSearchText, textMatchesSearch, type SearchOptions } from '../../utils/searchHighlight';
 import { scrollSearchHitIntoView } from '../../utils/searchScroll';
 import { getImagePreviews, mergeBlobPreviewItems, type ImagePreviewItem } from '../../utils/imageSource';
@@ -171,6 +172,8 @@ function JsonBlock({
   const [customHeight, setCustomHeight] = useState<number | null>(null);
   const viewerBodyRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  // Pop out(플로팅 dockview 패널로 열기)은 워크스페이스 컨텍스트가 있을 때만 노출한다.
+  const onOpenPanel = useWorkspaceOptional()?.openJsonPanel ?? null;
   const copyText = fallback || '{}';
   const isObject = Boolean(value && typeof value === 'object');
 
@@ -413,6 +416,11 @@ function JsonBlock({
             <Button size="sm" tone="accent" onClick={() => setIsFullscreen((current) => !current)}>
               {isFullscreen ? 'Close' : 'Fullscreen'}
             </Button>
+            {onOpenPanel ? (
+              <Button size="sm" tone="accent" onClick={() => onOpenPanel(value)} title="새 창(패널)으로 열기">
+                Pop out
+              </Button>
+            ) : null}
             <Button size="sm" tone="accent" onClick={handleCopy}>
               {copied ? 'Copied' : 'Copy'}
             </Button>

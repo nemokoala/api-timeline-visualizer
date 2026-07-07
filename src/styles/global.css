@@ -3100,6 +3100,12 @@ button:not(:disabled) {
   min-height: 0;
 }
 
+/* Pop out으로 연 JSON 전용 패널: 뷰어가 패널을 채우고 넘치면 스크롤. */
+.json-dock-panel {
+  overflow: auto;
+  padding: 8px;
+}
+
 .dock-panel-shell > .panel-header,
 .dock-panel-shell > .network-actions {
   flex: 0 0 auto;

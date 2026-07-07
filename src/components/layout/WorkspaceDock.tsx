@@ -11,10 +11,15 @@ import {
 import 'dockview-react/dist/styles/dockview.css';
 import type { WorkspaceMode } from './Toolbar';
 import { useTheme } from '../../hooks/useTheme';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { getDockLayout, saveDockLayout } from '../../utils/dockLayoutPrefs';
 import { ConsolePanel } from '../panels/ConsolePanel';
 import { NetworkPanel } from '../panels/NetworkPanel';
 import { StoragePanel } from '../panels/StoragePanel';
+import { JsonViewer } from '../shared/JsonViewer';
+
+/** Pop out으로 연 JSON 전용 동적 패널의 id 접두사. */
+const JSON_PANEL_ID_PREFIX = 'json:';
 
 /** 도킹 패널 메타. id는 WorkspaceMode와 1:1로 매칭된다. */
 export const WORKSPACE_PANEL_ORDER: WorkspaceMode[] = ['network', 'storage', 'console'];
@@ -31,10 +36,31 @@ function isWorkspaceMode(value: string): value is WorkspaceMode {
 
 // dockview는 컴포넌트에 IDockviewPanelProps를 넘기지만, 각 패널은 컨텍스트에서
 // 상태를 읽으므로 props를 사용하지 않는다.
+/** Pop out으로 연 JSON을 표시하는 동적 패널. 값은 컨텍스트에서 패널 id로 조회한다. */
+function JsonDockPanel({ params }: IDockviewPanelProps) {
+  const { getJsonPanelData } = useWorkspace();
+  const dataId = typeof params?.dataId === 'string' ? params.dataId : '';
+  const data = getJsonPanelData(dataId);
+
+  return (
+    <div className="dock-panel-shell json-dock-panel">
+      {data ? (
+        <JsonViewer value={data.value} />
+      ) : (
+        <div className="dock-watermark">
+          <p>JSON 데이터가 없습니다.</p>
+          <p className="dock-watermark-hint">패널을 닫고 다시 Pop out 해 주세요.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const components: Record<string, React.FunctionComponent<IDockviewPanelProps>> = {
   network: () => <NetworkPanel />,
   storage: () => <StoragePanel />,
   console: () => <ConsolePanel />,
+  json: (props) => <JsonDockPanel {...props} />,
 };
 
 function DockWatermark(_props: IWatermarkPanelProps) {
@@ -96,6 +122,10 @@ export function WorkspaceDock({ onApiReady, onActivePanelChange, onOpenPanelsCha
     if (saved) {
       try {
         api.fromJSON(saved);
+        // Pop out JSON 패널은 값이 세션 메모리에만 있으므로 복원하지 않고 제거한다.
+        for (const panel of [...api.panels]) {
+          if (panel.id.startsWith(JSON_PANEL_ID_PREFIX)) api.removePanel(panel);
+        }
         restored = api.panels.length > 0;
       } catch {
         restored = false;

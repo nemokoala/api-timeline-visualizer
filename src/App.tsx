@@ -129,6 +129,10 @@ export default function App() {
   // requestId가 새로 찍혀 이전 좌표와 맞지 않으므로 localStorage 영속은 하지 않는다.
   // 진짜 영속이 필요하면 세션 export/import(JSON)를 쓴다.
   const flowLayoutRef = useRef<FlowLayout>(EMPTY_FLOW_LAYOUT);
+  // Pop out으로 연 JSON 패널의 데이터(패널 id → 값). dockview 레이아웃에는 id만 저장하고
+  // 실제 값은 여기(세션 메모리)에만 둔다. 새로고침 시엔 값이 없으므로 패널을 복원하지 않는다.
+  const jsonPanelDataRef = useRef(new Map<string, { title: string; value: unknown }>());
+  const jsonPanelSeqRef = useRef(0);
   const networkRequestById = useRef(new Map<string, chrome.devtools.network.Request>());
   const preloadQueueRef = useRef<string[]>([]);
   const preloadInFlightRef = useRef(new Set<string>());
@@ -409,6 +413,30 @@ export default function App() {
   const handleDockApiReady = useCallback((api: DockviewApi) => {
     dockApiRef.current = api;
   }, []);
+
+  const openJsonPanel = useCallback((value: unknown) => {
+    const api = dockApiRef.current;
+    if (!api) return;
+
+    const seq = (jsonPanelSeqRef.current += 1);
+    const id = `json:${seq}`;
+    const title = `JSON ${seq}`;
+    jsonPanelDataRef.current.set(id, { title, value });
+
+    api.addPanel({
+      id,
+      component: 'json',
+      title,
+      params: { dataId: id },
+      floating: { width: 560, height: 420, x: 80 + seq * 24, y: 60 + seq * 24 },
+    });
+    api.getPanel(id)?.api.setActive();
+  }, []);
+
+  const getJsonPanelData = useCallback(
+    (dataId: string) => jsonPanelDataRef.current.get(dataId),
+    [],
+  );
 
   const handleActivePanelChange = useCallback((mode: WorkspaceMode) => {
     setWorkspaceMode(mode);
@@ -828,6 +856,8 @@ export default function App() {
     onLoadResponseBody: loadResponseBody,
     onEnsureThumbnailBody: ensureResponseBody,
     onCloseDetail: handleCloseDetail,
+    openJsonPanel,
+    getJsonPanelData,
     storageSearchText,
     storageSearchMatchIndex,
     storageIncludeText,

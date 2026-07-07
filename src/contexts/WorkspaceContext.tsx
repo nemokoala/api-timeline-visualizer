@@ -49,6 +49,8 @@ export type PanelFilterModel = {
   excludePlaceholder: string;
 };
 
+export type JsonPanelData = { title: string; value: unknown };
+
 export type WorkspaceContextValue = {
   // 검색·필터(패널별)
   searchModels: Record<WorkspaceMode, PanelSearchModel>;
@@ -88,6 +90,10 @@ export type WorkspaceContextValue = {
   /** 이미지 썸네일용 응답 본문 지연 로드(상세 스피너 미표시). */
   onEnsureThumbnailBody: (requestId: string) => void;
   onCloseDetail: () => void;
+  /** JSON 값을 이동·크기조절 가능한 dockview 플로팅 패널로 연다. */
+  openJsonPanel: (value: unknown) => void;
+  /** dockview JSON 패널이 자신의 데이터를 조회한다(패널 id로). */
+  getJsonPanelData: (dataId: string) => JsonPanelData | undefined;
   // Storage
   storageSearchText: string;
   storageSearchMatchIndex: number;
@@ -118,4 +124,9 @@ export function useWorkspace(): WorkspaceContextValue {
     throw new Error('useWorkspace must be used within a WorkspaceProvider');
   }
   return value;
+}
+
+/** Provider 밖에서도 안전하게 쓰기 위한 선택적 접근(없으면 null). */
+export function useWorkspaceOptional(): WorkspaceContextValue | null {
+  return useContext(WorkspaceContext);
 }
