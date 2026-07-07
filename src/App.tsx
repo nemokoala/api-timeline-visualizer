@@ -623,10 +623,15 @@ export default function App() {
 
   const handleSelectRequestWithBodyLoad = useCallback(
     (requestId: string) => {
+      // 같은 행을 다시 누르면 세부 패널을 닫는다(토글).
+      if (requestId === selectedRequestId) {
+        setSelectedRequestId(null);
+        return;
+      }
       handleSelectRequest(requestId);
       startResponseBodyLoad(requestId);
     },
-    [handleSelectRequest, startResponseBodyLoad],
+    [handleSelectRequest, selectedRequestId, startResponseBodyLoad],
   );
 
   useEffect(() => {

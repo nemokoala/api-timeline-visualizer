@@ -223,6 +223,12 @@ export function ConsoleView({
   }, [activeSearchOccurrence, hasDetail, searchMatchIndex]);
 
   const handleSelectEntry = (entryId: string) => {
+    // 같은 행을 다시 누르면 세부 패널을 닫는다(토글).
+    if (entryId === selectedEntryId) {
+      onSelectedEntryIdChange(null);
+      return;
+    }
+
     if (hasSearch) {
       const matchIndex = getSearchMatchIndexForConsoleEntry(searchOccurrences, entryId);
       if (matchIndex !== null) {

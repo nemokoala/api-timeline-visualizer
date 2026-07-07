@@ -326,6 +326,16 @@ export function StorageView({
   }, [selectedDetail, selectedItem]);
 
   const handleSelectItem = (item: SelectedStorageItem) => {
+    // 같은 행을 다시 누르면 세부 패널을 닫는다(토글).
+    if (
+      selectedItem &&
+      storageTargetKey(selectedItemToStorageTarget(item)) ===
+        storageTargetKey(selectedItemToStorageTarget(selectedItem))
+    ) {
+      setSelectedItem(null);
+      return;
+    }
+
     if (hasSearch) {
       const matchIndex = getSearchMatchIndexForStorageTarget(
         searchOccurrences,
