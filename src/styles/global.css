@@ -2019,6 +2019,14 @@ button:not(:disabled) {
   text-align: right;
 }
 
+.size {
+  color: var(--text-weak);
+  font-size: 11px;
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .request-main {
   display: grid;
   gap: 3px;

@@ -9,6 +9,14 @@ export function formatOffset(offset: number): string {
   return `+${Math.round(offset)}ms`;
 }
 
+/** 바이트 크기를 사람이 읽기 쉬운 단위로. 값이 없으면 '—'. */
+export function formatBytes(bytes: number | undefined): string {
+  if (bytes === undefined || !Number.isFinite(bytes) || bytes < 0) return '—';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function formatDateTime(timestamp: number): string {
   if (!Number.isFinite(timestamp)) return 'unknown';
   return new Intl.DateTimeFormat(undefined, {

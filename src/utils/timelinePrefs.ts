@@ -4,7 +4,7 @@
  */
 import { readJson, writeJson } from './localStoragePrefs';
 
-export type TimelineColumnId = 'time' | 'request' | 'status' | 'duration';
+export type TimelineColumnId = 'time' | 'request' | 'status' | 'duration' | 'size';
 export type SortDirection = 'asc' | 'desc';
 
 export type TimelinePrefs = {
@@ -19,13 +19,14 @@ export type TimelinePrefs = {
 
 const STORAGE_KEY = 'api-flow-timeline-prefs';
 
-export const TIMELINE_COLUMNS: TimelineColumnId[] = ['time', 'request', 'status', 'duration'];
+export const TIMELINE_COLUMNS: TimelineColumnId[] = ['time', 'request', 'status', 'duration', 'size'];
 
 export const TIMELINE_COLUMN_LABELS: Record<TimelineColumnId, string> = {
   time: 'Time',
   request: 'Request',
   status: 'Status',
   duration: 'Duration',
+  size: 'Size',
 };
 
 const DEFAULT_PREFS: TimelinePrefs = {
@@ -36,8 +37,9 @@ const DEFAULT_PREFS: TimelinePrefs = {
     request: true,
     status: true,
     duration: true,
+    size: true,
   },
-  columnWidths: { time: 92, status: 52, duration: 60 },
+  columnWidths: { time: 92, status: 52, duration: 60, size: 72 },
   showQuery: true,
 };
 

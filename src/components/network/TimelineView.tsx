@@ -10,7 +10,7 @@ import {
   type TimelinePrefs,
 } from '../../utils/timelinePrefs';
 import type { RequestSearchSummary } from '../../utils/requestSearch';
-import { formatDateTime, formatDuration, getRequestKindLabel, getStatusTone } from '../../utils/formatters';
+import { formatBytes, formatDateTime, formatDuration, getRequestKindLabel, getStatusTone } from '../../utils/formatters';
 import { getResponseImageThumbnail } from '../../utils/imageSource';
 import { SearchHitBadge } from './SearchHitBadge';
 import { ColumnMenu } from '../shared/ColumnMenu';
@@ -33,6 +33,7 @@ const TIMELINE_COLUMN_HEADER_LABELS: Record<TimelineColumnId, string> = {
   request: 'Request',
   status: 'Stat',
   duration: 'Dur',
+  size: 'Size',
 };
 
 /** URL에서 쿼리 문자열(?a=1&b=2)만 추출한다. 해시(#…)는 제외. 빈 쿼리('?')는 무시. */
@@ -182,6 +183,17 @@ export function TimelineView({
         cell: ({ row }) => {
           const request = ctxRef.current.requestById.get(row.original.requestId);
           return <span className="duration">{formatDuration(request?.duration ?? row.original.duration)}</span>;
+        },
+      },
+      {
+        id: 'size',
+        header: TIMELINE_COLUMN_HEADER_LABELS.size,
+        accessorFn: (item) => item.size ?? -1,
+        size: 72,
+        minSize: 52,
+        cell: ({ row }) => {
+          const request = ctxRef.current.requestById.get(row.original.requestId);
+          return <span className="size">{formatBytes(request?.size ?? row.original.size)}</span>;
         },
       },
     ],

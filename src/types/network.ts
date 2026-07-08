@@ -61,6 +61,8 @@ export type TimelineItem = {
   host: string;
   path: string;
   normalizedPath: string;
+  /** 응답 본문 크기(bytes). 알 수 없으면 없음. 정렬용으로 보관. */
+  size?: number;
   isSlow: boolean;
   isError: boolean;
 };
