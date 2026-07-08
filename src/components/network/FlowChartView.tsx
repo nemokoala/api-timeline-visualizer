@@ -92,6 +92,10 @@ export function FlowChartView({
 }: FlowChartViewProps) {
   const flowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const flowPanelRef = useRef<HTMLElement | null>(null);
+  // dockview가 저장된 레이아웃을 복원하는 동안 패널이 0×0으로 마운트될 수 있다.
+  // 그 상태에서 ReactFlow를 마운트하면 크기 측정마다 "parent container needs a
+  // width and a height" 경고가 반복되므로, 실측 크기가 생긴 뒤에만 마운트한다.
+  const [hasMeasuredSize, setHasMeasuredSize] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   // 사용자가 직접 옮긴 위치, 삭제한 노드, 추가한 텍스트 메모를 로컬 상태로 보관한다.
@@ -142,6 +146,26 @@ export function FlowChartView({
   >(new Map());
   // 새로 들어온 요청만 위치를 한 번 부여한다. 기존 요청을 다시 줄 세우지 않는다.
   const knownRequestNodeIdsRef = useRef<Set<string>>(new Set());
+
+  // 컨테이너가 실제 크기를 가질 때까지 ResizeObserver로 기다린다. 한 번 크기가
+  // 잡히면 계속 마운트 상태를 유지해 뷰포트(줌/팬)를 잃지 않는다.
+  useEffect(() => {
+    const panel = flowPanelRef.current;
+    if (!panel) return;
+
+    const checkSize = () => {
+      // border를 제외한 콘텐츠 크기 기준. getBoundingClientRect는 border 1px만
+      // 있어도 높이가 1로 잡혀 0 크기 콘텐츠를 통과시킬 수 있다.
+      if (panel.clientWidth > 0 && panel.clientHeight > 0) {
+        setHasMeasuredSize(true);
+      }
+    };
+    checkSize();
+
+    const observer = new ResizeObserver(checkSize);
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, []);
 
   const requestById = useMemo(
     () => new Map(requests.map((request) => [request.id, request])),
@@ -886,7 +910,7 @@ export function FlowChartView({
             request sequence here.
           </span>
         </div>
-      ) : (
+      ) : !hasMeasuredSize ? null : (
         <>
           <ReactFlow
             nodes={rfNodes}
