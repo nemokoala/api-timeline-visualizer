@@ -39,6 +39,7 @@ import {
 import { SplitPanelResizer } from "../shared/SplitPanelResizer";
 import { formatDateTime, formatLocaleDateTime } from "../../utils/formatters";
 import { Button } from "../ui/Button";
+import { PillTabs } from "../ui/PillTabs";
 import { CookiePane } from "./CookiePane";
 import { IndexedDbPane } from "./IndexedDbPane";
 import { WebStoragePane } from "./WebStoragePane";
@@ -424,48 +425,21 @@ export function StorageView({
         </Button>
       </div>
 
-      <div
-        className="storage-tabs pill-tabs"
-        role="tablist"
-        aria-label="Storage type"
-      >
-        <StorageTabButton
-          active={activeTab === "local"}
-          label="localStorage"
-          count={localEntries.length}
-          onClick={() => {
-            setActiveTab("local");
-            setSelectedItem(null);
-          }}
-        />
-        <StorageTabButton
-          active={activeTab === "session"}
-          label="sessionStorage"
-          count={sessionEntries.length}
-          onClick={() => {
-            setActiveTab("session");
-            setSelectedItem(null);
-          }}
-        />
-        <StorageTabButton
-          active={activeTab === "cookies"}
-          label="Cookies"
-          count={cookieEntries.length}
-          onClick={() => {
-            setActiveTab("cookies");
-            setSelectedItem(null);
-          }}
-        />
-        <StorageTabButton
-          active={activeTab === "indexeddb"}
-          label="IndexedDB"
-          count={indexedDatabases.length}
-          onClick={() => {
-            setActiveTab("indexeddb");
-            setSelectedItem(null);
-          }}
-        />
-      </div>
+      <PillTabs
+        className="border-b border-line-weak bg-surface px-3.5 py-2.5"
+        ariaLabel="Storage type"
+        value={activeTab}
+        onChange={(tab) => {
+          setActiveTab(tab);
+          setSelectedItem(null);
+        }}
+        options={[
+          { value: "local", label: "localStorage", count: localEntries.length },
+          { value: "session", label: "sessionStorage", count: sessionEntries.length },
+          { value: "cookies", label: "Cookies", count: cookieEntries.length },
+          { value: "indexeddb", label: "IndexedDB", count: indexedDatabases.length },
+        ]}
+      />
 
       {error ? <div className="storage-message is-error">{error}</div> : null}
       {mutationError ? (
@@ -576,27 +550,3 @@ export function StorageView({
   );
 }
 
-function StorageTabButton({
-  active,
-  label,
-  count,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  count: number;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      className={active ? "active" : ""}
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-    >
-      <span>{label}</span>
-      <span className="storage-tab-count">{count}</span>
-    </button>
-  );
-}

@@ -461,28 +461,6 @@ button:not(:disabled) {
   font-size: 11px;
 }
 
-.toggle-control {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 32px;
-  border: 0;
-  border-radius: 10px;
-  padding: 0 11px;
-  color: var(--text-sub);
-  background: var(--fill);
-  font-size: 12px;
-  font-weight: 500;
-  user-select: none;
-}
-
-.toggle-control input {
-  width: 14px;
-  height: 14px;
-  margin: 0;
-  accent-color: var(--blue);
-}
-
 .workspace {
   display: grid;
   min-height: 0;
@@ -678,57 +656,6 @@ button:not(:disabled) {
 
 /* ---------------------------------------------------------------------------
    공통 알약형 탭/필터 (스토리지 탭, 콘솔 레벨 필터 공용) */
-.pill-tabs button {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  flex: 0 0 auto;
-  height: 28px;
-  border: 0;
-  border-radius: 999px;
-  padding: 0 12px;
-  color: var(--text-weak);
-  background: var(--fill);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.pill-tabs button:hover {
-  color: var(--text-sub);
-  background: var(--fill-hover);
-}
-
-.pill-tabs button.active {
-  color: var(--blue-strong);
-  background: var(--blue-soft);
-}
-
-.storage-tabs {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border-weak);
-  background: var(--surface);
-}
-
-.storage-tab-count {
-  min-width: 18px;
-  border-radius: 999px;
-  padding: 1px 6px;
-  color: var(--text-weak);
-  background: var(--count-bg);
-  font-size: 10px;
-  line-height: 15px;
-  text-align: center;
-}
-
-.pill-tabs button.active .storage-tab-count {
-  color: var(--blue-strong);
-  background: rgba(49, 130, 246, 0.14);
-}
-
 .storage-message {
   margin: 10px 14px 0;
   border: 0;
@@ -1134,27 +1061,6 @@ button:not(:disabled) {
   padding: 10px 14px;
   border-bottom: 1px solid var(--border-weak);
   background: var(--surface);
-}
-
-.console-toolbar-filters {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  overflow-x: auto;
-}
-
-.console-toolbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 0 0 auto;
-}
-
-/* Auto-scroll / Wrap lines 토글을 Clear 버튼(.btn-md)과 같은 크기로 맞춘다. */
-.console-toolbar-actions .toggle-control {
-  height: 28px;
-  border-radius: 9px;
 }
 
 .console-workspace {
@@ -2866,155 +2772,25 @@ button:not(:disabled) {
   gap: 8px;
 }
 
-.resend-error {
-  margin: 6px 0 0;
-  border-radius: 10px;
-  padding: 5px 10px;
-  color: var(--red-text);
-  background: var(--red-soft);
-  font-size: 11px;
-}
 
-/* 응답 비교(diff) 모달 */
-.diff-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 28px;
-  background: rgba(15, 18, 25, 0.45);
-}
 
-.diff-modal {
-  display: flex;
-  flex-direction: column;
-  width: min(880px, 100%);
-  max-height: 100%;
-  border: 1px solid var(--border-weak);
-  border-radius: 16px;
-  background: var(--surface);
-  box-shadow: var(--shadow-float);
-  overflow: hidden;
-}
 
-.diff-modal-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px 10px;
-}
 
-.diff-modal-header h2 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 4px 0 0;
-  font-size: 14px;
-  overflow-wrap: anywhere;
-}
 
-.diff-modal-controls {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 0 16px 12px;
-}
 
-.diff-side {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
 
-.diff-side-label {
-  flex: 0 0 auto;
-  font-size: 11px;
-  font-weight: 700;
-}
 
-.diff-side-label.removed,
-.diff-counts .removed {
-  color: var(--red-text);
-}
 
-.diff-side-label.added,
-.diff-counts .added {
-  color: var(--green-text);
-}
 
-.diff-side-meta {
-  font-size: 12px;
-  color: var(--text-sub);
-}
 
-.diff-arrow {
-  color: var(--text-weak);
-}
 
-.diff-counts {
-  display: flex;
-  gap: 8px;
-  margin-left: auto;
-  font-size: 12px;
-  font-weight: 700;
-}
 
-.diff-viewer {
-  flex: 1;
-  min-height: 160px;
-  overflow: auto;
-  border-top: 1px solid var(--border-weak);
-  background: var(--surface-sub);
-}
 
-.diff-viewer pre {
-  margin: 0;
-  padding: 10px 0;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 11px;
-  line-height: 1.6;
-}
 
-.diff-line {
-  display: flex;
-  padding: 0 14px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
 
-.diff-line.added {
-  color: var(--green-text);
-  background: rgba(2, 178, 108, 0.09);
-}
 
-.diff-line.removed {
-  color: var(--red-text);
-  background: rgba(240, 68, 82, 0.08);
-}
 
-.diff-sign {
-  flex: 0 0 14px;
-  user-select: none;
-}
 
-.diff-status {
-  margin: 0;
-  padding: 18px 16px;
-  color: var(--text-sub);
-  font-size: 12px;
-}
-
-.diff-modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding: 10px 16px;
-  border-top: 1px solid var(--border-weak);
-}
 
 .code-snippet-viewer {
   max-height: 220px;
@@ -3175,14 +2951,6 @@ button:not(:disabled) {
 .network-actions .toolbar-button-group {
   margin-left: auto;
   flex-shrink: 0;
-}
-
-/* Group time 토글을 이 행의 sm 버튼(24px)과 같은 높이로 맞춘다. */
-.network-actions .toggle-control {
-  height: 24px;
-  border-radius: 8px;
-  padding: 0 9px;
-  font-size: 11px;
 }
 
 /* 리소스 타입 표시 드롭다운("Types" 버튼 + 팝오버). */

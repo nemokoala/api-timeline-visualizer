@@ -11,6 +11,7 @@ import { MethodMenu } from '../network/MethodMenu';
 import { StatusMenu } from '../network/StatusMenu';
 import { Button } from '../ui/Button';
 import { SegmentedControl } from '../ui/SegmentedControl';
+import { ToggleControl } from '../ui/ToggleControl';
 import { PanelHeader } from './PanelHeader';
 
 /** 도킹 패널로 렌더링되는 네트워크 뷰(Flow/Timeline + 요청 상세 분할). */
@@ -80,14 +81,12 @@ export function NetworkPanel() {
         {ctx.networkViewMode === 'flow' ? (
           <>
             <span className="network-actions-sep" aria-hidden="true" />
-            <label className="toggle-control">
-              <input
-                type="checkbox"
-                checked={ctx.groupFlowByTime}
-                onChange={(event) => ctx.onGroupFlowByTimeChange(event.currentTarget.checked)}
-              />
-              <span>Group time</span>
-            </label>
+            <ToggleControl
+              size="sm"
+              label="Group time"
+              checked={ctx.groupFlowByTime}
+              onChange={ctx.onGroupFlowByTimeChange}
+            />
           </>
         ) : null}
         {ctx.sessionNotice ? <p className="toolbar-notice">{ctx.sessionNotice}</p> : null}

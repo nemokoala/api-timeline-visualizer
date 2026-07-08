@@ -23,6 +23,8 @@ import { DataTable } from '../shared/DataTable';
 import { getTablePrefs, saveTablePrefs, type TablePrefs } from '../../utils/tablePrefs';
 import type { ColumnDef, ColumnSizingState, OnChangeFn } from '@tanstack/react-table';
 import { Button } from '../ui/Button';
+import { PillTabs } from '../ui/PillTabs';
+import { ToggleControl } from '../ui/ToggleControl';
 
 type ConsoleViewProps = {
   entries: ConsoleEntry[];
@@ -310,41 +312,23 @@ export function ConsoleView({
   return (
     <section className="console-panel">
       <div className="console-toolbar">
-        <div className="console-toolbar-filters pill-tabs" role="tablist" aria-label="Console level filter">
-          {LEVEL_FILTERS.map((filter) => (
-            <button
-              key={filter.value}
-              type="button"
-              role="tab"
-              aria-selected={levelFilter === filter.value}
-              className={levelFilter === filter.value ? 'active' : ''}
-              onClick={() => setLevelFilter(filter.value)}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
-        <div className="console-toolbar-actions">
-          <label className="toggle-control">
-            <input
-              type="checkbox"
-              checked={autoScroll}
-              onChange={(event) => setAutoScroll(event.currentTarget.checked)}
-            />
-            <span>Auto-scroll</span>
-          </label>
-          <label className="toggle-control">
-            <input
-              type="checkbox"
-              checked={wrapLines}
-              onChange={(event) => {
-                const next = event.currentTarget.checked;
-                setWrapLines(next);
-                localStorage.setItem(WRAP_LINES_STORAGE_KEY, String(next));
-              }}
-            />
-            <span>Wrap lines</span>
-          </label>
+        <PillTabs
+          className="min-w-0 overflow-x-auto"
+          ariaLabel="Console level filter"
+          value={levelFilter}
+          onChange={setLevelFilter}
+          options={LEVEL_FILTERS}
+        />
+        <div className="flex flex-none items-center gap-2.5">
+          <ToggleControl label="Auto-scroll" checked={autoScroll} onChange={setAutoScroll} />
+          <ToggleControl
+            label="Wrap lines"
+            checked={wrapLines}
+            onChange={(next) => {
+              setWrapLines(next);
+              localStorage.setItem(WRAP_LINES_STORAGE_KEY, String(next));
+            }}
+          />
           <Button onClick={() => void handleClear()} disabled={!entries.length}>
             Clear
           </Button>

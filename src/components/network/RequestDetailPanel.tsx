@@ -387,7 +387,7 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
         </div>
       </div>
       {resendState === 'failed' && resendError ? (
-        <p className="resend-error" role="alert">
+        <p className="mt-1.5 mb-0 rounded-[10px] bg-danger-soft px-2.5 py-[5px] text-[11px] text-danger" role="alert">
           재전송 실패: {resendError}
         </p>
       ) : null}
