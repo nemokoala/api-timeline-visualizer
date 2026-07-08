@@ -1,6 +1,7 @@
 import { formatDateTime, formatDuration, formatLocaleDateTime } from './formatters';
 import type { ApiRequest } from '../types/network';
 import { getImageSource } from './imageSource';
+import { requestCookieValue, responseCookieValue } from './requestCookies';
 import { generateCurl, generateFetch } from './requestCodeSnippets';
 import {
   countSearchOccurrences,
@@ -185,6 +186,20 @@ function buildRequestPanelOccurrences(
     );
   }
 
+  if (matchingSections.has('cookies')) {
+    appendPanelOccurrences(
+      occurrences,
+      request.id,
+      markIndex,
+      searchText,
+      [
+        { kind: 'json', value: requestCookieValue(request) },
+        { kind: 'json', value: responseCookieValue(request) },
+      ],
+      options,
+    );
+  }
+
   if (matchingSections.has('payload')) {
     appendPanelOccurrences(
       occurrences,
@@ -357,6 +372,13 @@ export function getMatchingDetailSections(
     matches(stringifyValue(request.responseHeaders))
   ) {
     sections.add('headers');
+  }
+
+  if (
+    matches(stringifyValue(requestCookieValue(request))) ||
+    matches(stringifyValue(responseCookieValue(request)))
+  ) {
+    sections.add('cookies');
   }
 
   if (matches(stringifyValue(request.queryParams)) || matches(stringifyValue(request.requestBody))) {

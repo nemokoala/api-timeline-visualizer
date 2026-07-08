@@ -12,6 +12,18 @@ export type RequestKind =
 
 export type HeaderMap = Record<string, string>;
 
+export type NetworkCookie = {
+  name: string;
+  value: string;
+  domain?: string;
+  path?: string;
+  /** HAR 형식의 만료 시각 문자열(ISO). 세션 쿠키면 없음. */
+  expires?: string | null;
+  httpOnly?: boolean;
+  secure?: boolean;
+  sameSite?: string;
+};
+
 export type ApiRequest = {
   id: string;
   url: string;
@@ -28,6 +40,8 @@ export type ApiRequest = {
   mimeType?: string;
   requestHeaders?: HeaderMap;
   responseHeaders?: HeaderMap;
+  requestCookies?: NetworkCookie[];
+  responseCookies?: NetworkCookie[];
   queryParams?: HeaderMap;
   requestBody?: unknown;
   responsePreview?: unknown;

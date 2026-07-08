@@ -271,6 +271,21 @@ function toApiRequest(seed: MockRequestSeed): ApiRequest {
       'cache-control': 'no-cache',
       'x-request-id': `req_${seed.id}`,
     },
+    requestCookies: [
+      { name: 'sid', value: 's%3Amock.session.token' },
+      { name: 'locale', value: 'ko-KR' },
+    ],
+    responseCookies: [
+      {
+        name: 'sid',
+        value: 's%3Amock.session.token',
+        domain: '.example.com',
+        path: '/',
+        httpOnly: true,
+        secure: true,
+        sameSite: 'Lax',
+      },
+    ],
     queryParams: seed.queryParams,
     requestBody: seed.requestBody,
     responseContent,

@@ -3,6 +3,7 @@ import type { ApiRequest } from '../../types/network';
 import { DetailSection } from '../shared/DetailSection';
 import { generateCurl, generateFetch } from '../../utils/requestCodeSnippets';
 import { getMatchingDetailSections } from '../../utils/requestSearch';
+import { requestCookieValue, responseCookieValue } from '../../utils/requestCookies';
 import { scrollSearchHitIntoView } from '../../utils/searchScroll';
 import { useSearchOptions } from '../../contexts/SearchOptionsContext';
 import { highlightSearchText } from '../../utils/searchHighlight';
@@ -154,6 +155,18 @@ export function RequestDetailPanel({
         <JsonViewer value={request.requestHeaders ?? {}} searchText={searchText} searchFocusKey={searchFocusKey} />
         <h3>Response</h3>
         <JsonViewer value={request.responseHeaders ?? {}} searchText={searchText} searchFocusKey={searchFocusKey} />
+      </DetailSection>
+
+      <DetailSection
+        sectionId="cookies"
+        title="Cookies"
+        searchExpandToken={searchFocusKey}
+        expandForSearch={matchingSections.has('cookies')}
+      >
+        <h3>Request</h3>
+        <JsonViewer value={requestCookieValue(request)} searchText={searchText} searchFocusKey={searchFocusKey} />
+        <h3>Response</h3>
+        <JsonViewer value={responseCookieValue(request)} searchText={searchText} searchFocusKey={searchFocusKey} />
       </DetailSection>
 
       <DetailSection
