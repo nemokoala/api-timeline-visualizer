@@ -37,8 +37,14 @@ function stringifyValue(value: unknown): string {
   return String(value);
 }
 
+/** 이미지 응답의 본문은 base64라 검색 대상에서 제외한다(스캔 비용 폭증 + 검색 무의미). */
+function isImageResponse(request: ApiRequest): boolean {
+  return request.type === 'image' || Boolean(request.mimeType?.startsWith('image/'));
+}
+
 export function buildRequestSearchText(request: ApiRequest, options?: SearchOptions): string {
   const queryParams = Object.entries(request.queryParams ?? {}).flatMap(([key, value]) => [key, value]);
+  const image = isImageResponse(request);
 
   const text = [
     request.method,
@@ -52,8 +58,8 @@ export function buildRequestSearchText(request: ApiRequest, options?: SearchOpti
     request.mimeType ?? '',
     request.error ?? '',
     stringifyValue(request.requestBody),
-    stringifyValue(request.responsePreview),
-    stringifyValue(request.responseContent),
+    image ? '' : stringifyValue(request.responsePreview),
+    image ? '' : stringifyValue(request.responseContent),
     ...queryParams,
   ].join(' ');
 

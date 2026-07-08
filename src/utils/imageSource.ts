@@ -31,11 +31,18 @@ export function getImageSource(value: unknown, mimeType?: string, recordKey?: st
 }
 
 /**
+ * 리스트 썸네일로 그리기엔 지나치게 큰 이미지는 건너뛴다. 작은 셀 하나를 위해
+ * 수 MB짜리 base64를 풀 해상도로 디코드하면 목록이 심하게 버벅인다.
+ */
+const MAX_THUMBNAIL_BASE64_LENGTH = 512 * 1024;
+
+/**
  * 이미지 요청의 응답 본문(getContent 결과)에서 썸네일용 data URL을 만든다.
  * 바이너리 이미지는 base64 문자열로, SVG는 텍스트로 들어오므로 각각 처리한다.
  */
 export function getResponseImageThumbnail(content: string | undefined, mimeType?: string): string | null {
   if (!content || !mimeType?.startsWith('image/')) return null;
+  if (content.length > MAX_THUMBNAIL_BASE64_LENGTH) return null;
 
   const direct = getImageSource(content, mimeType);
   if (direct) return direct;

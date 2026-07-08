@@ -289,16 +289,23 @@ function RequestCell({ item, ctx }: { item: TimelineItem; ctx: RenderContext }) 
   const widthPercent = Math.max(2, (item.duration / ctx.maxEnd) * 100);
   const searchSummary = ctx.searchOccurrenceByRequest.get(item.requestId);
   const queryString = ctx.showQuery ? getQueryString(request?.url) : '';
-  const thumbnailSrc =
-    request?.type === 'image'
-      ? getResponseImageThumbnail(request.responseContent, request.mimeType)
-      : null;
+  // 썸네일은 base64 본문이 바뀔 때만 다시 계산한다. 매 렌더마다 전체 base64에
+  // 정규식을 돌리면 리스트가 커질수록 심하게 버벅인다.
+  const thumbnailSrc = useMemo(
+    () =>
+      request?.type === 'image'
+        ? getResponseImageThumbnail(request.responseContent, request.mimeType)
+        : null,
+    [request?.type, request?.responseContent, request?.mimeType],
+  );
 
   return (
     <span className="request-main">
       <span className="request-meta">
         <span className={`method method-${item.method.toLowerCase()}`}>{item.method}</span>
-        {thumbnailSrc ? <img className="row-thumb" src={thumbnailSrc} alt="" loading="lazy" /> : null}
+        {thumbnailSrc ? (
+          <img className="row-thumb" src={thumbnailSrc} alt="" loading="lazy" decoding="async" />
+        ) : null}
         <span className="path">
           {item.normalizedPath}
           {queryString ? <span className="path-query">{queryString}</span> : null}
