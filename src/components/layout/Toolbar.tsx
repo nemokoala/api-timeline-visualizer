@@ -1,5 +1,6 @@
 import { useTheme } from '../../hooks/useTheme';
 import { IconButton } from '../ui/Button';
+import { SegmentedControl } from '../ui/SegmentedControl';
 
 export type WorkspaceMode = 'network' | 'storage' | 'console';
 export type NetworkViewMode = 'flow' | 'timeline';
@@ -54,23 +55,26 @@ export function Toolbar({
         <div className="toolbar-spacer" />
 
         <div className="toolbar-cluster">
-          <div className="segmented-control segmented-control-dock" aria-label="Workspace panels">
-            {WORKSPACE_PANEL_BUTTONS.map(({ mode, label }) => {
+          <SegmentedControl
+            size="sm"
+            ariaLabel="Workspace panels"
+            value={workspaceMode}
+            onChange={onWorkspaceModeChange}
+            options={WORKSPACE_PANEL_BUTTONS.map(({ mode, label }) => {
               const isActive = workspaceMode === mode;
               const isOpen = openPanels.includes(mode);
-              return (
-                <button
-                  key={mode}
-                  className={`${isActive ? 'active' : ''} ${isOpen ? 'is-open' : ''}`}
-                  type="button"
-                  title={isOpen ? `${label} 패널로 이동` : `${label} 패널 열기`}
-                  onClick={() => onWorkspaceModeChange(mode)}
-                >
-                  {label}
-                </button>
-              );
+              return {
+                value: mode,
+                label,
+                title: isOpen ? `${label} 패널로 이동` : `${label} 패널 열기`,
+                // 열려 있지만 포커스되지 않은 패널은 하단에 작은 점으로 표시.
+                className:
+                  isOpen && !isActive
+                    ? "relative after:absolute after:bottom-[3px] after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-accent after:content-['']"
+                    : undefined,
+              };
             })}
-          </div>
+          />
           <IconButton
             size="md"
             aria-label="레이아웃 초기화"

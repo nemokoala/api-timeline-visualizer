@@ -85,9 +85,10 @@ export function FilterMenu<T extends string>({
           role="menu"
           aria-label={menuAriaLabel}
         >
-          <div className="filter-menu-actions">
+          <div className="mb-1 flex gap-1 border-b border-line-weak px-1 pt-0.5 pb-1.5">
             <button
               type="button"
+              className="h-[22px] flex-1 cursor-pointer rounded-[7px] border-0 bg-fill px-2 text-[11px] font-semibold text-ink-sub hover:enabled:bg-fill-hover hover:enabled:text-ink disabled:cursor-default disabled:opacity-45"
               onClick={() => onSetAll(true)}
               disabled={enabledValues.length === totalCount}
             >
@@ -95,6 +96,7 @@ export function FilterMenu<T extends string>({
             </button>
             <button
               type="button"
+              className="h-[22px] flex-1 cursor-pointer rounded-[7px] border-0 bg-fill px-2 text-[11px] font-semibold text-ink-sub hover:enabled:bg-fill-hover hover:enabled:text-ink disabled:cursor-default disabled:opacity-45"
               onClick={() => onSetAll(false)}
               disabled={enabledValues.length === 0}
             >

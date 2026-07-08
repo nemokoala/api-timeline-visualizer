@@ -161,7 +161,7 @@ export function CookieForm({
           <span>HttpOnly</span>
         </label>
       </div>
-      <div className="cookie-form-actions">
+      <div className="flex gap-1.5">
         <Button onClick={() => void handleSubmit()} disabled={!name || isMutating}>
           {isEdit ? "Save" : "Add"}
         </Button>

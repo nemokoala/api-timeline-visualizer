@@ -412,7 +412,7 @@ function JsonBlock({
               </>
             ) : null}
           </div>
-          <div className="json-viewer-actions">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
             <Button size="sm" tone="accent" onClick={() => setIsFullscreen((current) => !current)}>
               {isFullscreen ? 'Close' : 'Fullscreen'}
             </Button>

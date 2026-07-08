@@ -196,7 +196,7 @@ export function StorageDetailPanel({
               spellCheck={false}
               autoFocus
             />
-            <div className="storage-edit-actions">
+            <div className="flex gap-1.5">
               <Button onClick={() => void saveEditing()} disabled={isMutating}>
                 Save
               </Button>

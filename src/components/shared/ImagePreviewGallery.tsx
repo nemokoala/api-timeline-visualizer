@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
 import type { ImagePreviewItem } from '../../utils/imageSource';
+import { usePersistedState } from '../../hooks/usePersistedState';
 import {
   getStorageImageLayoutMode,
   saveStorageImageLayoutMode,
   type StorageImageLayoutMode,
 } from '../../utils/storageImagePrefs';
+import { formatBytes } from '../../utils/formatters';
 import { ImagePreview } from './ImagePreview';
+import { SegmentedControl } from '../ui/SegmentedControl';
 
 type ImagePreviewGalleryProps = {
   previews: ImagePreviewItem[];
@@ -20,32 +22,25 @@ export function ImagePreviewGallery({
   blobPreviewsLoading = false,
   showLayoutToggle = false,
 }: ImagePreviewGalleryProps) {
-  const [layoutMode, setLayoutMode] = useState<StorageImageLayoutMode>(() => getStorageImageLayoutMode());
-
-  useEffect(() => {
-    saveStorageImageLayoutMode(layoutMode);
-  }, [layoutMode]);
+  const [layoutMode, setLayoutMode] = usePersistedState<StorageImageLayoutMode>(
+    getStorageImageLayoutMode,
+    saveStorageImageLayoutMode,
+  );
 
   return (
     <>
       {showLayoutToggle && previews.length > 0 ? (
         <div className="image-preview-toolbar">
-          <div className="segmented-control image-preview-layout-toggle" aria-label="Image layout">
-            <button
-              type="button"
-              className={layoutMode === 'stack' ? 'active' : ''}
-              onClick={() => setLayoutMode('stack')}
-            >
-              Large
-            </button>
-            <button
-              type="button"
-              className={layoutMode === 'grid' ? 'active' : ''}
-              onClick={() => setLayoutMode('grid')}
-            >
-              Grid
-            </button>
-          </div>
+          <SegmentedControl
+            size="sm"
+            ariaLabel="Image layout"
+            value={layoutMode}
+            onChange={setLayoutMode}
+            options={[
+              { value: 'stack', label: 'Large' },
+              { value: 'grid', label: 'Grid' },
+            ]}
+          />
         </div>
       ) : null}
       <div className={`image-preview-stack ${layoutMode === 'grid' ? 'is-grid-layout' : ''}`}>
@@ -63,13 +58,13 @@ export function ImagePreviewGallery({
               <div className="image-preview-unavailable">
                 <p>Loading preview...</p>
                 {preview.mimeType ? <span>{preview.mimeType}</span> : null}
-                {typeof preview.size === 'number' ? <span>{formatPreviewBytes(preview.size)}</span> : null}
+                {typeof preview.size === 'number' ? <span>{formatBytes(preview.size)}</span> : null}
               </div>
             ) : (
               <div className="image-preview-unavailable">
                 <p>{preview.unavailableReason ?? 'Preview unavailable'}</p>
                 {preview.mimeType ? <span>{preview.mimeType}</span> : null}
-                {typeof preview.size === 'number' ? <span>{formatPreviewBytes(preview.size)}</span> : null}
+                {typeof preview.size === 'number' ? <span>{formatBytes(preview.size)}</span> : null}
               </div>
             )}
           </div>
@@ -77,10 +72,4 @@ export function ImagePreviewGallery({
       </div>
     </>
   );
-}
-
-function formatPreviewBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

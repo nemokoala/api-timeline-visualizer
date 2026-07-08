@@ -1,0 +1,60 @@
+/**
+ * Tailwind v4 진입점 — 점진 도입용 설정.
+ *
+ * preflight(base 리셋)는 의도적으로 뺐다. global.css가 리셋 없이 작성돼 있어
+ * preflight를 켜면 기존 화면이 바뀐다. 유틸리티와 테마 토큰만 가져온다.
+ *
+ * 주의: global.css는 레이어 밖(unlayered)이라 레이어에 들어간 유틸리티보다
+ * 항상 우선한다(전역 `button { font: inherit }` 같은 요소 선택자도 이긴다).
+ * 그래서 utilities는 important로 가져온다 — global.css가 전부 이관되면 제거.
+ * 유틸리티로 새로 짜는 컴포넌트는 global.css 클래스와 섞어 쓰지 말 것.
+ */
+@layer theme, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) important;
+
+/*
+ * 기존 테마 변수(global.css의 라이트/다크 토큰)를 Tailwind 토큰으로 연결한다.
+ * `inline`이라 유틸리티가 var(--…)를 그대로 참조해, data-theme 전환 시
+ * 색이 함께 바뀐다. 이름 규칙: 글자색은 ink-*, 나머지는 기존 변수명 그대로.
+ *
+ * 예) bg-surface, bg-surface-sub, bg-fill, text-ink, text-ink-sub,
+ *     text-ink-weak, border-line, border-line-weak, text-danger, bg-accent-soft
+ */
+@theme inline {
+  --color-*: initial;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-sub: var(--surface-sub);
+  --color-fill: var(--fill);
+  --color-fill-hover: var(--fill-hover);
+  --color-fill-press: var(--fill-press);
+  --color-row-hover: var(--row-hover);
+  --color-line: var(--border);
+  --color-line-weak: var(--border-weak);
+
+  --color-ink-strong: var(--text-strong);
+  --color-ink: var(--text);
+  --color-ink-sub: var(--text-sub);
+  --color-ink-weak: var(--text-weak);
+  --color-ink-faint: var(--text-faint);
+
+  --color-accent: var(--blue);
+  --color-accent-strong: var(--blue-strong);
+  --color-accent-soft: var(--blue-soft);
+  --color-danger: var(--red-text);
+  --color-danger-bg: var(--red);
+  --color-danger-soft: var(--red-soft);
+  --color-ok: var(--green-text);
+  --color-ok-bg: var(--green);
+  --color-warn: var(--orange-text);
+  --color-warn-soft: var(--orange-soft);
+
+  --color-seg-active: var(--seg-active-bg);
+  --color-backdrop: var(--backdrop);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-float: var(--shadow-float);
+  --shadow-node: var(--shadow-node);
+}

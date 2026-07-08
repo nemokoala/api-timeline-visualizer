@@ -10,6 +10,7 @@ import { ResourceTypeMenu } from '../network/ResourceTypeMenu';
 import { MethodMenu } from '../network/MethodMenu';
 import { StatusMenu } from '../network/StatusMenu';
 import { Button } from '../ui/Button';
+import { SegmentedControl } from '../ui/SegmentedControl';
 import { PanelHeader } from './PanelHeader';
 
 /** 도킹 패널로 렌더링되는 네트워크 뷰(Flow/Timeline + 요청 상세 분할). */
@@ -50,22 +51,16 @@ export function NetworkPanel() {
     <div className="dock-panel-shell">
       <PanelHeader scope="network" />
       <div className="network-actions">
-        <div className="segmented-control" aria-label="Network view mode">
-          <button
-            className={ctx.networkViewMode === 'flow' ? 'active' : ''}
-            type="button"
-            onClick={() => ctx.onNetworkViewModeChange('flow')}
-          >
-            Flow
-          </button>
-          <button
-            className={ctx.networkViewMode === 'timeline' ? 'active' : ''}
-            type="button"
-            onClick={() => ctx.onNetworkViewModeChange('timeline')}
-          >
-            Timeline
-          </button>
-        </div>
+        <SegmentedControl
+          size="sm"
+          ariaLabel="Network view mode"
+          value={ctx.networkViewMode}
+          onChange={ctx.onNetworkViewModeChange}
+          options={[
+            { value: 'flow', label: 'Flow' },
+            { value: 'timeline', label: 'Timeline' },
+          ]}
+        />
         <span className="network-actions-sep" aria-hidden="true" />
         <ResourceTypeMenu
           enabledKinds={ctx.enabledResourceKinds}

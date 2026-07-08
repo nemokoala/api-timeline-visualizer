@@ -14,6 +14,7 @@ import { ImagePreview } from '../shared/ImagePreview';
 import { DetailPanelCloseButton, SplitLayoutToggleButton } from '../shared/DetailPanelCloseButton';
 import { JsonViewer } from '../shared/JsonViewer';
 import { Button, IconButton } from '../ui/Button';
+import { SegmentedControl } from '../ui/SegmentedControl';
 
 type RequestDetailPanelProps = {
   request: ApiRequest;
@@ -203,7 +204,7 @@ export function RequestDetailPanel({
         searchExpandToken={searchFocusKey}
         expandForSearch={matchingSections.has('response')}
       >
-        <div className="response-actions">
+        <div className="mb-2 flex justify-end gap-1.5">
           <Button
             onClick={() => onLoadResponseBody(request.id)}
             disabled={isBodyLoading || isBodyPending}
@@ -358,16 +359,18 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
 
   return (
     <div className="code-snippet-block">
-      <div className="code-snippet-actions">
-        <div className="segmented-control" aria-label="Replay snippet type">
-          <button className={mode === 'curl' ? 'active' : ''} type="button" onClick={() => setMode('curl')}>
-            cURL
-          </button>
-          <button className={mode === 'fetch' ? 'active' : ''} type="button" onClick={() => setMode('fetch')}>
-            fetch
-          </button>
-        </div>
-        <div className="code-snippet-buttons">
+      <div className="flex items-center justify-between gap-2">
+        <SegmentedControl
+          size="sm"
+          ariaLabel="Replay snippet type"
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: 'curl', label: 'cURL' },
+            { value: 'fetch', label: 'fetch' },
+          ]}
+        />
+        <div className="flex items-center gap-1.5">
           <Button onClick={() => void handleCopy()}>{copied ? 'Copied' : 'Copy'}</Button>
           <Button
             tone="accent"
