@@ -88,6 +88,8 @@ import {
   type ToggleableResourceKind,
 } from './utils/resourceTypePrefs';
 import { getMockConsoleEntries, getMockRequests, shouldUseMockData } from './mocks/mockData';
+import { usePersistedState } from './hooks/usePersistedState';
+import { useSearchNavigation } from './hooks/useSearchNavigation';
 
 const PRELOAD_CONCURRENCY = 4;
 const PRELOAD_MAX = 100;
@@ -98,28 +100,26 @@ export default function App() {
   const [flowLayoutRevision, setFlowLayoutRevision] = useState(0);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [bodyLoadingId, setBodyLoadingId] = useState<string | null>(null);
-  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(() => getWorkspaceMode());
-  const [networkViewMode, setNetworkViewMode] = useState<NetworkViewMode>(() => getNetworkViewMode());
-  const [groupFlowByTime, setGroupFlowByTime] = useState(() => getGroupFlowByTime());
-  const [enabledResourceKinds, setEnabledResourceKinds] = useState<ToggleableResourceKind[]>(() =>
-    getEnabledResourceKinds(),
+  const [workspaceMode, setWorkspaceMode] = usePersistedState<WorkspaceMode>(getWorkspaceMode, saveWorkspaceMode);
+  const [networkViewMode, setNetworkViewMode] = usePersistedState<NetworkViewMode>(getNetworkViewMode, saveNetworkViewMode);
+  const [groupFlowByTime, setGroupFlowByTime] = usePersistedState(getGroupFlowByTime, saveGroupFlowByTime);
+  const [enabledResourceKinds, setEnabledResourceKinds] = usePersistedState<ToggleableResourceKind[]>(
+    getEnabledResourceKinds,
+    saveEnabledResourceKinds,
   );
-  const [networkIncludeText, setNetworkIncludeText] = useState(() => getNetworkIncludeText());
-  const [networkExcludeText, setNetworkExcludeText] = useState(() => getNetworkExcludeText());
-  const [storageIncludeText, setStorageIncludeText] = useState(() => getStorageIncludeText());
-  const [storageExcludeText, setStorageExcludeText] = useState(() => getStorageExcludeText());
-  const [consoleIncludeText, setConsoleIncludeText] = useState(() => getConsoleIncludeText());
-  const [consoleExcludeText, setConsoleExcludeText] = useState(() => getConsoleExcludeText());
-  const [networkSearchText, setNetworkSearchText] = useState(() => getNetworkSearchText());
-  const [storageSearchText, setStorageSearchText] = useState(() => getStorageSearchText());
-  const [consoleSearchText, setConsoleSearchText] = useState(() => getConsoleSearchText());
-  const [searchMatchCase, setSearchMatchCase] = useState(() => getSearchMatchCase());
-  const [searchWholeWord, setSearchWholeWord] = useState(() => getSearchWholeWord());
+  const [networkIncludeText, setNetworkIncludeText] = usePersistedState(getNetworkIncludeText, saveNetworkIncludeText);
+  const [networkExcludeText, setNetworkExcludeText] = usePersistedState(getNetworkExcludeText, saveNetworkExcludeText);
+  const [storageIncludeText, setStorageIncludeText] = usePersistedState(getStorageIncludeText, saveStorageIncludeText);
+  const [storageExcludeText, setStorageExcludeText] = usePersistedState(getStorageExcludeText, saveStorageExcludeText);
+  const [consoleIncludeText, setConsoleIncludeText] = usePersistedState(getConsoleIncludeText, saveConsoleIncludeText);
+  const [consoleExcludeText, setConsoleExcludeText] = usePersistedState(getConsoleExcludeText, saveConsoleExcludeText);
+  const [networkSearchText, setNetworkSearchText] = usePersistedState(getNetworkSearchText, saveNetworkSearchText);
+  const [storageSearchText, setStorageSearchText] = usePersistedState(getStorageSearchText, saveStorageSearchText);
+  const [consoleSearchText, setConsoleSearchText] = usePersistedState(getConsoleSearchText, saveConsoleSearchText);
+  const [searchMatchCase, setSearchMatchCase] = usePersistedState(getSearchMatchCase, saveSearchMatchCase);
+  const [searchWholeWord, setSearchWholeWord] = usePersistedState(getSearchWholeWord, saveSearchWholeWord);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
   const [selectedConsoleEntryId, setSelectedConsoleEntryId] = useState<string | null>(null);
-  const [networkSearchMatchIndex, setNetworkSearchMatchIndex] = useState(0);
-  const [storageSearchMatchIndex, setStorageSearchMatchIndex] = useState(0);
-  const [consoleSearchMatchIndex, setConsoleSearchMatchIndex] = useState(0);
   const [storageSearchOccurrences, setStorageSearchOccurrences] = useState<StorageSearchOccurrence[]>([]);
   const [consoleSearchOccurrences, setConsoleSearchOccurrences] = useState<ConsoleSearchOccurrence[]>([]);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
@@ -136,66 +136,6 @@ export default function App() {
   const networkRequestById = useRef(new Map<string, chrome.devtools.network.Request>());
   const preloadQueueRef = useRef<string[]>([]);
   const preloadInFlightRef = useRef(new Set<string>());
-
-  useEffect(() => {
-    saveEnabledResourceKinds(enabledResourceKinds);
-  }, [enabledResourceKinds]);
-
-  useEffect(() => {
-    saveNetworkIncludeText(networkIncludeText);
-  }, [networkIncludeText]);
-
-  useEffect(() => {
-    saveNetworkExcludeText(networkExcludeText);
-  }, [networkExcludeText]);
-
-  useEffect(() => {
-    saveStorageIncludeText(storageIncludeText);
-  }, [storageIncludeText]);
-
-  useEffect(() => {
-    saveStorageExcludeText(storageExcludeText);
-  }, [storageExcludeText]);
-
-  useEffect(() => {
-    saveConsoleIncludeText(consoleIncludeText);
-  }, [consoleIncludeText]);
-
-  useEffect(() => {
-    saveConsoleExcludeText(consoleExcludeText);
-  }, [consoleExcludeText]);
-
-  useEffect(() => {
-    saveNetworkSearchText(networkSearchText);
-  }, [networkSearchText]);
-
-  useEffect(() => {
-    saveStorageSearchText(storageSearchText);
-  }, [storageSearchText]);
-
-  useEffect(() => {
-    saveConsoleSearchText(consoleSearchText);
-  }, [consoleSearchText]);
-
-  useEffect(() => {
-    saveWorkspaceMode(workspaceMode);
-  }, [workspaceMode]);
-
-  useEffect(() => {
-    saveGroupFlowByTime(groupFlowByTime);
-  }, [groupFlowByTime]);
-
-  useEffect(() => {
-    saveNetworkViewMode(networkViewMode);
-  }, [networkViewMode]);
-
-  useEffect(() => {
-    saveSearchMatchCase(searchMatchCase);
-  }, [searchMatchCase]);
-
-  useEffect(() => {
-    saveSearchWholeWord(searchWholeWord);
-  }, [searchWholeWord]);
 
   const searchOptions = useMemo(
     () => ({ matchCase: searchMatchCase, matchWholeWord: searchWholeWord }),
@@ -224,6 +164,25 @@ export default function App() {
     if (!networkSearchText.trim()) return [];
     return buildSearchOccurrences(filteredRequests, networkSearchText, searchOptions);
   }, [filteredRequests, networkSearchText, searchOptions]);
+
+  const {
+    matchIndex: networkSearchMatchIndex,
+    setMatchIndex: setNetworkSearchMatchIndex,
+    goToMatch: goToNetworkSearchMatch,
+    goToScope: goToNetworkSearchRequest,
+  } = useSearchNavigation(searchOccurrences, networkSearchText, searchOptions, getNextRequestJumpIndex);
+  const {
+    matchIndex: storageSearchMatchIndex,
+    setMatchIndex: setStorageSearchMatchIndex,
+    goToMatch: goToStorageSearchMatch,
+    goToScope: goToStorageSearchItem,
+  } = useSearchNavigation(storageSearchOccurrences, storageSearchText, searchOptions, getNextStorageItemJumpIndex);
+  const {
+    matchIndex: consoleSearchMatchIndex,
+    setMatchIndex: setConsoleSearchMatchIndex,
+    goToMatch: goToConsoleSearchMatch,
+    goToScope: goToConsoleSearchEntry,
+  } = useSearchNavigation(consoleSearchOccurrences, consoleSearchText, searchOptions, getNextConsoleEntryJumpIndex);
 
   const activeSearchOccurrence = searchOccurrences[networkSearchMatchIndex] ?? null;
   const searchOccurrenceByRequest = useMemo(
@@ -267,24 +226,6 @@ export default function App() {
     if (displayedRequests.some((request) => request.id === selectedRequestId)) return;
     setSelectedRequestId(null);
   }, [displayedRequests, selectedRequestId]);
-
-  useEffect(() => {
-    setNetworkSearchMatchIndex(0);
-  }, [networkSearchText]);
-
-  useEffect(() => {
-    setStorageSearchMatchIndex(0);
-  }, [storageSearchText]);
-
-  useEffect(() => {
-    setConsoleSearchMatchIndex(0);
-  }, [consoleSearchText]);
-
-  useEffect(() => {
-    setNetworkSearchMatchIndex(0);
-    setStorageSearchMatchIndex(0);
-    setConsoleSearchMatchIndex(0);
-  }, [searchMatchCase, searchWholeWord]);
 
   useEffect(() => {
     if (!networkSearchText.trim() || !searchOccurrences.length) return;
@@ -457,74 +398,6 @@ export default function App() {
   const handleCloseDetail = useCallback(() => {
     setSelectedRequestId(null);
   }, []);
-
-  const goToNetworkSearchMatch = useCallback(
-    (direction: 1 | -1) => {
-      if (!searchOccurrences.length) return;
-      setNetworkSearchMatchIndex((current) => {
-        const nextIndex = (current + direction + searchOccurrences.length) % searchOccurrences.length;
-        return nextIndex;
-      });
-    },
-    [searchOccurrences],
-  );
-
-  const goToNetworkSearchRequest = useCallback(
-    (direction: 1 | -1) => {
-      if (!searchOccurrences.length) return;
-      setNetworkSearchMatchIndex((current) => {
-        const nextIndex = getNextRequestJumpIndex(searchOccurrences, current, direction);
-        return nextIndex ?? current;
-      });
-    },
-    [searchOccurrences],
-  );
-
-  const goToStorageSearchMatch = useCallback(
-    (direction: 1 | -1) => {
-      if (!storageSearchOccurrences.length) return;
-      setStorageSearchMatchIndex((current) => {
-        const nextIndex =
-          (current + direction + storageSearchOccurrences.length) % storageSearchOccurrences.length;
-        return nextIndex;
-      });
-    },
-    [storageSearchOccurrences],
-  );
-
-  const goToStorageSearchItem = useCallback(
-    (direction: 1 | -1) => {
-      if (!storageSearchOccurrences.length) return;
-      setStorageSearchMatchIndex((current) => {
-        const nextIndex = getNextStorageItemJumpIndex(storageSearchOccurrences, current, direction);
-        return nextIndex ?? current;
-      });
-    },
-    [storageSearchOccurrences],
-  );
-
-  const goToConsoleSearchMatch = useCallback(
-    (direction: 1 | -1) => {
-      if (!consoleSearchOccurrences.length) return;
-      setConsoleSearchMatchIndex((current) => {
-        const nextIndex =
-          (current + direction + consoleSearchOccurrences.length) % consoleSearchOccurrences.length;
-        return nextIndex;
-      });
-    },
-    [consoleSearchOccurrences],
-  );
-
-  const goToConsoleSearchEntry = useCallback(
-    (direction: 1 | -1) => {
-      if (!consoleSearchOccurrences.length) return;
-      setConsoleSearchMatchIndex((current) => {
-        const nextIndex = getNextConsoleEntryJumpIndex(consoleSearchOccurrences, current, direction);
-        return nextIndex ?? current;
-      });
-    },
-    [consoleSearchOccurrences],
-  );
 
   const handleSelectRequest = useCallback(
     (requestId: string) => {
