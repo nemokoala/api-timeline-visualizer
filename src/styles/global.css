@@ -3305,6 +3305,14 @@ button:not(:disabled) {
   flex-shrink: 0;
 }
 
+/* Group time 토글을 이 행의 sm 버튼(24px)과 같은 높이로 맞춘다. */
+.network-actions .toggle-control {
+  height: 24px;
+  border-radius: 8px;
+  padding: 0 9px;
+  font-size: 11px;
+}
+
 /* 리소스 타입 표시 드롭다운("Types" 버튼 + 팝오버). */
 .resource-type-count {
   margin-left: 5px;

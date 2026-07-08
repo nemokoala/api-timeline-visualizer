@@ -97,11 +97,13 @@ export function NetworkPanel() {
         ) : null}
         {ctx.sessionNotice ? <p className="toolbar-notice">{ctx.sessionNotice}</p> : null}
         <div className="toolbar-button-group" aria-label="Session actions">
-          <Button onClick={ctx.onExportSession} disabled={!ctx.canExport}>
+          <Button size="sm" onClick={ctx.onExportSession} disabled={!ctx.canExport}>
             Export
           </Button>
-          <Button onClick={ctx.onImportSession}>Import</Button>
-          <Button onClick={ctx.onClear} disabled={!ctx.canClear}>
+          <Button size="sm" onClick={ctx.onImportSession}>
+            Import
+          </Button>
+          <Button size="sm" onClick={ctx.onClear} disabled={!ctx.canClear}>
             Clear
           </Button>
         </div>
