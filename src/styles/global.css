@@ -2958,17 +2958,36 @@ button:not(:disabled) {
   font-size: 11px;
 }
 
-/* 네트워크 상태코드 필터: 툴바 한 줄에 맞춘 컴팩트 pill-tabs. */
-.status-filter-tabs {
+/* 필터 드롭다운 상단의 모두 선택/모두 해제 버튼 줄. */
+.filter-menu-actions {
   display: flex;
-  align-items: center;
   gap: 4px;
+  padding: 2px 4px 6px;
+  border-bottom: 1px solid var(--border-weak);
+  margin-bottom: 4px;
 }
 
-.status-filter-tabs button {
-  height: 24px;
-  padding: 0 9px;
+.filter-menu-actions button {
+  flex: 1;
+  border: 0;
+  border-radius: 7px;
+  height: 22px;
+  padding: 0 8px;
+  color: var(--text-sub);
+  background: var(--fill);
   font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filter-menu-actions button:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--fill-hover);
+}
+
+.filter-menu-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 /* 응답 비교(diff) 모달 */

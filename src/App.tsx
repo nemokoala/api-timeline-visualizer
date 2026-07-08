@@ -89,14 +89,15 @@ import {
 } from './utils/resourceTypePrefs';
 import {
   FILTERABLE_METHODS,
+  STATUS_GROUPS,
   getEnabledMethods,
-  getStatusFilter,
+  getEnabledStatusGroups,
   matchesMethodFilter,
   matchesStatusFilter,
   saveEnabledMethods,
-  saveStatusFilter,
+  saveEnabledStatusGroups,
   type FilterableMethod,
-  type StatusFilter,
+  type StatusGroup,
 } from './utils/requestFilterPrefs';
 import { getMockConsoleEntries, getMockRequests, shouldUseMockData } from './mocks/mockData';
 import { usePersistedState } from './hooks/usePersistedState';
@@ -118,7 +119,10 @@ export default function App() {
     getEnabledResourceKinds,
     saveEnabledResourceKinds,
   );
-  const [statusFilter, setStatusFilter] = usePersistedState<StatusFilter>(getStatusFilter, saveStatusFilter);
+  const [enabledStatusGroups, setEnabledStatusGroups] = usePersistedState<StatusGroup[]>(
+    getEnabledStatusGroups,
+    saveEnabledStatusGroups,
+  );
   const [enabledMethods, setEnabledMethods] = usePersistedState<FilterableMethod[]>(
     getEnabledMethods,
     saveEnabledMethods,
@@ -171,11 +175,11 @@ export default function App() {
         (request) =>
           // 토글 대상 종류는 켜졌을 때만 표시, 그 외('other' 등)는 항상 표시.
           (!isToggleableResourceKind(request.type) || enabledResourceKindSet.has(request.type)) &&
-          matchesStatusFilter(request, statusFilter) &&
+          matchesStatusFilter(request, enabledStatusGroups) &&
           matchesMethodFilter(request, enabledMethods) &&
           matchesTextFilters(request, networkIncludeText, networkExcludeText),
       ),
-    [enabledMethods, enabledResourceKindSet, networkExcludeText, networkIncludeText, requests, statusFilter],
+    [enabledMethods, enabledResourceKindSet, enabledStatusGroups, networkExcludeText, networkIncludeText, requests],
   );
 
   const searchOccurrences = useMemo(() => {
@@ -365,11 +369,30 @@ export default function App() {
     });
   }, []);
 
+  const handleSetAllResourceKinds = useCallback((enabled: boolean) => {
+    setEnabledResourceKinds(enabled ? [...TOGGLEABLE_RESOURCE_KINDS] : []);
+  }, []);
+
   const handleToggleMethod = useCallback((method: FilterableMethod, enabled: boolean) => {
     setEnabledMethods((current) => {
       const next = enabled ? [...current, method] : current.filter((item) => item !== method);
       return FILTERABLE_METHODS.filter((item) => next.includes(item));
     });
+  }, []);
+
+  const handleSetAllMethods = useCallback((enabled: boolean) => {
+    setEnabledMethods(enabled ? [...FILTERABLE_METHODS] : []);
+  }, []);
+
+  const handleToggleStatusGroup = useCallback((group: StatusGroup, enabled: boolean) => {
+    setEnabledStatusGroups((current) => {
+      const next = enabled ? [...current, group] : current.filter((item) => item !== group);
+      return STATUS_GROUPS.filter((item) => next.includes(item));
+    });
+  }, []);
+
+  const handleSetAllStatusGroups = useCallback((enabled: boolean) => {
+    setEnabledStatusGroups(enabled ? [...STATUS_GROUPS] : []);
   }, []);
 
   const handleFlowLayoutChange = useCallback((layout: FlowLayout) => {
@@ -730,10 +753,13 @@ export default function App() {
     groupFlowByTime,
     enabledResourceKinds,
     onToggleResourceKind: handleToggleResourceKind,
-    statusFilter,
-    onStatusFilterChange: setStatusFilter,
+    onSetAllResourceKinds: handleSetAllResourceKinds,
+    enabledStatusGroups,
+    onToggleStatusGroup: handleToggleStatusGroup,
+    onSetAllStatusGroups: handleSetAllStatusGroups,
     enabledMethods,
     onToggleMethod: handleToggleMethod,
+    onSetAllMethods: handleSetAllMethods,
     networkSearchText,
     searchOccurrenceByRequest,
     activeGlobalSearchIndex,

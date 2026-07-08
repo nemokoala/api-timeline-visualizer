@@ -39,7 +39,7 @@ npm run preview  # 빌드 결과 미리보기
 - 쉼표/공백 구분, 대소문자 무시 (`src/utils/textFilters.ts`)
 - 뷰어별로 독립 저장 (`src/utils/filterPrefs.ts`, localStorage)
 - 예: 네트워크에서 `analytics, sentry` 제외, 콘솔에서 `debug, vite` 제외
-- 네트워크 전용 구조화 필터: 상태코드 그룹(2xx~5xx/Err) pill 탭 + HTTP 메서드 드롭다운 (`src/utils/requestFilterPrefs.ts`)
+- 네트워크 전용 구조화 필터: 리소스 타입 / HTTP 메서드 / 상태코드 그룹(2xx~5xx/Error)을 공용 드롭다운(`FilterMenu`, 모두 선택/해제 지원)으로 토글 (`src/utils/requestFilterPrefs.ts`)
 
 ### 검색 (Search)
 

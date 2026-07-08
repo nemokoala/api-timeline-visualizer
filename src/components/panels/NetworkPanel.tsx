@@ -8,7 +8,7 @@ import { SplitPanelResizer } from '../shared/SplitPanelResizer';
 import { TimelineView } from '../network/TimelineView';
 import { ResourceTypeMenu } from '../network/ResourceTypeMenu';
 import { MethodMenu } from '../network/MethodMenu';
-import { STATUS_FILTERS } from '../../utils/requestFilterPrefs';
+import { StatusMenu } from '../network/StatusMenu';
 import { Button } from '../ui/Button';
 import { PanelHeader } from './PanelHeader';
 
@@ -70,23 +70,18 @@ export function NetworkPanel() {
         <ResourceTypeMenu
           enabledKinds={ctx.enabledResourceKinds}
           onToggle={ctx.onToggleResourceKind}
+          onSetAll={ctx.onSetAllResourceKinds}
         />
-        <MethodMenu enabledMethods={ctx.enabledMethods} onToggle={ctx.onToggleMethod} />
-        <span className="network-actions-sep" aria-hidden="true" />
-        <div className="pill-tabs status-filter-tabs" role="tablist" aria-label="Status filter">
-          {STATUS_FILTERS.map((filter) => (
-            <button
-              key={filter.value}
-              type="button"
-              role="tab"
-              aria-selected={ctx.statusFilter === filter.value}
-              className={ctx.statusFilter === filter.value ? 'active' : ''}
-              onClick={() => ctx.onStatusFilterChange(filter.value)}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
+        <MethodMenu
+          enabledMethods={ctx.enabledMethods}
+          onToggle={ctx.onToggleMethod}
+          onSetAll={ctx.onSetAllMethods}
+        />
+        <StatusMenu
+          enabledGroups={ctx.enabledStatusGroups}
+          onToggle={ctx.onToggleStatusGroup}
+          onSetAll={ctx.onSetAllStatusGroups}
+        />
         {ctx.networkViewMode === 'flow' ? (
           <>
             <span className="network-actions-sep" aria-hidden="true" />
