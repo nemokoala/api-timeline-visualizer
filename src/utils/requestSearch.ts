@@ -208,17 +208,17 @@ function buildRequestPanelOccurrences(
   }
 
   if (matchingSections.has('payload')) {
-    appendPanelOccurrences(
-      occurrences,
-      request.id,
-      markIndex,
-      searchText,
-      [
-        { kind: 'json', value: request.queryParams ?? {} },
-        { kind: 'json', value: request.requestBody ?? 'Request payload is not available for this request.' },
-      ],
-      options,
-    );
+    // 패널이 Query Params가 있을 때만 그 JsonViewer를 렌더하므로(빈 경우 숨김),
+    // 하이라이트 카운트가 어긋나지 않도록 여기서도 동일하게 세그먼트를 넣고 뺀다.
+    const payloadSegments: Array<{ kind: 'json'; value: unknown }> = [];
+    if (Object.keys(request.queryParams ?? {}).length > 0) {
+      payloadSegments.push({ kind: 'json', value: request.queryParams ?? {} });
+    }
+    payloadSegments.push({
+      kind: 'json',
+      value: request.requestBody ?? 'Request payload is not available for this request.',
+    });
+    appendPanelOccurrences(occurrences, request.id, markIndex, searchText, payloadSegments, options);
   }
 
   appendPanelOccurrences(

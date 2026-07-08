@@ -75,6 +75,7 @@ export function RequestDetailPanel({
   const displayUrl = titleImageSource ? summarizeImageUrl(request.url) : request.url;
   const canOpenInNewTab =
     request.type === 'media' || /^(video|audio)\//.test(request.mimeType ?? '');
+  const hasQueryParams = Object.keys(request.queryParams ?? {}).length > 0;
   const responseBodyValue = request.responsePreview ?? request.responseContent;
   const isBodyPending = responseBodyValue === undefined;
   const showLoadingOverlay = isBodyPending || (isBodyLoading && request.responseContent === undefined);
@@ -175,8 +176,12 @@ export function RequestDetailPanel({
         searchExpandToken={searchFocusKey}
         expandForSearch={matchingSections.has('payload')}
       >
-        <h3>Query Params</h3>
-        <JsonViewer value={request.queryParams ?? {}} searchText={searchText} searchFocusKey={searchFocusKey} />
+        {hasQueryParams ? (
+          <>
+            <h3>Query Params</h3>
+            <JsonViewer value={request.queryParams ?? {}} searchText={searchText} searchFocusKey={searchFocusKey} />
+          </>
+        ) : null}
         <h3>Request Body</h3>
         <JsonViewer
           value={request.requestBody ?? 'Request payload is not available for this request.'}
