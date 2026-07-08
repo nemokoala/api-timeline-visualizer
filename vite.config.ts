@@ -10,6 +10,7 @@ export default defineConfig({
       input: {
         panel: 'panel.html',
         devtools: 'devtools.html',
+        background: 'background.ts',
       },
       output: {
         entryFileNames: 'assets/[name].js',

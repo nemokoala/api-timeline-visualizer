@@ -6,6 +6,9 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import type {
+  CookieEntry,
+  CookieSameSite,
+  CookieSnapshot,
   IndexedDbDatabaseSnapshot,
   IndexedDbRecord,
   IndexedDbStoreSnapshot,
@@ -20,7 +23,18 @@ import {
   removeWebStorageItem,
   setWebStorageItem,
 } from "../../utils/storageInspector";
-import { getMockStorageSnapshot, shouldUseMockData } from "../../mocks/mockData";
+import {
+  canInspectCookies,
+  inspectCookies,
+  removeCookie,
+  setCookie,
+  type CookieWriteInput,
+} from "../../utils/cookieInspector";
+import {
+  getMockCookieSnapshot,
+  getMockStorageSnapshot,
+  shouldUseMockData,
+} from "../../mocks/mockData";
 import { formatStorageValuePreview } from "../../utils/storageBlobValue";
 import { matchesIncludeExcludeFilters } from "../../utils/textFilters";
 import { scrollSearchHitIntoView } from "../../utils/searchScroll";
@@ -64,17 +78,40 @@ type StorageViewProps = {
   onSearchMatchIndexChange: (index: number) => void;
 };
 
-type StorageTab = "local" | "session" | "indexeddb";
+type StorageTab = "local" | "session" | "cookies" | "indexeddb";
 
 type WebStorageColumnId = "key" | "value" | "size";
 type IndexedDbColumnId = "key" | "value";
+type CookieColumnId =
+  | "name"
+  | "value"
+  | "domain"
+  | "path"
+  | "expires"
+  | "size"
+  | "sameSite"
+  | "httpOnly"
+  | "secure";
 type WebStorageColumnVisibility = Record<WebStorageColumnId, boolean>;
 type IndexedDbColumnVisibility = Record<IndexedDbColumnId, boolean>;
+type CookieColumnVisibility = Record<CookieColumnId, boolean>;
 
 const WEB_STORAGE_COLUMNS: Array<{ id: WebStorageColumnId; label: string }> = [
   { id: "key", label: "Key" },
   { id: "value", label: "Value" },
   { id: "size", label: "Size" },
+];
+
+const COOKIE_COLUMNS: Array<{ id: CookieColumnId; label: string }> = [
+  { id: "name", label: "Name" },
+  { id: "value", label: "Value" },
+  { id: "domain", label: "Domain" },
+  { id: "path", label: "Path" },
+  { id: "expires", label: "Expires" },
+  { id: "size", label: "Size" },
+  { id: "sameSite", label: "SameSite" },
+  { id: "httpOnly", label: "HttpOnly" },
+  { id: "secure", label: "Secure" },
 ];
 
 const INDEXED_DB_RECORD_COLUMNS: Array<{
@@ -87,6 +124,7 @@ const INDEXED_DB_RECORD_COLUMNS: Array<{
 
 const WEB_PREFS_KEY = "storage-web-table-prefs";
 const IDB_PREFS_KEY = "storage-idb-table-prefs";
+const COOKIE_PREFS_KEY = "storage-cookie-table-prefs";
 
 const WEB_DEFAULT_PREFS: TablePrefs = {
   columnVisibility: { key: true, value: true, size: true },
@@ -96,9 +134,34 @@ const IDB_DEFAULT_PREFS: TablePrefs = {
   columnVisibility: { key: true, value: true },
   columnWidths: { key: 200, actions: 44 },
 };
+const COOKIE_DEFAULT_PREFS: TablePrefs = {
+  columnVisibility: {
+    name: true,
+    value: true,
+    domain: true,
+    path: true,
+    expires: true,
+    size: true,
+    sameSite: false,
+    httpOnly: false,
+    secure: false,
+  },
+  columnWidths: {
+    name: 160,
+    domain: 160,
+    path: 100,
+    expires: 160,
+    size: 64,
+    sameSite: 90,
+    httpOnly: 80,
+    secure: 70,
+    actions: 44,
+  },
+};
 
 type SelectedStorageItem =
   | { kind: "local" | "session"; key: string }
+  | { kind: "cookie"; name: string; domain: string; path: string }
   | {
       kind: "indexeddb";
       databaseName: string;
@@ -116,6 +179,9 @@ export function StorageView({
 }: StorageViewProps) {
   const searchOptions = useSearchOptions();
   const [snapshot, setSnapshot] = useState<PageStorageSnapshot | null>(null);
+  const [cookieSnapshot, setCookieSnapshot] = useState<CookieSnapshot | null>(
+    null,
+  );
   const [activeTab, setActiveTab] = useState<StorageTab>("local");
   const [selectedItem, setSelectedItem] = useState<SelectedStorageItem | null>(
     null,
@@ -135,6 +201,7 @@ export function StorageView({
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [isMutating, setIsMutating] = useState(false);
   const canEdit = canInspectPageStorage();
+  const canEditCookies = canInspectCookies();
   const hasSearch = Boolean(searchText.trim());
 
   const loadSnapshot = async () => {
@@ -142,7 +209,10 @@ export function StorageView({
     setError(null);
 
     try {
-      const nextSnapshot = await inspectPageStorage();
+      const [nextSnapshot] = await Promise.all([
+        inspectPageStorage(),
+        loadCookieSnapshot(),
+      ]);
       setSnapshot(nextSnapshot);
       setSelectedItem(null);
     } catch (loadError) {
@@ -156,10 +226,32 @@ export function StorageView({
     }
   };
 
+  // 쿠키는 별도 파이프라인(백그라운드 워커)이라 스토리지 스냅샷과 독립적으로 읽는다.
+  const loadCookieSnapshot = async () => {
+    if (!canInspectCookies()) return;
+    try {
+      setCookieSnapshot(await inspectCookies());
+    } catch (cookieError) {
+      const message =
+        cookieError instanceof Error
+          ? cookieError.message
+          : "Failed to read cookies.";
+      setCookieSnapshot({
+        url: "",
+        capturedAt: new Date().toISOString(),
+        cookies: [],
+        errors: [message],
+      });
+    }
+  };
+
   useEffect(() => {
     if (!canInspectPageStorage()) {
       // 로컬 개발: DevTools가 없으면 목업 스냅샷으로 채운다.
-      if (shouldUseMockData()) setSnapshot(getMockStorageSnapshot());
+      if (shouldUseMockData()) {
+        setSnapshot(getMockStorageSnapshot());
+        setCookieSnapshot(getMockCookieSnapshot());
+      }
       return;
     }
     void loadSnapshot();
@@ -189,6 +281,17 @@ export function StorageView({
       ),
     [excludeText, includeText, searchOptions, searchText, snapshot],
   );
+  const cookieEntries = useMemo(
+    () =>
+      filterCookies(
+        cookieSnapshot?.cookies ?? [],
+        searchText,
+        includeText,
+        excludeText,
+        searchOptions,
+      ),
+    [cookieSnapshot, excludeText, includeText, searchOptions, searchText],
+  );
   const indexedDatabases = useMemo(
     () =>
       filterIndexedDB(
@@ -203,8 +306,13 @@ export function StorageView({
 
   const searchTargets = useMemo(
     () =>
-      buildStorageSearchTargets(localEntries, sessionEntries, indexedDatabases),
-    [indexedDatabases, localEntries, sessionEntries],
+      buildStorageSearchTargets(
+        localEntries,
+        sessionEntries,
+        cookieEntries,
+        indexedDatabases,
+      ),
+    [cookieEntries, indexedDatabases, localEntries, sessionEntries],
   );
 
   const searchOccurrences = useMemo(() => {
@@ -213,11 +321,13 @@ export function StorageView({
       searchTargets,
       localEntries,
       sessionEntries,
+      cookieEntries,
       indexedDatabases,
       searchText,
       searchOptions,
     );
   }, [
+    cookieEntries,
     hasSearch,
     indexedDatabases,
     localEntries,
@@ -265,9 +375,10 @@ export function StorageView({
         selectedItem,
         localEntries,
         sessionEntries,
+        cookieEntries,
         indexedDatabases,
       ),
-    [indexedDatabases, localEntries, selectedItem, sessionEntries],
+    [cookieEntries, indexedDatabases, localEntries, selectedItem, sessionEntries],
   );
   const hasDetail = Boolean(selectedDetail);
 
@@ -377,6 +488,22 @@ export function StorageView({
     );
   };
 
+  const handleSaveCookie = (cookie: CookieWriteInput) =>
+    runMutation(() => setCookie(cookie));
+
+  const handleDeleteCookie = (cookie: CookieEntry) => {
+    if (!window.confirm(`Delete cookie "${cookie.name}" from ${cookie.domain}?`))
+      return;
+    void runMutation(() =>
+      removeCookie({
+        name: cookie.name,
+        domain: cookie.domain,
+        path: cookie.path,
+        secure: cookie.secure,
+      }),
+    );
+  };
+
   return (
     <section className="storage-panel">
       <div className="storage-header">
@@ -435,6 +562,15 @@ export function StorageView({
           }}
         />
         <StorageTabButton
+          active={activeTab === "cookies"}
+          label="Cookies"
+          count={cookieEntries.length}
+          onClick={() => {
+            setActiveTab("cookies");
+            setSelectedItem(null);
+          }}
+        />
+        <StorageTabButton
           active={activeTab === "indexeddb"}
           label="IndexedDB"
           count={indexedDatabases.length}
@@ -451,6 +587,11 @@ export function StorageView({
       ) : null}
       {snapshot?.errors.length ? (
         <div className="storage-message">{snapshot.errors.join(" ")}</div>
+      ) : null}
+      {activeTab === "cookies" && cookieSnapshot?.errors.length ? (
+        <div className="storage-message is-error">
+          {cookieSnapshot.errors.join(" ")}
+        </div>
       ) : null}
 
       <div
@@ -469,6 +610,26 @@ export function StorageView({
             canEdit={canEdit}
             isMutating={isMutating}
             onDeleteRecord={handleDeleteIdbRecord}
+          />
+        ) : activeTab === "cookies" ? (
+          <CookiePane
+            entries={cookieEntries}
+            selectedItem={selectedItem}
+            searchText={searchText}
+            defaultDomain={cookieSnapshot?.url ?? snapshot?.origin ?? ""}
+            onSelectCookie={(cookie) =>
+              handleSelectItem({
+                kind: "cookie",
+                name: cookie.name,
+                domain: cookie.domain,
+                path: cookie.path,
+              })
+            }
+            isLoading={isLoading}
+            canEdit={canEditCookies}
+            isMutating={isMutating}
+            onDeleteCookie={handleDeleteCookie}
+            onAddCookie={handleSaveCookie}
           />
         ) : (
           <WebStoragePane
@@ -507,7 +668,7 @@ export function StorageView({
               }
               searchFocusKey={searchFocusKey}
               isStacked={isSplitStacked}
-              canEdit={canEdit}
+              canEdit={selectedDetail?.cookie ? canEditCookies : canEdit}
               isMutating={isMutating}
               onSaveValue={(value) =>
                 selectedDetail?.editTarget
@@ -518,6 +679,7 @@ export function StorageView({
                     )
                   : Promise.resolve(false)
               }
+              onSaveCookie={handleSaveCookie}
               onToggleLayout={toggleSplitLayout}
               onClose={() => setSelectedItem(null)}
             />
@@ -739,6 +901,394 @@ function WebStoragePane({
         />
       ) : null}
     </>
+  );
+}
+
+function CookiePane({
+  entries,
+  selectedItem,
+  searchText,
+  defaultDomain,
+  onSelectCookie,
+  isLoading,
+  canEdit,
+  isMutating,
+  onDeleteCookie,
+  onAddCookie,
+}: {
+  entries: CookieEntry[];
+  selectedItem: SelectedStorageItem | null;
+  searchText: string;
+  defaultDomain: string;
+  onSelectCookie: (cookie: CookieEntry) => void;
+  isLoading: boolean;
+  canEdit: boolean;
+  isMutating: boolean;
+  onDeleteCookie: (cookie: CookieEntry) => void;
+  onAddCookie: (cookie: CookieWriteInput) => Promise<boolean>;
+}) {
+  const searchOptions = useSearchOptions();
+  const [tablePrefs, setTablePrefs] = useState<TablePrefs>(() =>
+    getTablePrefs(COOKIE_PREFS_KEY, COOKIE_DEFAULT_PREFS),
+  );
+  const [columnMenu, setColumnMenu] = useState<{ x: number; y: number } | null>(
+    null,
+  );
+  const [adding, setAdding] = useState(false);
+
+  const persistTablePrefs = (next: TablePrefs) => {
+    setTablePrefs(next);
+    saveTablePrefs(COOKIE_PREFS_KEY, next);
+  };
+
+  const handleColumnToggle = (col: CookieColumnId) => {
+    persistTablePrefs({
+      ...tablePrefs,
+      columnVisibility: {
+        ...tablePrefs.columnVisibility,
+        [col]: !tablePrefs.columnVisibility[col],
+      },
+    });
+  };
+
+  const handleColumnSizingChange: OnChangeFn<ColumnSizingState> = (updater) => {
+    const next =
+      typeof updater === "function" ? updater(tablePrefs.columnWidths) : updater;
+    persistTablePrefs({ ...tablePrefs, columnWidths: next });
+  };
+
+  const handleColumnContextMenu = (event: ReactMouseEvent) => {
+    event.preventDefault();
+    setColumnMenu({ x: event.clientX, y: event.clientY });
+  };
+
+  const handleAdd = async (cookie: CookieWriteInput) => {
+    const ok = await onAddCookie(cookie);
+    if (ok) setAdding(false);
+    return ok;
+  };
+
+  const columns = useMemo<ColumnDef<CookieEntry, unknown>[]>(() => {
+    const highlight = (text: string) =>
+      searchText.trim()
+        ? highlightSearchText(text, searchText, searchOptions)
+        : text;
+    const cols: ColumnDef<CookieEntry, unknown>[] = [
+      {
+        id: "name",
+        header: "Name",
+        size: 160,
+        minSize: 80,
+        cell: ({ row }) => highlight(row.original.name),
+      },
+      {
+        id: "value",
+        header: "Value",
+        enableResizing: false,
+        meta: { flex: true, minWidth: 160 },
+        cell: ({ row }) => highlight(row.original.value),
+      },
+      {
+        id: "domain",
+        header: "Domain",
+        size: 160,
+        minSize: 80,
+        cell: ({ row }) => highlight(row.original.domain),
+      },
+      {
+        id: "path",
+        header: "Path",
+        size: 100,
+        minSize: 56,
+        cell: ({ row }) => highlight(row.original.path),
+      },
+      {
+        id: "expires",
+        header: "Expires",
+        size: 160,
+        minSize: 80,
+        cell: ({ row }) => formatCookieExpires(row.original.expires),
+      },
+      {
+        id: "size",
+        header: "Size",
+        size: 64,
+        minSize: 48,
+        cell: ({ row }) => formatBytes(row.original.size),
+      },
+      {
+        id: "sameSite",
+        header: "SameSite",
+        size: 90,
+        minSize: 64,
+        cell: ({ row }) => formatSameSite(row.original.sameSite),
+      },
+      {
+        id: "httpOnly",
+        header: "HttpOnly",
+        size: 80,
+        minSize: 60,
+        meta: { cellClassName: "storage-bool-cell" },
+        cell: ({ row }) => (row.original.httpOnly ? "✓" : ""),
+      },
+      {
+        id: "secure",
+        header: "Secure",
+        size: 70,
+        minSize: 56,
+        meta: { cellClassName: "storage-bool-cell" },
+        cell: ({ row }) => (row.original.secure ? "✓" : ""),
+      },
+    ];
+    if (canEdit) {
+      cols.push({
+        id: "actions",
+        header: "",
+        size: 44,
+        minSize: 44,
+        enableResizing: false,
+        meta: { cellClassName: "storage-actions-cell" },
+        cell: ({ row }) => (
+          <RowDeleteButton
+            label={`Delete ${row.original.name}`}
+            disabled={isMutating}
+            onDelete={() => onDeleteCookie(row.original)}
+          />
+        ),
+      });
+    }
+    return cols;
+  }, [canEdit, isMutating, onDeleteCookie, searchOptions, searchText]);
+
+  return (
+    <>
+      <div className="storage-table-wrap">
+        {canEdit ? (
+          <div className="storage-add">
+            {adding ? (
+              <CookieForm
+                mode="add"
+                defaultDomain={defaultDomain}
+                isMutating={isMutating}
+                onSubmit={handleAdd}
+                onCancel={() => setAdding(false)}
+              />
+            ) : (
+              <Button size="sm" onClick={() => setAdding(true)}>
+                + Add cookie
+              </Button>
+            )}
+          </div>
+        ) : null}
+        <DataTable
+          ariaLabel="Cookies"
+          columns={columns}
+          data={entries}
+          getRowId={(cookie) =>
+            `storage-row-${storageTargetKey({
+              kind: "cookie",
+              name: cookie.name,
+              domain: cookie.domain,
+              path: cookie.path,
+            })}`
+          }
+          columnSizing={tablePrefs.columnWidths}
+          onColumnSizingChange={handleColumnSizingChange}
+          columnVisibility={tablePrefs.columnVisibility}
+          selectedRowId={
+            selectedItem?.kind === "cookie"
+              ? `storage-row-${storageTargetKey({
+                  kind: "cookie",
+                  name: selectedItem.name,
+                  domain: selectedItem.domain,
+                  path: selectedItem.path,
+                })}`
+              : null
+          }
+          onRowClick={(cookie) => onSelectCookie(cookie)}
+          onHeaderContextMenu={handleColumnContextMenu}
+          emptyState={isLoading ? "Loading…" : "No matching cookies."}
+        />
+      </div>
+      {columnMenu ? (
+        <ColumnMenu
+          columns={COOKIE_COLUMNS}
+          visibility={tablePrefs.columnVisibility as CookieColumnVisibility}
+          position={columnMenu}
+          onToggle={handleColumnToggle}
+          onClose={() => setColumnMenu(null)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+const SAME_SITE_OPTIONS: CookieSameSite[] = [
+  "lax",
+  "strict",
+  "none",
+  "unspecified",
+];
+
+/** 쿠키 추가/편집 폼. edit 모드에서는 name/domain/path(식별자)를 잠근다. */
+function CookieForm({
+  mode,
+  initial,
+  defaultDomain,
+  isMutating,
+  onSubmit,
+  onCancel,
+}: {
+  mode: "add" | "edit";
+  initial?: CookieEntry;
+  defaultDomain?: string;
+  isMutating: boolean;
+  onSubmit: (cookie: CookieWriteInput) => Promise<boolean>;
+  onCancel: () => void;
+}) {
+  const isEdit = mode === "edit";
+  const [name, setName] = useState(initial?.name ?? "");
+  const [value, setValue] = useState(initial?.value ?? "");
+  const [domain, setDomain] = useState(
+    initial?.domain ?? hostnameFromUrl(defaultDomain ?? ""),
+  );
+  const [path, setPath] = useState(initial?.path ?? "/");
+  const [sameSite, setSameSite] = useState<CookieSameSite>(
+    initial?.sameSite ?? "lax",
+  );
+  const [secure, setSecure] = useState(initial?.secure ?? false);
+  const [httpOnly, setHttpOnly] = useState(initial?.httpOnly ?? false);
+  const [session, setSession] = useState(
+    initial ? initial.expires === null : false,
+  );
+  const [expiresLocal, setExpiresLocal] = useState(() =>
+    epochToLocalInput(initial?.expires ?? null),
+  );
+
+  const handleSubmit = async () => {
+    if (!name || isMutating) return;
+    const expires =
+      session || !expiresLocal
+        ? null
+        : Math.round(new Date(expiresLocal).getTime() / 1000);
+    const hostOnly = isEdit
+      ? (initial?.hostOnly ?? false)
+      : !domain.startsWith(".");
+    await onSubmit({
+      name,
+      value,
+      domain,
+      path: path || "/",
+      secure,
+      httpOnly,
+      sameSite,
+      hostOnly,
+      expires: Number.isNaN(expires as number) ? null : expires,
+    });
+  };
+
+  return (
+    <div className="cookie-form">
+      <div className="cookie-form-grid">
+        <label className="cookie-field">
+          <span>Name</span>
+          <input
+            className="input input-md"
+            value={name}
+            disabled={isEdit}
+            onChange={(event) => setName(event.currentTarget.value)}
+            autoFocus={!isEdit}
+          />
+        </label>
+        <label className="cookie-field cookie-field-wide">
+          <span>Value</span>
+          <input
+            className="input input-md"
+            value={value}
+            onChange={(event) => setValue(event.currentTarget.value)}
+            autoFocus={isEdit}
+          />
+        </label>
+        <label className="cookie-field">
+          <span>Domain</span>
+          <input
+            className="input input-md"
+            value={domain}
+            disabled={isEdit}
+            onChange={(event) => setDomain(event.currentTarget.value)}
+          />
+        </label>
+        <label className="cookie-field">
+          <span>Path</span>
+          <input
+            className="input input-md"
+            value={path}
+            disabled={isEdit}
+            onChange={(event) => setPath(event.currentTarget.value)}
+          />
+        </label>
+        <label className="cookie-field">
+          <span>SameSite</span>
+          <select
+            className="input input-md"
+            value={sameSite}
+            onChange={(event) =>
+              setSameSite(event.currentTarget.value as CookieSameSite)
+            }
+          >
+            {SAME_SITE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {formatSameSite(option)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="cookie-field">
+          <span>Expires</span>
+          <input
+            className="input input-md"
+            type="datetime-local"
+            value={expiresLocal}
+            disabled={session}
+            onChange={(event) => setExpiresLocal(event.currentTarget.value)}
+          />
+        </label>
+      </div>
+      <div className="cookie-form-flags">
+        <label className="cookie-check">
+          <input
+            type="checkbox"
+            checked={session}
+            onChange={(event) => setSession(event.currentTarget.checked)}
+          />
+          <span>Session</span>
+        </label>
+        <label className="cookie-check">
+          <input
+            type="checkbox"
+            checked={secure}
+            onChange={(event) => setSecure(event.currentTarget.checked)}
+          />
+          <span>Secure</span>
+        </label>
+        <label className="cookie-check">
+          <input
+            type="checkbox"
+            checked={httpOnly}
+            onChange={(event) => setHttpOnly(event.currentTarget.checked)}
+          />
+          <span>HttpOnly</span>
+        </label>
+      </div>
+      <div className="cookie-form-actions">
+        <Button onClick={() => void handleSubmit()} disabled={!name || isMutating}>
+          {isEdit ? "Save" : "Add"}
+        </Button>
+        <Button onClick={onCancel} disabled={isMutating}>
+          Cancel
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -1070,6 +1620,8 @@ type StorageDetail = {
   instanceId: string;
   /** 값 편집이 가능한 웹 스토리지 항목이면 대상 정보. IndexedDB는 없음. */
   editTarget?: { kind: "local" | "session"; key: string };
+  /** 쿠키 항목이면 전체 쿠키 정보. 상세 패널에서 속성까지 편집한다. */
+  cookie?: CookieEntry;
   blobPreviewRequest?: {
     databaseName: string;
     storeName: string;
@@ -1086,6 +1638,7 @@ function StorageDetailPanel({
   canEdit,
   isMutating,
   onSaveValue,
+  onSaveCookie,
   onToggleLayout,
   onClose,
 }: {
@@ -1097,6 +1650,7 @@ function StorageDetailPanel({
   canEdit: boolean;
   isMutating: boolean;
   onSaveValue: (value: string) => Promise<boolean>;
+  onSaveCookie: (cookie: CookieWriteInput) => Promise<boolean>;
   onToggleLayout: () => void;
   onClose: () => void;
 }) {
@@ -1104,7 +1658,8 @@ function StorageDetailPanel({
   const panelRef = useRef<HTMLElement>(null);
   const hasSearch = Boolean(searchText.trim());
   const editTarget = detail?.editTarget ?? null;
-  const editable = canEdit && Boolean(editTarget);
+  const cookie = detail?.cookie ?? null;
+  const editable = canEdit && Boolean(editTarget || cookie);
   const [isEditing, setIsEditing] = useState(false);
   const [draftValue, setDraftValue] = useState("");
 
@@ -1209,7 +1764,19 @@ function StorageDetailPanel({
         </dl>
       </DetailSection>
       <div className="storage-detail-value">
-        {isEditing ? (
+        {isEditing && cookie ? (
+          <CookieForm
+            mode="edit"
+            initial={cookie}
+            isMutating={isMutating}
+            onSubmit={async (nextCookie) => {
+              const ok = await onSaveCookie(nextCookie);
+              if (ok) setIsEditing(false);
+              return ok;
+            }}
+            onCancel={() => setIsEditing(false)}
+          />
+        ) : isEditing ? (
           <div className="storage-edit">
             <textarea
               className="input storage-edit-textarea"
@@ -1246,9 +1813,38 @@ function resolveSelectedDetail(
   selectedItem: SelectedStorageItem | null,
   localEntries: StorageEntry[],
   sessionEntries: StorageEntry[],
+  cookieEntries: CookieEntry[],
   indexedDatabases: IndexedDbDatabaseSnapshot[],
 ): StorageDetail {
   if (!selectedItem) return null;
+
+  if (selectedItem.kind === "cookie") {
+    const cookie = cookieEntries.find(
+      (item) =>
+        item.name === selectedItem.name &&
+        item.domain === selectedItem.domain &&
+        item.path === selectedItem.path,
+    );
+    if (!cookie) return null;
+
+    return {
+      title: cookie.name,
+      subtitle: "Cookie",
+      metaRows: [
+        ["Domain", cookie.domain],
+        ["Path", cookie.path],
+        ["Expires", formatCookieExpires(cookie.expires)],
+        ["Size", formatBytes(cookie.size)],
+        ["SameSite", formatSameSite(cookie.sameSite)],
+        ["HttpOnly", cookie.httpOnly ? "true" : "false"],
+        ["Secure", cookie.secure ? "true" : "false"],
+        ["Host only", cookie.hostOnly ? "true" : "false"],
+      ],
+      value: cookie.value,
+      instanceId: `cookie:${cookie.domain}:${cookie.path}:${cookie.name}`,
+      cookie,
+    };
+  }
 
   if (selectedItem.kind === "local" || selectedItem.kind === "session") {
     const entries =
@@ -1321,6 +1917,61 @@ function filterEntries(
       return false;
     return true;
   });
+}
+
+function filterCookies(
+  cookies: CookieEntry[],
+  searchText: string,
+  includeText: string,
+  excludeText: string,
+  searchOptions: SearchOptions,
+): CookieEntry[] {
+  return cookies.filter((cookie) => {
+    const haystack = `${cookie.name} ${cookie.value} ${cookie.domain} ${cookie.path}`;
+    return matchesStorageFilters(
+      haystack,
+      includeText,
+      excludeText,
+      searchText,
+      searchOptions,
+    );
+  });
+}
+
+function formatCookieExpires(expires: number | null): string {
+  if (expires === null) return "Session";
+  return formatLocaleDateTime(expires * 1000);
+}
+
+function formatSameSite(sameSite: CookieSameSite): string {
+  switch (sameSite) {
+    case "none":
+      return "None";
+    case "lax":
+      return "Lax";
+    case "strict":
+      return "Strict";
+    default:
+      return "—";
+  }
+}
+
+function hostnameFromUrl(url: string): string {
+  if (!url) return "";
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
+}
+
+/** epoch seconds → datetime-local input용 로컬 시간 문자열(YYYY-MM-DDTHH:mm). */
+function epochToLocalInput(expires: number | null): string {
+  if (expires === null) return "";
+  const date = new Date(expires * 1000);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function filterIndexedDB(

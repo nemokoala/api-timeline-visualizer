@@ -1,4 +1,5 @@
 import type {
+  CookieEntry,
   IndexedDbDatabaseSnapshot,
   IndexedDbRecord,
   IndexedDbStoreSnapshot,
@@ -9,6 +10,7 @@ import { countSearchOccurrences, type SearchOptions } from './searchHighlight';
 export type StorageSearchTarget =
   | { kind: 'local'; key: string }
   | { kind: 'session'; key: string }
+  | { kind: 'cookie'; name: string; domain: string; path: string }
   | { kind: 'indexeddb'; databaseName: string; storeName: string; recordIndex: number };
 
 export type StorageSearchOccurrence = {
@@ -28,12 +30,17 @@ export function storageTargetKey(target: StorageSearchTarget): string {
     return `indexeddb:${target.databaseName}:${target.storeName}:${target.recordIndex}`;
   }
 
+  if (target.kind === 'cookie') {
+    return `cookie:${target.domain}:${target.path}:${target.name}`;
+  }
+
   return `${target.kind}:${target.key}`;
 }
 
 export function buildStorageSearchTargets(
   localEntries: StorageEntry[],
   sessionEntries: StorageEntry[],
+  cookieEntries: CookieEntry[],
   indexedDatabases: IndexedDbDatabaseSnapshot[],
 ): StorageSearchTarget[] {
   const targets: StorageSearchTarget[] = [];
@@ -44,6 +51,10 @@ export function buildStorageSearchTargets(
 
   for (const entry of sessionEntries) {
     targets.push({ kind: 'session', key: entry.key });
+  }
+
+  for (const cookie of cookieEntries) {
+    targets.push({ kind: 'cookie', name: cookie.name, domain: cookie.domain, path: cookie.path });
   }
 
   for (const database of indexedDatabases) {
@@ -66,6 +77,7 @@ export function buildStorageSearchText(
   target: StorageSearchTarget,
   localEntries: StorageEntry[],
   sessionEntries: StorageEntry[],
+  cookieEntries: CookieEntry[],
   indexedDatabases: IndexedDbDatabaseSnapshot[],
 ): string {
   if (target.kind === 'local' || target.kind === 'session') {
@@ -73,6 +85,15 @@ export function buildStorageSearchText(
     const entry = entries.find((item) => item.key === target.key);
     if (!entry) return '';
     return `${entry.key} ${entry.value}`;
+  }
+
+  if (target.kind === 'cookie') {
+    const cookie = cookieEntries.find(
+      (item) =>
+        item.name === target.name && item.domain === target.domain && item.path === target.path,
+    );
+    if (!cookie) return '';
+    return `${cookie.name} ${cookie.value} ${cookie.domain} ${cookie.path}`;
   }
 
   const database = indexedDatabases.find((item) => item.name === target.databaseName);
@@ -87,6 +108,7 @@ export function buildStorageSearchOccurrences(
   targets: StorageSearchTarget[],
   localEntries: StorageEntry[],
   sessionEntries: StorageEntry[],
+  cookieEntries: CookieEntry[],
   indexedDatabases: IndexedDbDatabaseSnapshot[],
   searchText: string,
   options?: SearchOptions,
@@ -94,7 +116,13 @@ export function buildStorageSearchOccurrences(
   const occurrences: StorageSearchOccurrence[] = [];
 
   for (const target of targets) {
-    const text = buildStorageSearchText(target, localEntries, sessionEntries, indexedDatabases);
+    const text = buildStorageSearchText(
+      target,
+      localEntries,
+      sessionEntries,
+      cookieEntries,
+      indexedDatabases,
+    );
     const hitCount = countSearchOccurrences(text, searchText, options);
 
     for (let occurrenceIndex = 0; occurrenceIndex < hitCount; occurrenceIndex += 1) {
@@ -196,6 +224,10 @@ export function storageTargetToSelectedItem(
     };
   }
 
+  if (target.kind === 'cookie') {
+    return { kind: 'cookie', name: target.name, domain: target.domain, path: target.path };
+  }
+
   return { kind: target.kind, key: target.key };
 }
 
@@ -211,15 +243,28 @@ export function selectedItemToStorageTarget(
     };
   }
 
+  if (selectedItem.kind === 'cookie') {
+    return {
+      kind: 'cookie',
+      name: selectedItem.name,
+      domain: selectedItem.domain,
+      path: selectedItem.path,
+    };
+  }
+
   return { kind: selectedItem.kind, key: selectedItem.key };
 }
 
 export type SelectedStorageItemFromTarget =
   | { kind: 'local' | 'session'; key: string }
+  | { kind: 'cookie'; name: string; domain: string; path: string }
   | { kind: 'indexeddb'; databaseName: string; storeName: string; recordIndex: number };
 
-export function storageTargetTab(target: StorageSearchTarget): 'local' | 'session' | 'indexeddb' {
+export function storageTargetTab(
+  target: StorageSearchTarget,
+): 'local' | 'session' | 'cookies' | 'indexeddb' {
   if (target.kind === 'indexeddb') return 'indexeddb';
+  if (target.kind === 'cookie') return 'cookies';
   return target.kind;
 }
 

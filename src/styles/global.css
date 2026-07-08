@@ -951,6 +951,61 @@ button:not(:disabled) {
   gap: 6px;
 }
 
+/* 불리언(HttpOnly/Secure) 컬럼은 가운데 정렬. */
+.storage-bool-cell {
+  text-align: center;
+}
+
+/* ── Cookie 추가/편집 폼 ───────────────────────────── */
+.cookie-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  width: 100%;
+}
+
+.cookie-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+}
+
+.cookie-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.cookie-field > span {
+  font-size: 11px;
+  color: var(--text-weak, #8a8f98);
+}
+
+.cookie-field-wide {
+  grid-column: 1 / -1;
+}
+
+.cookie-form-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.cookie-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.cookie-form-actions {
+  display: flex;
+  gap: 6px;
+}
+
 .json-value-sections .detail-section-body {
   padding: 12px;
 }

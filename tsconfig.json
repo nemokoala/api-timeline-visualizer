@@ -17,6 +17,6 @@
     "jsx": "react-jsx",
     "types": ["chrome"]
   },
-  "include": ["src", "devtools.ts", "vite.config.ts"],
+  "include": ["src", "devtools.ts", "background.ts", "vite.config.ts"],
   "references": []
 }

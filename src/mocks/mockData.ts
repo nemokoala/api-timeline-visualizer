@@ -1,6 +1,6 @@
 import type { ConsoleEntry } from '../types/console';
 import type { ApiRequest } from '../types/network';
-import type { PageStorageSnapshot } from '../types/storage';
+import type { CookieSnapshot, PageStorageSnapshot } from '../types/storage';
 import { parseResponseContent } from '../utils/requestParser';
 
 /**
@@ -396,6 +396,44 @@ export function getMockStorageSnapshot(): PageStorageSnapshot {
           },
         ],
       },
+    ],
+    errors: [],
+  };
+}
+
+export function getMockCookieSnapshot(): CookieSnapshot {
+  const size = (name: string, value: string) => name.length + value.length;
+  const cookie = (
+    name: string,
+    value: string,
+    overrides: Partial<CookieSnapshot['cookies'][number]> = {},
+  ) => ({
+    name,
+    value,
+    domain: '.example.com',
+    path: '/',
+    expires: Math.round(Date.now() / 1000) + 60 * 60 * 24 * 30,
+    size: size(name, value),
+    httpOnly: false,
+    secure: true,
+    sameSite: 'lax' as const,
+    hostOnly: false,
+    ...overrides,
+  });
+
+  return {
+    url: 'https://app.example.com/dashboard',
+    capturedAt: new Date().toISOString(),
+    cookies: [
+      cookie('sid', 's%3Amock.session.token', { httpOnly: true, sameSite: 'strict' }),
+      cookie('csrftoken', 'xY7bQ2mock', { httpOnly: false }),
+      cookie('_ga', 'GA1.2.1234567890.1720000000', {
+        domain: '.example.com',
+        secure: false,
+        sameSite: 'none',
+      }),
+      cookie('locale', 'ko-KR', { domain: 'app.example.com', hostOnly: true, secure: false }),
+      cookie('consent', 'true', { expires: null }),
     ],
     errors: [],
   };

@@ -4,9 +4,13 @@
   "version": "0.1.0",
   "description": "One DevTools panel to visualize network/API requests as a flow graph & timeline, and inspect console logs and storage.",
   "devtools_page": "devtools.html",
+  "background": {
+    "service_worker": "assets/background.js",
+    "type": "module"
+  },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: blob:"
   },
-  "permissions": [],
-  "host_permissions": []
+  "permissions": ["cookies"],
+  "host_permissions": ["<all_urls>"]
 }
