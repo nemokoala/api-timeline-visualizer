@@ -14,6 +14,15 @@ export function normalizePath(path: string): string {
 }
 
 export function getUrlParts(rawUrl: string) {
+  // data: URL(예: 인라인 base64 이미지)은 pathname이 통째로 수 MB가 될 수 있다.
+  // path/normalizedPath에 base64 원문을 그대로 넣으면 필터·렌더·검색이 전부 폭증하므로
+  // MIME까지만 담은 짧은 라벨로 압축한다. 원본 data URL은 request.url에 그대로 남는다.
+  if (rawUrl.startsWith('data:')) {
+    const mime = rawUrl.slice(5).split(/[;,]/, 1)[0] || 'data';
+    const label = `data:${mime}`;
+    return { host: 'data:', path: label, normalizedPath: label, queryParams: {} };
+  }
+
   try {
     const parsed = new URL(rawUrl);
 

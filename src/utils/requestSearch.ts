@@ -1,6 +1,7 @@
 import { formatDateTime, formatDuration, formatLocaleDateTime } from './formatters';
 import type { ApiRequest } from '../types/network';
 import { getImageSource } from './imageSource';
+import { boundUrlText } from './requestParser';
 import { requestCookieValue, responseCookieValue } from './requestCookies';
 import { generateCurl, generateFetch } from './requestCodeSnippets';
 import {
@@ -48,7 +49,7 @@ export function buildRequestSearchText(request: ApiRequest, options?: SearchOpti
 
   const text = [
     request.method,
-    request.url,
+    boundUrlText(request.url),
     request.path,
     request.normalizedPath,
     request.host,

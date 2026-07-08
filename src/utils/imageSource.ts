@@ -13,6 +13,13 @@ export function getImageSource(value: unknown, mimeType?: string, recordKey?: st
   const candidate = findImageCandidate(value);
   if (!candidate) return null;
 
+  // 이미 정규 data:image URL이면 그리디 정규식/재-sanitize로 수 MB를 훑지 않고 그대로 쓴다.
+  // (브라우저 data URL은 공백이 없다. 공백이 섞였을 때만 아래 일반 경로로 넘긴다.)
+  if (candidate.startsWith('data:image/')) {
+    const markerIndex = candidate.indexOf(';base64,');
+    if (markerIndex !== -1 && !/\s/.test(candidate)) return candidate;
+  }
+
   const dataImageBase64 = candidate.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
   if (dataImageBase64) {
     return `data:${dataImageBase64[1]};base64,${sanitizeBase64(dataImageBase64[2])}`;

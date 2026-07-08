@@ -6,12 +6,19 @@ import { matchesIncludeExcludeFilters } from './textFilters';
 const INCLUDE_PATTERNS = ['/api', '/graphql', '/v1', '/v2'];
 const EXCLUDE_PATTERNS = ['google-analytics', 'sentry', 'datadog', 'amplitude', 'hotjar', 'segment'];
 
+// data: URL(인라인 base64 이미지 등)은 URL 하나가 수 MB가 될 수 있다. 필터·ID·검색 등
+// 문자열 처리 핫패스에서는 앞부분 + 길이만 남겨, 매 렌더마다 수 MB를 훑는 프리징을 막는다.
+const MAX_URL_TEXT_LENGTH = 200;
+export function boundUrlText(url: string): string {
+  return url.length > MAX_URL_TEXT_LENGTH ? `${url.slice(0, MAX_URL_TEXT_LENGTH)}…${url.length}` : url;
+}
+
 // 정적 리소스(css/js/이미지/폰트/미디어)까지 수집하되, 표시 여부는 뷰의 리소스 타입 토글에서
 // 거른다. 여기서는 인식 가능한 모든 종류를 저장소에 담아 두어 토글을 켤 때 과거 요청까지
 // 소급 표시되게 한다. 알 수 없는 종류('other')만 api/graphql 패턴으로 한 번 더 좁힌다.
 export function shouldCollectRequest(request: DevtoolsNetworkRequest): boolean {
   const url = request.request?.url ?? '';
-  const lowerUrl = url.toLowerCase();
+  const lowerUrl = boundUrlText(url).toLowerCase();
   const resourceType = getRequestKind(request);
 
   if (EXCLUDE_PATTERNS.some((pattern) => lowerUrl.includes(pattern))) return false;
@@ -25,7 +32,8 @@ export function matchesTextFilters(
   includeText: string,
   excludeText: string,
 ): boolean {
-  const haystack = `${request.url} ${request.host} ${request.path} ${request.normalizedPath}`.toLowerCase();
+  const haystack =
+    `${boundUrlText(request.url)} ${request.host} ${request.path} ${request.normalizedPath}`.toLowerCase();
   return matchesIncludeExcludeFilters(haystack, includeText, excludeText);
 }
 
@@ -40,7 +48,7 @@ export function parseNetworkRequest(request: DevtoolsNetworkRequest): ApiRequest
   const responsePreview = parseResponsePreview(request.response?.content?.text, request.response?.content?.mimeType);
 
   return {
-    id: `${startedAt}-${duration}-${rawUrl}`,
+    id: `${startedAt}-${duration}-${boundUrlText(rawUrl)}`,
     url: rawUrl,
     host: urlParts.host,
     path: urlParts.path,
