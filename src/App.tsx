@@ -87,6 +87,17 @@ import {
   saveEnabledResourceKinds,
   type ToggleableResourceKind,
 } from './utils/resourceTypePrefs';
+import {
+  FILTERABLE_METHODS,
+  getEnabledMethods,
+  getStatusFilter,
+  matchesMethodFilter,
+  matchesStatusFilter,
+  saveEnabledMethods,
+  saveStatusFilter,
+  type FilterableMethod,
+  type StatusFilter,
+} from './utils/requestFilterPrefs';
 import { getMockConsoleEntries, getMockRequests, shouldUseMockData } from './mocks/mockData';
 import { usePersistedState } from './hooks/usePersistedState';
 import { useSearchNavigation } from './hooks/useSearchNavigation';
@@ -106,6 +117,11 @@ export default function App() {
   const [enabledResourceKinds, setEnabledResourceKinds] = usePersistedState<ToggleableResourceKind[]>(
     getEnabledResourceKinds,
     saveEnabledResourceKinds,
+  );
+  const [statusFilter, setStatusFilter] = usePersistedState<StatusFilter>(getStatusFilter, saveStatusFilter);
+  const [enabledMethods, setEnabledMethods] = usePersistedState<FilterableMethod[]>(
+    getEnabledMethods,
+    saveEnabledMethods,
   );
   const [networkIncludeText, setNetworkIncludeText] = usePersistedState(getNetworkIncludeText, saveNetworkIncludeText);
   const [networkExcludeText, setNetworkExcludeText] = usePersistedState(getNetworkExcludeText, saveNetworkExcludeText);
@@ -155,9 +171,11 @@ export default function App() {
         (request) =>
           // 토글 대상 종류는 켜졌을 때만 표시, 그 외('other' 등)는 항상 표시.
           (!isToggleableResourceKind(request.type) || enabledResourceKindSet.has(request.type)) &&
+          matchesStatusFilter(request, statusFilter) &&
+          matchesMethodFilter(request, enabledMethods) &&
           matchesTextFilters(request, networkIncludeText, networkExcludeText),
       ),
-    [enabledResourceKindSet, networkExcludeText, networkIncludeText, requests],
+    [enabledMethods, enabledResourceKindSet, networkExcludeText, networkIncludeText, requests, statusFilter],
   );
 
   const searchOccurrences = useMemo(() => {
@@ -344,6 +362,13 @@ export default function App() {
       const next = enabled ? [...current, kind] : current.filter((item) => item !== kind);
       // 저장 순서를 표준 순서로 정규화하고 중복을 제거한다.
       return TOGGLEABLE_RESOURCE_KINDS.filter((item) => next.includes(item));
+    });
+  }, []);
+
+  const handleToggleMethod = useCallback((method: FilterableMethod, enabled: boolean) => {
+    setEnabledMethods((current) => {
+      const next = enabled ? [...current, method] : current.filter((item) => item !== method);
+      return FILTERABLE_METHODS.filter((item) => next.includes(item));
     });
   }, []);
 
@@ -705,6 +730,10 @@ export default function App() {
     groupFlowByTime,
     enabledResourceKinds,
     onToggleResourceKind: handleToggleResourceKind,
+    statusFilter,
+    onStatusFilterChange: setStatusFilter,
+    enabledMethods,
+    onToggleMethod: handleToggleMethod,
     networkSearchText,
     searchOccurrenceByRequest,
     activeGlobalSearchIndex,

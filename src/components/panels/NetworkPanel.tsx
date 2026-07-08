@@ -1,11 +1,14 @@
-import { useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useSplitPanelLayout } from '../../hooks/useSplitPanelLayout';
 import { FlowChartView } from '../network/FlowChartView';
 import { RequestDetailPanel } from '../network/RequestDetailPanel';
+import { ResponseDiffModal } from '../network/ResponseDiffModal';
 import { SplitPanelResizer } from '../shared/SplitPanelResizer';
 import { TimelineView } from '../network/TimelineView';
 import { ResourceTypeMenu } from '../network/ResourceTypeMenu';
+import { MethodMenu } from '../network/MethodMenu';
+import { STATUS_FILTERS } from '../../utils/requestFilterPrefs';
 import { Button } from '../ui/Button';
 import { PanelHeader } from './PanelHeader';
 
@@ -24,6 +27,24 @@ export function NetworkPanel() {
   } = useSplitPanelLayout(containerRef);
 
   const { selectedRequest } = ctx;
+  const [isDiffOpen, setIsDiffOpen] = useState(false);
+
+  // 같은 엔드포인트(메서드+호스트+정규화 경로)로 캡처된 다른 응답들 = 비교 후보.
+  const diffCandidates = useMemo(() => {
+    if (!selectedRequest) return [];
+    return ctx.displayedRequests.filter(
+      (request) =>
+        request.id !== selectedRequest.id &&
+        request.method === selectedRequest.method &&
+        request.host === selectedRequest.host &&
+        request.normalizedPath === selectedRequest.normalizedPath,
+    );
+  }, [ctx.displayedRequests, selectedRequest]);
+
+  // 선택이 바뀌거나 상세가 닫히면 diff 모달도 닫는다.
+  useEffect(() => {
+    setIsDiffOpen(false);
+  }, [selectedRequest?.id]);
 
   return (
     <div className="dock-panel-shell">
@@ -50,6 +71,22 @@ export function NetworkPanel() {
           enabledKinds={ctx.enabledResourceKinds}
           onToggle={ctx.onToggleResourceKind}
         />
+        <MethodMenu enabledMethods={ctx.enabledMethods} onToggle={ctx.onToggleMethod} />
+        <span className="network-actions-sep" aria-hidden="true" />
+        <div className="pill-tabs status-filter-tabs" role="tablist" aria-label="Status filter">
+          {STATUS_FILTERS.map((filter) => (
+            <button
+              key={filter.value}
+              type="button"
+              role="tab"
+              aria-selected={ctx.statusFilter === filter.value}
+              className={ctx.statusFilter === filter.value ? 'active' : ''}
+              onClick={() => ctx.onStatusFilterChange(filter.value)}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
         {ctx.networkViewMode === 'flow' ? (
           <>
             <span className="network-actions-sep" aria-hidden="true" />
@@ -120,6 +157,8 @@ export function NetworkPanel() {
             searchOccurrenceIndex={ctx.activeSearchOccurrence?.occurrenceIndex ?? 0}
             searchFocusKey={`${ctx.networkSearchMatchIndex}:${ctx.activeSearchOccurrence?.requestId ?? ''}:${ctx.activeSearchOccurrence?.occurrenceIndex ?? 0}`}
             isStacked={isStacked}
+            compareCandidateCount={diffCandidates.length}
+            onCompareResponses={() => setIsDiffOpen(true)}
             onLoadResponseBody={ctx.onLoadResponseBody}
             onToggleLayout={toggleSplitLayout}
             onClose={ctx.onCloseDetail}
@@ -127,6 +166,15 @@ export function NetworkPanel() {
         </>
       ) : null}
       </div>
+      {isDiffOpen && selectedRequest && diffCandidates.length > 0 ? (
+        <ResponseDiffModal
+          key={selectedRequest.id}
+          baseRequest={selectedRequest}
+          candidates={diffCandidates}
+          onEnsureBody={ctx.onEnsureThumbnailBody}
+          onClose={() => setIsDiffOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

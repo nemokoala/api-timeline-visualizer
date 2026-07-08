@@ -8,7 +8,8 @@ function shouldIncludeHeader(name: string): boolean {
   return !SKIP_HEADERS.has(lower);
 }
 
-function getRequestHeaders(request: ApiRequest): Array<[string, string]> {
+/** 재현(cURL/fetch/재전송)에 포함할 요청 헤더 목록. 의사 헤더·전송 관련 헤더는 제외. */
+export function getReplayHeaders(request: ApiRequest): Array<[string, string]> {
   return Object.entries(request.requestHeaders ?? {}).filter(([name]) => shouldIncludeHeader(name));
 }
 
@@ -16,14 +17,15 @@ function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
-function formatRequestBodyLiteral(body: unknown): string | null {
+export function formatRequestBodyLiteral(body: unknown): string | null {
   if (body === undefined || body === null) return null;
   if (typeof body === 'string') return body;
   if (typeof body === 'object') return JSON.stringify(body);
   return String(body);
 }
 
-function hasRequestBody(request: ApiRequest): boolean {
+/** 재현 시 요청 본문을 포함해야 하는지(GET/HEAD 제외). */
+export function hasReplayBody(request: ApiRequest): boolean {
   return (
     formatRequestBodyLiteral(request.requestBody) !== null &&
     request.method !== 'GET' &&
@@ -34,12 +36,12 @@ function hasRequestBody(request: ApiRequest): boolean {
 export function generateCurl(request: ApiRequest): string {
   const parts = ['curl', '-X', request.method, shellQuote(request.url)];
 
-  for (const [name, value] of getRequestHeaders(request)) {
+  for (const [name, value] of getReplayHeaders(request)) {
     parts.push('-H', shellQuote(`${name}: ${value}`));
   }
 
   const body = formatRequestBodyLiteral(request.requestBody);
-  if (body !== null && hasRequestBody(request)) {
+  if (body !== null && hasReplayBody(request)) {
     parts.push('--data-raw', shellQuote(body));
   }
 
@@ -48,7 +50,7 @@ export function generateCurl(request: ApiRequest): string {
 
 export function generateFetch(request: ApiRequest): string {
   const optionLines = [`  method: ${JSON.stringify(request.method)},`];
-  const headers = getRequestHeaders(request);
+  const headers = getReplayHeaders(request);
 
   if (headers.length) {
     const headerObject = headers
@@ -58,7 +60,7 @@ export function generateFetch(request: ApiRequest): string {
   }
 
   const body = formatRequestBodyLiteral(request.requestBody);
-  if (body !== null && hasRequestBody(request)) {
+  if (body !== null && hasReplayBody(request)) {
     optionLines.push(`  body: ${JSON.stringify(body)},`);
   }
 

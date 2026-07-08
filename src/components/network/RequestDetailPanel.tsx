@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { ApiRequest } from '../../types/network';
 import { DetailSection } from '../shared/DetailSection';
 import { generateCurl, generateFetch } from '../../utils/requestCodeSnippets';
+import { canResendRequest, resendRequest } from '../../utils/requestResend';
 import { getMatchingDetailSections } from '../../utils/requestSearch';
 import { requestCookieValue, responseCookieValue } from '../../utils/requestCookies';
 import { scrollSearchHitIntoView } from '../../utils/searchScroll';
@@ -21,6 +22,9 @@ type RequestDetailPanelProps = {
   searchOccurrenceIndex: number;
   searchFocusKey: string;
   isStacked: boolean;
+  /** 같은 엔드포인트의 다른 응답 수(비교 후보). 0이면 Compare 비활성. */
+  compareCandidateCount: number;
+  onCompareResponses: () => void;
   onLoadResponseBody: (requestId: string) => void;
   onToggleLayout: () => void;
   onClose: () => void;
@@ -33,6 +37,8 @@ export function RequestDetailPanel({
   searchOccurrenceIndex,
   searchFocusKey,
   isStacked,
+  compareCandidateCount,
+  onCompareResponses,
   onLoadResponseBody,
   onToggleLayout,
   onClose,
@@ -208,6 +214,17 @@ export function RequestDetailPanel({
                 ? 'Load body'
                 : 'Reload body'}
           </Button>
+          <Button
+            onClick={onCompareResponses}
+            disabled={compareCandidateCount === 0}
+            title={
+              compareCandidateCount > 0
+                ? `같은 엔드포인트의 다른 응답 ${compareCandidateCount}개와 비교`
+                : '같은 엔드포인트로 캡처된 다른 응답이 없습니다.'
+            }
+          >
+            Compare{compareCandidateCount > 0 ? ` (${compareCandidateCount})` : ''}
+          </Button>
         </div>
         <div className={`response-json-slot ${showLoadingOverlay ? 'is-loading' : ''}`}>
           <div
@@ -299,13 +316,23 @@ function DefinitionList({
 }
 
 type SnippetMode = 'curl' | 'fetch';
+type ResendState = 'idle' | 'sending' | 'sent' | 'failed';
 
 function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; searchText: string }) {
   const searchOptions = useSearchOptions();
   const [mode, setMode] = useState<SnippetMode>('curl');
   const [copied, setCopied] = useState(false);
+  const [resendState, setResendState] = useState<ResendState>('idle');
+  const [resendError, setResendError] = useState<string | null>(null);
   const snippet = mode === 'curl' ? generateCurl(request) : generateFetch(request);
   const hasSearch = Boolean(searchText.trim());
+  const resendable = canResendRequest(request);
+
+  // 다른 요청을 선택하면 이전 재전송 상태를 지운다.
+  useEffect(() => {
+    setResendState('idle');
+    setResendError(null);
+  }, [request.id]);
 
   const handleCopy = async () => {
     const didCopy = await copyToClipboard(snippet);
@@ -313,6 +340,20 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
 
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1200);
+  };
+
+  const handleResend = async () => {
+    if (resendState === 'sending') return;
+    setResendState('sending');
+    setResendError(null);
+    const outcome = await resendRequest(request);
+    if (outcome.ok) {
+      setResendState('sent');
+      window.setTimeout(() => setResendState('idle'), 2000);
+    } else {
+      setResendState('failed');
+      setResendError(outcome.error);
+    }
   };
 
   return (
@@ -326,8 +367,27 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
             fetch
           </button>
         </div>
-        <Button onClick={() => void handleCopy()}>{copied ? 'Copied' : 'Copy'}</Button>
+        <div className="code-snippet-buttons">
+          <Button onClick={() => void handleCopy()}>{copied ? 'Copied' : 'Copy'}</Button>
+          <Button
+            tone="accent"
+            onClick={() => void handleResend()}
+            disabled={!resendable || resendState === 'sending'}
+            title={
+              resendable
+                ? '검사 대상 페이지에서 이 요청을 다시 보냅니다. 재전송된 요청은 목록에 새 항목으로 잡힙니다.'
+                : '이 요청 유형은 재전송할 수 없습니다.'
+            }
+          >
+            {resendState === 'sending' ? 'Sending…' : resendState === 'sent' ? 'Sent ✓' : 'Resend'}
+          </Button>
+        </div>
       </div>
+      {resendState === 'failed' && resendError ? (
+        <p className="resend-error" role="alert">
+          재전송 실패: {resendError}
+        </p>
+      ) : null}
       <pre className="code-snippet-viewer">
         {hasSearch ? highlightSearchText(snippet, searchText, searchOptions) : snippet}
       </pre>

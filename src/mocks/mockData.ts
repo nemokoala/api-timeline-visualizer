@@ -55,6 +55,25 @@ const SEEDS: MockRequestSeed[] = [
     },
   },
   {
+    // mock-1과 같은 엔드포인트의 두 번째 호출(응답 비교 diff 테스트용).
+    id: 'mock-1b',
+    method: 'GET',
+    path: '/v1/users/me',
+    status: 200,
+    offset: 5200,
+    duration: 128,
+    type: 'fetch',
+    mimeType: 'application/json',
+    response: {
+      id: 'usr_8f21',
+      name: 'Jane B. Cooper',
+      email: 'jane.cooper@example.com',
+      role: 'member',
+      createdAt: '2025-11-02T09:12:44Z',
+      lastLoginAt: '2026-07-08T11:02:10Z',
+    },
+  },
+  {
     id: 'mock-2',
     method: 'GET',
     path: '/v1/projects',

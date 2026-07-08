@@ -2846,6 +2846,7 @@ button:not(:disabled) {
 .response-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 6px;
   margin-bottom: 8px;
 }
 
@@ -2940,6 +2941,175 @@ button:not(:disabled) {
   padding: 0 9px;
   border-radius: 7px;
   font-size: 11px;
+}
+
+.code-snippet-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.resend-error {
+  margin: 6px 0 0;
+  border-radius: 10px;
+  padding: 5px 10px;
+  color: var(--red-text);
+  background: var(--red-soft);
+  font-size: 11px;
+}
+
+/* 네트워크 상태코드 필터: 툴바 한 줄에 맞춘 컴팩트 pill-tabs. */
+.status-filter-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-filter-tabs button {
+  height: 24px;
+  padding: 0 9px;
+  font-size: 11px;
+}
+
+/* 응답 비교(diff) 모달 */
+.diff-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  background: rgba(15, 18, 25, 0.45);
+}
+
+.diff-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(880px, 100%);
+  max-height: 100%;
+  border: 1px solid var(--border-weak);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-float);
+  overflow: hidden;
+}
+
+.diff-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 10px;
+}
+
+.diff-modal-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.diff-modal-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0 16px 12px;
+}
+
+.diff-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.diff-side-label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.diff-side-label.removed,
+.diff-counts .removed {
+  color: var(--red-text);
+}
+
+.diff-side-label.added,
+.diff-counts .added {
+  color: var(--green-text);
+}
+
+.diff-side-meta {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+.diff-arrow {
+  color: var(--text-weak);
+}
+
+.diff-counts {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.diff-viewer {
+  flex: 1;
+  min-height: 160px;
+  overflow: auto;
+  border-top: 1px solid var(--border-weak);
+  background: var(--surface-sub);
+}
+
+.diff-viewer pre {
+  margin: 0;
+  padding: 10px 0;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.diff-line {
+  display: flex;
+  padding: 0 14px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.diff-line.added {
+  color: var(--green-text);
+  background: rgba(2, 178, 108, 0.09);
+}
+
+.diff-line.removed {
+  color: var(--red-text);
+  background: rgba(240, 68, 82, 0.08);
+}
+
+.diff-sign {
+  flex: 0 0 14px;
+  user-select: none;
+}
+
+.diff-status {
+  margin: 0;
+  padding: 18px 16px;
+  color: var(--text-sub);
+  font-size: 12px;
+}
+
+.diff-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-weak);
 }
 
 .code-snippet-viewer {
