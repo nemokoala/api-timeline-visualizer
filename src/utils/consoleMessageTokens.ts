@@ -23,16 +23,19 @@ export type ConsoleMessageTokenKind =
 export type ConsoleMessageToken = {
   text: string;
   kind: ConsoleMessageTokenKind;
+  /** 몇 번째 JSON 구간에 속하는지. 구간 밖의 평문은 null. */
+  segmentIndex: number | null;
 };
 
 export function tokenizeConsoleMessage(text: string): ConsoleMessageToken[] {
   const tokens: ConsoleMessageToken[] = [];
   let index = 0;
   let plain = '';
+  let segmentIndex = 0;
 
   const flushPlain = () => {
     if (!plain) return;
-    tokens.push({ text: plain, kind: 'plain' });
+    tokens.push({ text: plain, kind: 'plain', segmentIndex: null });
     plain = '';
   };
 
@@ -54,12 +57,34 @@ export function tokenizeConsoleMessage(text: string): ConsoleMessageToken[] {
     }
 
     flushPlain();
-    tokens.push(...tokenizeSegment(segment));
+    tokens.push(...tokenizeSegment(segment, segmentIndex));
+    segmentIndex += 1;
     index = end;
   }
 
   flushPlain();
   return mergeAdjacent(tokens);
+}
+
+/**
+ * 토큰을 렌더 줄 단위로 묶는다. 평문 뒤에 JSON 구간이 오면 새 줄로 내린다
+ * (`App booted` / `{ env: … }`). 메시지 전체가 JSON이면 줄을 나누지 않는다.
+ */
+export function groupConsoleMessageLines(tokens: ConsoleMessageToken[]): ConsoleMessageToken[][] {
+  const lines: ConsoleMessageToken[][] = [];
+  let previousSegment: number | null = null;
+
+  for (const token of tokens) {
+    const startsNewSegment = token.segmentIndex !== null && token.segmentIndex !== previousSegment;
+    // 앞에 내용이 있어야 줄을 나눈다 — 첫 줄부터 비우지 않는다.
+    if ((startsNewSegment && lines.length > 0) || lines.length === 0) {
+      lines.push([]);
+    }
+    lines[lines.length - 1].push(token);
+    previousSegment = token.segmentIndex;
+  }
+
+  return lines;
 }
 
 /** 짝이 맞는 닫는 괄호의 다음 인덱스. 못 찾으면 null. */
@@ -98,7 +123,7 @@ const PUNCT = new Set(['{', '}', '[', ']', ',', ':']);
 const IDENT_START = /[A-Za-z_$]/;
 const IDENT_BODY = /[\w$]/;
 
-function tokenizeSegment(segment: string): ConsoleMessageToken[] {
+function tokenizeSegment(segment: string, segmentIndex: number): ConsoleMessageToken[] {
   const tokens: ConsoleMessageToken[] = [];
   let index = 0;
 
@@ -111,6 +136,7 @@ function tokenizeSegment(segment: string): ConsoleMessageToken[] {
       tokens.push({
         text: segment.slice(index, end),
         kind: nextNonSpace(segment, end) === ':' ? 'key' : 'string',
+        segmentIndex,
       });
       index = end;
       continue;
@@ -118,7 +144,7 @@ function tokenizeSegment(segment: string): ConsoleMessageToken[] {
 
     if (char === '-' || (char >= '0' && char <= '9')) {
       const end = readNumberEnd(segment, index);
-      tokens.push({ text: segment.slice(index, end), kind: 'number' });
+      tokens.push({ text: segment.slice(index, end), kind: 'number', segmentIndex });
       index = end;
       continue;
     }
@@ -127,12 +153,12 @@ function tokenizeSegment(segment: string): ConsoleMessageToken[] {
       let end = index + 1;
       while (end < segment.length && IDENT_BODY.test(segment[end])) end += 1;
       const text = segment.slice(index, end);
-      tokens.push({ text, kind: identifierKind(text, nextNonSpace(segment, end)) });
+      tokens.push({ text, kind: identifierKind(text, nextNonSpace(segment, end)), segmentIndex });
       index = end;
       continue;
     }
 
-    tokens.push({ text: char, kind: PUNCT.has(char) ? 'punct' : 'plain' });
+    tokens.push({ text: char, kind: PUNCT.has(char) ? 'punct' : 'plain', segmentIndex });
     index += 1;
   }
 
@@ -176,7 +202,7 @@ function mergeAdjacent(tokens: ConsoleMessageToken[]): ConsoleMessageToken[] {
   const merged: ConsoleMessageToken[] = [];
   for (const token of tokens) {
     const previous = merged[merged.length - 1];
-    if (previous && previous.kind === token.kind) {
+    if (previous && previous.kind === token.kind && previous.segmentIndex === token.segmentIndex) {
       previous.text += token.text;
       continue;
     }

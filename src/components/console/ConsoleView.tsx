@@ -15,6 +15,7 @@ import { scrollSearchHitIntoView } from '../../utils/searchScroll';
 import { useSearchOptions } from '../../contexts/SearchOptionsContext';
 import { highlightSearchText, textMatchesSearch, type SearchOptions } from '../../utils/searchHighlight';
 import {
+  groupConsoleMessageLines,
   tokenizeConsoleMessage,
   type ConsoleMessageTokenKind,
 } from '../../utils/consoleMessageTokens';
@@ -206,17 +207,18 @@ export function ConsoleView({
                 <span className="w-[17px] shrink-0" aria-hidden="true" />
               )}
               <span
-                className={
-                  wrapLines
-                    ? 'min-w-0 overflow-visible whitespace-pre-wrap [overflow-wrap:anywhere] [word-break:break-word]'
-                    : 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap'
-                }
+                className={cn(
+                  'min-w-0',
+                  wrapLines &&
+                    'overflow-visible whitespace-pre-wrap [overflow-wrap:anywhere] [word-break:break-word]',
+                )}
                 title={entry.text}
               >
                 <ConsoleMessagePreview
                   preview={preview}
                   searchText={searchText}
                   searchOptions={searchOptions}
+                  wrapLines={wrapLines}
                 />
               </span>
             </div>
@@ -743,29 +745,42 @@ function ConsoleMessagePreview({
   preview,
   searchText,
   searchOptions,
+  wrapLines,
 }: {
   preview: string;
   searchText: string;
   searchOptions: Required<SearchOptions>;
+  wrapLines: boolean;
 }) {
   const hasSearch = Boolean(searchText.trim());
-  const tokens = tokenizeConsoleMessage(preview);
+  const lines = groupConsoleMessageLines(tokenizeConsoleMessage(preview));
 
   return (
     <>
-      {tokens.map((token, index) => {
-        const content = hasSearch
-          ? highlightSearchText(token.text, searchText, searchOptions)
-          : token.text;
-        const color = TOKEN_COLOR[token.kind];
-        return color ? (
-          <span key={index} className={color}>
-            {content}
-          </span>
-        ) : (
-          <Fragment key={index}>{content}</Fragment>
-        );
-      })}
+      {lines.map((tokens, lineIndex) => (
+        <span
+          key={lineIndex}
+          className={cn(
+            'block',
+            // 접힌 미리보기는 한 줄씩 말줄임한다. wrap 모드에서는 그대로 흘린다.
+            !wrapLines && 'overflow-hidden text-ellipsis whitespace-nowrap',
+          )}
+        >
+          {tokens.map((token, index) => {
+            const content = hasSearch
+              ? highlightSearchText(token.text, searchText, searchOptions)
+              : token.text;
+            const color = TOKEN_COLOR[token.kind];
+            return color ? (
+              <span key={index} className={color}>
+                {content}
+              </span>
+            ) : (
+              <Fragment key={index}>{content}</Fragment>
+            );
+          })}
+        </span>
+      ))}
     </>
   );
 }
