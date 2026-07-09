@@ -25,7 +25,7 @@ import { DetailPanelCloseButton, SplitLayoutToggleButton } from '../shared/Detai
 import { DetailSection } from '../shared/DetailSection';
 import { DetailTitleBar } from '../shared/DetailTitleBar';
 import { DefinitionList } from '../shared/DefinitionList';
-import { JsonViewer } from '../shared/JsonViewer';
+import { JsonTree, JsonViewer } from '../shared/JsonViewer';
 import { SplitPanelResizer } from '../shared/SplitPanelResizer';
 import { formatDateTime } from '../../utils/formatters';
 import { ColumnMenu } from '../shared/ColumnMenu';
@@ -713,26 +713,24 @@ function getJsonArgs(entry: ConsoleEntry): { index: number; value: unknown }[] {
   return [];
 }
 
-/** 행을 펼쳤을 때 나오는 JSON 트리. 행 클릭(선택)과 키 입력은 여기서 막는다. */
+/**
+ * 행을 펼쳤을 때 메시지 아래로 이어지는 JSON 트리.
+ * 상세 패널과 달리 툴바·테두리 없이 본문만 이어 붙여, 행의 텍스트가 그대로
+ * 펼쳐진 것처럼 보이게 한다. 행 클릭(선택)과 키 입력은 여기서 막는다.
+ */
 function ConsoleRowJson({ entry, searchText }: { entry: ConsoleEntry; searchText: string }) {
   const jsonArgs = getJsonArgs(entry);
   if (jsonArgs.length === 0) return null;
 
   return (
     <div
-      className="grid gap-2 border-t border-line-weak bg-surface-sub px-3 py-2 pl-[34px]"
+      className="grid gap-1 pb-1 pl-[34px]"
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
       role="presentation"
     >
       {jsonArgs.map(({ index, value }) => (
-        <JsonViewer
-          key={index}
-          instanceId={`console-row:${entry.id}:arg:${index}`}
-          value={value}
-          searchText={searchText}
-          recordKey={`arg[${index}]`}
-        />
+        <JsonTree key={index} value={value} searchText={searchText} className="px-0 py-0" />
       ))}
     </div>
   );

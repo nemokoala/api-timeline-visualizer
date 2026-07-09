@@ -18,6 +18,7 @@ import { ImagePreviewGallery } from './ImagePreviewGallery';
 import { Button, IconButton } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { SearchOptionToggles } from '../ui/SearchOptionToggles';
+import { cn } from '../../utils/cn';
 
 type ActiveFieldMenu = {
   id: string;
@@ -592,6 +593,39 @@ function renderJsonValue(
     </span>
   );
 }
+
+/**
+ * 툴바·리사이즈·전체화면 없이 구문 색상 트리만 그리는 최소 뷰어.
+ * 콘솔 행처럼 인라인으로 펼쳐 보여줄 때 쓴다. 필드 복사 팝오버는 달지 않는다.
+ */
+export function JsonTree({
+  value,
+  searchText = '',
+  className,
+}: {
+  value: unknown;
+  searchText?: string;
+  className?: string;
+}) {
+  const searchOptions = useSearchOptions();
+  const rendered = coerceJson(value);
+
+  if (!rendered || typeof rendered !== 'object') {
+    return (
+      <pre className={cn('json-viewer', className)}>
+        {highlightSearchText(formatCopyValue(rendered), searchText, searchOptions)}
+      </pre>
+    );
+  }
+
+  return (
+    <div className={cn('json-viewer text-ink', className)}>
+      {renderJsonValue(rendered, 0, 'root', noopFieldClick, searchText, searchOptions, 'search-highlight')}
+    </div>
+  );
+}
+
+function noopFieldClick(): void {}
 
 function coerceJson(value: unknown): unknown {
   if (typeof value !== 'string') return value;
