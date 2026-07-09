@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { ApiRequest } from '../../types/network';
+import type { ApiRequest, ReplayDraft } from '../../types/network';
 import { DetailSection } from '../shared/DetailSection';
 import { DefinitionList } from '../shared/DefinitionList';
-import { generateCurl, generateFetch } from '../../utils/requestCodeSnippets';
+import { buildReplayDraft, generateCurl, generateFetch } from '../../utils/requestCodeSnippets';
 import { canResendRequest, resendRequest } from '../../utils/requestResend';
+import { ReplayEditorModal } from './ReplayEditorModal';
 import { getMatchingDetailSections } from '../../utils/requestSearch';
 import { requestCookieValue, responseCookieValue } from '../../utils/requestCookies';
 import { scrollSearchHitIntoView } from '../../utils/searchScroll';
@@ -350,18 +351,36 @@ function HighlightedDefinitionList({
 type SnippetMode = 'curl' | 'fetch';
 type ResendState = 'idle' | 'sending' | 'sent' | 'failed';
 
+/** 헤더 id는 편집용이라 비교에서 제외한다. */
+function draftSignature(draft: ReplayDraft): string {
+  return JSON.stringify([
+    draft.url,
+    draft.method,
+    draft.headers.map(({ name, value }) => [name, value]),
+    draft.body,
+  ]);
+}
+
 function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; searchText: string }) {
   const searchOptions = useSearchOptions();
   const [mode, setMode] = useState<SnippetMode>('curl');
   const [copied, setCopied] = useState(false);
   const [resendState, setResendState] = useState<ResendState>('idle');
   const [resendError, setResendError] = useState<string | null>(null);
-  const snippet = mode === 'curl' ? generateCurl(request) : generateFetch(request);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  // 스니펫과 재전송이 같은 draft를 읽으므로 미리보기가 곧 보낼 내용이다.
+  const [draft, setDraft] = useState<ReplayDraft>(() => buildReplayDraft(request));
+
+  const originalDraft = useMemo(() => buildReplayDraft(request), [request]);
+  const isDirty = draftSignature(draft) !== draftSignature(originalDraft);
+  const snippet = mode === 'curl' ? generateCurl(draft) : generateFetch(draft);
   const hasSearch = Boolean(searchText.trim());
   const resendable = canResendRequest(request);
 
-  // 다른 요청을 선택하면 이전 재전송 상태를 지운다.
+  // 다른 요청을 선택하면 편집 중이던 draft와 재전송 상태를 버린다.
   useEffect(() => {
+    setDraft(buildReplayDraft(request));
+    setIsEditorOpen(false);
     setResendState('idle');
     setResendError(null);
   }, [request.id]);
@@ -378,9 +397,10 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
     if (resendState === 'sending') return;
     setResendState('sending');
     setResendError(null);
-    const outcome = await resendRequest(request);
+    const outcome = await resendRequest(draft);
     if (outcome.ok) {
       setResendState('sent');
+      setIsEditorOpen(false);
       window.setTimeout(() => setResendState('idle'), 2000);
     } else {
       setResendState('failed');
@@ -402,7 +422,26 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
           ]}
         />
         <div className="flex items-center gap-1.5">
+          {isDirty ? (
+            <span
+              className="rounded-md bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent"
+              title="원 요청에서 수정된 내용이 있습니다"
+            >
+              Edited
+            </span>
+          ) : null}
           <Button onClick={() => void handleCopy()}>{copied ? 'Copied' : 'Copy'}</Button>
+          <Button
+            onClick={() => setIsEditorOpen(true)}
+            disabled={!resendable}
+            title={
+              resendable
+                ? 'URL·메서드·헤더·본문을 고쳐서 보냅니다.'
+                : '이 요청 유형은 재전송할 수 없습니다.'
+            }
+          >
+            Edit
+          </Button>
           <Button
             tone="accent"
             onClick={() => void handleResend()}
@@ -417,7 +456,7 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
           </Button>
         </div>
       </div>
-      {resendState === 'failed' && resendError ? (
+      {resendState === 'failed' && resendError && !isEditorOpen ? (
         <p className="mt-1.5 mb-0 rounded-[10px] bg-danger-soft px-2.5 py-[5px] text-[11px] text-danger" role="alert">
           재전송 실패: {resendError}
         </p>
@@ -425,6 +464,18 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
       <pre className="m-0 max-h-[220px] overflow-auto whitespace-pre-wrap rounded-xl border border-line-weak bg-surface-sub px-3 py-2.5 text-[11px] leading-[1.55] text-ink [font-family:SFMono-Regular,Consolas,'Liberation_Mono',monospace] [overflow-wrap:anywhere]">
         {hasSearch ? highlightSearchText(snippet, searchText, searchOptions) : snippet}
       </pre>
+      {isEditorOpen ? (
+        <ReplayEditorModal
+          draft={draft}
+          isDirty={isDirty}
+          isSending={resendState === 'sending'}
+          error={resendState === 'failed' ? resendError : null}
+          onChange={setDraft}
+          onReset={() => setDraft(buildReplayDraft(request))}
+          onSend={() => void handleResend()}
+          onClose={() => setIsEditorOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

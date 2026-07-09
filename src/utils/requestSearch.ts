@@ -3,7 +3,7 @@ import type { ApiRequest } from '../types/network';
 import { getImageSource } from './imageSource';
 import { boundUrlText } from './requestParser';
 import { requestCookieValue, responseCookieValue } from './requestCookies';
-import { generateCurl, generateFetch } from './requestCodeSnippets';
+import { buildReplayDraft, generateCurl, generateFetch } from './requestCodeSnippets';
 import {
   countSearchOccurrences,
   getSearchTerms,
@@ -256,7 +256,7 @@ function buildRequestPanelOccurrences(
       request.id,
       markIndex,
       searchText,
-      [{ kind: 'text', text: generateCurl(request) }],
+      [{ kind: 'text', text: generateCurl(buildReplayDraft(request)) }],
       options,
     );
   }
@@ -400,7 +400,8 @@ export function getMatchingDetailSections(
     sections.add('timing');
   }
 
-  if (matches(generateCurl(request)) || matches(generateFetch(request))) {
+  const replayDraft = buildReplayDraft(request);
+  if (matches(generateCurl(replayDraft)) || matches(generateFetch(replayDraft))) {
     sections.add('replay');
   }
 
