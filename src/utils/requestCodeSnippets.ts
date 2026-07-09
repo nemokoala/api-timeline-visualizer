@@ -1,4 +1,4 @@
-import type { ApiRequest } from '../types/network';
+import type { ApiRequest, ReplayDraft, ReplayHeader } from '../types/network';
 
 const SKIP_HEADERS = new Set(['host', 'connection', 'content-length', 'accept-encoding']);
 
@@ -8,9 +8,18 @@ function shouldIncludeHeader(name: string): boolean {
   return !SKIP_HEADERS.has(lower);
 }
 
+let headerSeq = 0;
+
+export function createReplayHeader(name = '', value = ''): ReplayHeader {
+  headerSeq += 1;
+  return { id: `header-${headerSeq}`, name, value };
+}
+
 /** 재현(cURL/fetch/재전송)에 포함할 요청 헤더 목록. 의사 헤더·전송 관련 헤더는 제외. */
-export function getReplayHeaders(request: ApiRequest): Array<[string, string]> {
-  return Object.entries(request.requestHeaders ?? {}).filter(([name]) => shouldIncludeHeader(name));
+function getReplayHeaders(request: ApiRequest): ReplayHeader[] {
+  return Object.entries(request.requestHeaders ?? {})
+    .filter(([name]) => shouldIncludeHeader(name))
+    .map(([name, value]) => createReplayHeader(name, value));
 }
 
 function shellQuote(value: string): string {
@@ -24,33 +33,46 @@ export function formatRequestBodyLiteral(body: unknown): string | null {
   return String(body);
 }
 
-/** 재현 시 요청 본문을 포함해야 하는지(GET/HEAD 제외). */
-export function hasReplayBody(request: ApiRequest): boolean {
-  return (
-    formatRequestBodyLiteral(request.requestBody) !== null &&
-    request.method !== 'GET' &&
-    request.method !== 'HEAD'
-  );
+/** 캡처된 요청에서 편집 가능한 재전송 초안을 만든다. */
+export function buildReplayDraft(request: ApiRequest): ReplayDraft {
+  return {
+    url: request.url,
+    method: request.method,
+    headers: getReplayHeaders(request),
+    body: formatRequestBodyLiteral(request.requestBody),
+  };
 }
 
-export function generateCurl(request: ApiRequest): string {
-  const parts = ['curl', '-X', request.method, shellQuote(request.url)];
+/** 전송 시 본문을 실어야 하는지(GET/HEAD와 빈 본문은 제외). */
+export function draftHasBody(draft: ReplayDraft): boolean {
+  const method = draft.method.toUpperCase();
+  return Boolean(draft.body) && method !== 'GET' && method !== 'HEAD';
+}
 
-  for (const [name, value] of getReplayHeaders(request)) {
+/** 이름이 빈 줄은 버린, 실제 전송용 헤더. */
+export function draftHeaderEntries(draft: ReplayDraft): Array<[string, string]> {
+  return draft.headers
+    .map(({ name, value }): [string, string] => [name.trim(), value])
+    .filter(([name]) => name.length > 0);
+}
+
+export function generateCurl(draft: ReplayDraft): string {
+  const parts = ['curl', '-X', draft.method.toUpperCase(), shellQuote(draft.url)];
+
+  for (const [name, value] of draftHeaderEntries(draft)) {
     parts.push('-H', shellQuote(`${name}: ${value}`));
   }
 
-  const body = formatRequestBodyLiteral(request.requestBody);
-  if (body !== null && hasReplayBody(request)) {
-    parts.push('--data-raw', shellQuote(body));
+  if (draftHasBody(draft)) {
+    parts.push('--data-raw', shellQuote(draft.body as string));
   }
 
   return parts.join(' ');
 }
 
-export function generateFetch(request: ApiRequest): string {
-  const optionLines = [`  method: ${JSON.stringify(request.method)},`];
-  const headers = getReplayHeaders(request);
+export function generateFetch(draft: ReplayDraft): string {
+  const optionLines = [`  method: ${JSON.stringify(draft.method.toUpperCase())},`];
+  const headers = draftHeaderEntries(draft);
 
   if (headers.length) {
     const headerObject = headers
@@ -59,13 +81,12 @@ export function generateFetch(request: ApiRequest): string {
     optionLines.push('  headers: {', headerObject, '  },');
   }
 
-  const body = formatRequestBodyLiteral(request.requestBody);
-  if (body !== null && hasReplayBody(request)) {
-    optionLines.push(`  body: ${JSON.stringify(body)},`);
+  if (draftHasBody(draft)) {
+    optionLines.push(`  body: ${JSON.stringify(draft.body)},`);
   }
 
   const lastIndex = optionLines.length - 1;
   optionLines[lastIndex] = optionLines[lastIndex].replace(/,$/, '');
 
-  return [`fetch(${JSON.stringify(request.url)}, {`, ...optionLines, '});'].join('\n');
+  return [`fetch(${JSON.stringify(draft.url)}, {`, ...optionLines, '});'].join('\n');
 }

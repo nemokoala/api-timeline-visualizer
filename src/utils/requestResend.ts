@@ -1,9 +1,5 @@
-import type { ApiRequest } from '../types/network';
-import {
-  formatRequestBodyLiteral,
-  getReplayHeaders,
-  hasReplayBody,
-} from './requestCodeSnippets';
+import type { ApiRequest, ReplayDraft } from '../types/network';
+import { draftHasBody, draftHeaderEntries } from './requestCodeSnippets';
 
 /**
  * 요청 재전송.
@@ -11,6 +7,10 @@ import {
  * 검사 대상 페이지 컨텍스트에서 fetch를 실행한다(chrome.devtools.inspectedWindow.eval).
  * 페이지에서 나가는 실제 요청이므로 쿠키·CORS가 원 요청과 동일하게 적용되고,
  * 재전송된 요청은 onRequestFinished로 다시 캡처되어 네트워크 스트림에 새 항목으로 나타난다.
+ *
+ * 보내는 값은 캡처된 요청이 아니라 ReplayDraft다 — 사용자가 URL·메서드·헤더·본문을
+ * 고쳐서 보낼 수 있고, 화면의 cURL/fetch 스니펫도 같은 draft로 만들어지므로
+ * 미리보기와 실제 전송이 어긋나지 않는다.
  *
  * 응답은 여기서 기다리지 않는다(fire-and-forget) — eval은 Promise를 직렬화하지
  * 못하고, 결과는 어차피 네트워크 스트림에 잡히기 때문이다.
@@ -23,22 +23,35 @@ export function canResendRequest(request: ApiRequest): boolean {
   return /^https?:\/\//i.test(request.url) && request.type !== 'websocket';
 }
 
-function buildFetchInit(request: ApiRequest): RequestInit {
+/** 전송 전 draft 검증. 문제가 없으면 null, 있으면 사용자에게 보여줄 메시지. */
+export function validateReplayDraft(draft: ReplayDraft): string | null {
+  if (!draft.method.trim()) return '메서드를 입력해 주세요.';
+  if (!/^https?:\/\//i.test(draft.url.trim())) {
+    return 'URL은 http:// 또는 https:// 로 시작해야 합니다.';
+  }
+  try {
+    new URL(draft.url.trim());
+  } catch {
+    return '올바른 URL이 아닙니다.';
+  }
+  return null;
+}
+
+function buildFetchInit(draft: ReplayDraft): RequestInit {
   const headers: Record<string, string> = {};
-  for (const [name, value] of getReplayHeaders(request)) {
+  for (const [name, value] of draftHeaderEntries(draft)) {
     headers[name] = value;
   }
 
   const init: RequestInit = {
-    method: request.method,
+    method: draft.method.toUpperCase(),
     headers,
     // 원 요청처럼 쿠키를 포함해 보낸다(교차 출처 포함).
     credentials: 'include',
   };
 
-  const body = formatRequestBodyLiteral(request.requestBody);
-  if (body !== null && hasReplayBody(request)) {
-    init.body = body;
+  if (draftHasBody(draft)) {
+    init.body = draft.body as string;
   }
 
   return init;
@@ -48,14 +61,18 @@ function canUseInspectedWindow(): boolean {
   return typeof chrome !== 'undefined' && Boolean(chrome.devtools?.inspectedWindow?.eval);
 }
 
-export function resendRequest(request: ApiRequest): Promise<ResendOutcome> {
-  const init = buildFetchInit(request);
+export function resendRequest(draft: ReplayDraft): Promise<ResendOutcome> {
+  const invalid = validateReplayDraft(draft);
+  if (invalid) return Promise.resolve({ ok: false, error: invalid });
+
+  const url = draft.url.trim();
+  const init = buildFetchInit(draft);
 
   if (!canUseInspectedWindow()) {
     // 로컬 개발(패널 단독 실행): 패널 컨텍스트에서 직접 전송한다.
     // 교차 출처면 CORS로 실패할 수 있으나 전송 자체는 시도된다.
     try {
-      void fetch(request.url, init).catch(() => {});
+      void fetch(url, init).catch(() => {});
       return Promise.resolve({ ok: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to resend request.';
@@ -66,7 +83,7 @@ export function resendRequest(request: ApiRequest): Promise<ResendOutcome> {
   // 금지 헤더(cookie 등)는 페이지 fetch가 조용히 무시하므로 그대로 넘겨도 안전하다.
   const expression = `(() => {
     try {
-      fetch(${JSON.stringify(request.url)}, ${JSON.stringify(init)}).catch(() => {});
+      fetch(${JSON.stringify(url)}, ${JSON.stringify(init)}).catch(() => {});
       return { ok: true };
     } catch (error) {
       return { ok: false, error: String(error && error.message || error) };
