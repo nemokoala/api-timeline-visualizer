@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -12,7 +13,11 @@ import { useSplitPanelLayout } from '../../hooks/useSplitPanelLayout';
 import { clearInspectedConsoleBuffer } from '../../utils/consoleInspector';
 import { scrollSearchHitIntoView } from '../../utils/searchScroll';
 import { useSearchOptions } from '../../contexts/SearchOptionsContext';
-import { highlightSearchText, textMatchesSearch } from '../../utils/searchHighlight';
+import { highlightSearchText, textMatchesSearch, type SearchOptions } from '../../utils/searchHighlight';
+import {
+  tokenizeConsoleMessage,
+  type ConsoleMessageTokenKind,
+} from '../../utils/consoleMessageTokens';
 import { matchesIncludeExcludeFilters } from '../../utils/textFilters';
 import {
   buildConsoleSearchOccurrences,
@@ -208,7 +213,11 @@ export function ConsoleView({
                 }
                 title={entry.text}
               >
-                {searchText.trim() ? highlightSearchText(preview, searchText, searchOptions) : preview}
+                <ConsoleMessagePreview
+                  preview={preview}
+                  searchText={searchText}
+                  searchOptions={searchOptions}
+                />
               </span>
             </div>
           );
@@ -711,6 +720,54 @@ function getJsonArgs(entry: ConsoleEntry): { index: number; value: unknown }[] {
     return [{ index: 0, value: entry.text }];
   }
   return [];
+}
+
+/* 접힌 상태 미리보기의 토큰 색. 펼친 트리(renderJsonValue)와 같은 팔레트를 쓴다. */
+const TOKEN_COLOR: Record<ConsoleMessageTokenKind, string> = {
+  plain: '',
+  key: 'text-accent',
+  string: 'text-json-string',
+  number: 'text-json-number',
+  boolean: 'text-purple',
+  null: 'text-danger-bg',
+  punct: 'text-ink-weak',
+};
+
+/**
+ * 접힌 행의 한 줄 미리보기. JSON 구간만 키·값 색을 입힌다.
+ *
+ * 하이라이트는 토큰마다 따로 그리지만 토큰이 원본을 순서대로 덮으므로
+ * `.search-highlight` 마크의 DOM 순서는 그대로다.
+ */
+function ConsoleMessagePreview({
+  preview,
+  searchText,
+  searchOptions,
+}: {
+  preview: string;
+  searchText: string;
+  searchOptions: Required<SearchOptions>;
+}) {
+  const hasSearch = Boolean(searchText.trim());
+  const tokens = tokenizeConsoleMessage(preview);
+
+  return (
+    <>
+      {tokens.map((token, index) => {
+        const content = hasSearch
+          ? highlightSearchText(token.text, searchText, searchOptions)
+          : token.text;
+        const color = TOKEN_COLOR[token.kind];
+        return color ? (
+          <span key={index} className={color}>
+            {content}
+          </span>
+        ) : (
+          <Fragment key={index}>{content}</Fragment>
+        );
+      })}
+    </>
+  );
 }
 
 /**
