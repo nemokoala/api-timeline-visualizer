@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -31,9 +32,10 @@ import { ColumnMenu } from '../shared/ColumnMenu';
 import { DataTable } from '../shared/DataTable';
 import { getTablePrefs, saveTablePrefs, type TablePrefs } from '../../utils/tablePrefs';
 import type { ColumnDef, ColumnSizingState, OnChangeFn } from '@tanstack/react-table';
-import { Button } from '../ui/Button';
+import { Button, IconButton } from '../ui/Button';
 import { PillTabs } from '../ui/PillTabs';
 import { ToggleControl } from '../ui/ToggleControl';
+import { cn } from '../../utils/cn';
 
 type ConsoleViewProps = {
   entries: ConsoleEntry[];
@@ -110,8 +112,17 @@ export function ConsoleView({
     getTablePrefs(CONSOLE_PREFS_KEY, CONSOLE_DEFAULT_PREFS),
   );
   const [columnMenu, setColumnMenu] = useState<{ x: number; y: number } | null>(null);
+  const [expandedEntryIds, setExpandedEntryIds] = useState<ReadonlySet<string>>(() => new Set());
   const consoleWorkspaceRef = useRef<HTMLDivElement>(null);
   const logListRef = useRef<HTMLDivElement | null>(null);
+
+  const toggleExpandedEntry = useCallback((entryId: string) => {
+    setExpandedEntryIds((current) => {
+      const next = new Set(current);
+      if (!next.delete(entryId)) next.add(entryId);
+      return next;
+    });
+  }, []);
 
   const persistTablePrefs = (next: TablePrefs) => {
     setTablePrefs(next);
@@ -164,18 +175,42 @@ export function ConsoleView({
         enableResizing: false,
         meta: { flex: true, minWidth: 160 },
         cell: ({ row }) => {
-          const preview = formatConsoleMessagePreview(row.original.text);
+          const entry = row.original;
+          const preview = formatConsoleMessagePreview(entry.text);
+          const hasJson = getJsonArgs(entry).length > 0;
+          const isExpanded = expandedEntryIds.has(entry.id);
           return (
-            <span
-              className={
-                wrapLines
-                  ? 'min-w-0 overflow-visible whitespace-pre-wrap [overflow-wrap:anywhere] [word-break:break-word]'
-                  : 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap'
-              }
-              title={row.original.text}
-            >
-              {searchText.trim() ? highlightSearchText(preview, searchText, searchOptions) : preview}
-            </span>
+            <div className="flex min-w-0 items-start gap-1">
+              {hasJson ? (
+                <IconButton
+                  size="xs"
+                  ghost
+                  aria-expanded={isExpanded}
+                  aria-label={isExpanded ? 'JSON 접기' : 'JSON 펼치기'}
+                  className="h-[17px] min-w-[17px] shrink-0 rounded px-0 text-[8px]"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toggleExpandedEntry(entry.id);
+                  }}
+                >
+                  <span className={cn('transition-transform duration-[120ms]', isExpanded && 'rotate-90')}>
+                    ▶
+                  </span>
+                </IconButton>
+              ) : (
+                <span className="w-[17px] shrink-0" aria-hidden="true" />
+              )}
+              <span
+                className={
+                  wrapLines
+                    ? 'min-w-0 overflow-visible whitespace-pre-wrap [overflow-wrap:anywhere] [word-break:break-word]'
+                    : 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap'
+                }
+                title={entry.text}
+              >
+                {searchText.trim() ? highlightSearchText(preview, searchText, searchOptions) : preview}
+              </span>
+            </div>
           );
         },
       },
@@ -215,7 +250,7 @@ export function ConsoleView({
         },
       },
     ],
-    [searchOptions, searchText, wrapLines],
+    [expandedEntryIds, searchOptions, searchText, toggleExpandedEntry, wrapLines],
   );
 
   const handleColumnContextMenu = (event: ReactMouseEvent) => {
@@ -317,7 +352,9 @@ export function ConsoleView({
         .forEach((mark) => mark.classList.remove('is-active'));
 
       if (!hasDetail) {
-        const rowMarks = row?.querySelectorAll('.search-highlight');
+        // 셀 영역으로 한정한다. 펼쳐진 JSON 서브행에도 .search-highlight가 생기는데,
+        // occurrenceIndex는 셀 기준 순번이라 함께 세면 활성 마크가 어긋난다.
+        const rowMarks = row?.querySelectorAll('[data-row-cells] .search-highlight');
         rowMarks?.forEach((mark, index) => {
           mark.classList.toggle('is-active', index === activeSearchOccurrence.occurrenceIndex);
         });
@@ -325,7 +362,9 @@ export function ConsoleView({
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [activeSearchOccurrence, hasDetail, searchMatchIndex]);
+    // expandedEntryIds: 행을 펼치면 리렌더로 마크 DOM이 새로 만들어져 손으로 붙인
+    // is-active가 사라진다. 다시 칠하려고 의존성에 둔다.
+  }, [activeSearchOccurrence, expandedEntryIds, hasDetail, searchMatchIndex]);
 
   const handleSelectEntry = (entryId: string) => {
     // 같은 행을 다시 누르면 세부 패널을 닫는다(토글).
@@ -397,6 +436,11 @@ export function ConsoleView({
           columnVisibility={tablePrefs.columnVisibility}
           selectedRowId={selectedEntryId}
           onRowClick={(entry) => handleSelectEntry(entry.id)}
+          renderSubRow={(entry) =>
+            expandedEntryIds.has(entry.id) ? (
+              <ConsoleRowJson entry={entry} searchText={searchText} />
+            ) : null
+          }
           rowClassName={(entry) => {
             // 레벨 색조는 hover/selected 배경보다 우선한다(원본 CSS 우선순위 유지).
             if (entry.level === 'error') {
@@ -652,6 +696,44 @@ function ConsoleArgBlock({
       <pre className="m-0 overflow-auto whitespace-pre-wrap rounded-[10px] border border-line-weak bg-surface-sub px-[11px] py-[9px] text-[11px] leading-[1.45] text-ink [word-break:break-word] [font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace]">
         {hasSearch ? highlightSearchText(display, searchText, searchOptions) : display}
       </pre>
+    </div>
+  );
+}
+
+/** 행에서 펼쳐 보여줄 JSON 인자들. 인자가 없으면 메시지 본문이 통째로 JSON인지 본다. */
+function getJsonArgs(entry: ConsoleEntry): { index: number; value: unknown }[] {
+  const fromArgs = entry.args
+    .map((value, index) => ({ index, value }))
+    .filter(({ value }) => shouldRenderArgInJsonViewer(value));
+
+  if (fromArgs.length > 0) return fromArgs;
+  if (entry.args.length === 0 && shouldRenderArgInJsonViewer(entry.text)) {
+    return [{ index: 0, value: entry.text }];
+  }
+  return [];
+}
+
+/** 행을 펼쳤을 때 나오는 JSON 트리. 행 클릭(선택)과 키 입력은 여기서 막는다. */
+function ConsoleRowJson({ entry, searchText }: { entry: ConsoleEntry; searchText: string }) {
+  const jsonArgs = getJsonArgs(entry);
+  if (jsonArgs.length === 0) return null;
+
+  return (
+    <div
+      className="grid gap-2 border-t border-line-weak bg-surface-sub px-3 py-2 pl-[34px]"
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+      role="presentation"
+    >
+      {jsonArgs.map(({ index, value }) => (
+        <JsonViewer
+          key={index}
+          instanceId={`console-row:${entry.id}:arg:${index}`}
+          value={value}
+          searchText={searchText}
+          recordKey={`arg[${index}]`}
+        />
+      ))}
     </div>
   );
 }
