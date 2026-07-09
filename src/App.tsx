@@ -403,7 +403,7 @@ export default function App() {
     dockApiRef.current = api;
   }, []);
 
-  const openJsonPanel = useCallback((value: unknown) => {
+  const openJsonPanel = useCallback((value: unknown, options?: { fullscreen?: boolean }) => {
     const api = dockApiRef.current;
     if (!api) return;
 
@@ -412,12 +412,24 @@ export default function App() {
     const title = `JSON ${seq}`;
     jsonPanelDataRef.current.set(id, { title, value });
 
+    // fullscreen이면 dockview 컨테이너에서 마진만 남기고 가득 채운다(모달 전체화면 대체).
+    // 아니면 살짝 겹치게 계단식으로 띄운다.
+    const FULLSCREEN_MARGIN = 24;
+    const floating = options?.fullscreen
+      ? {
+          width: Math.max(320, api.width - FULLSCREEN_MARGIN * 2),
+          height: Math.max(240, api.height - FULLSCREEN_MARGIN * 2),
+          x: FULLSCREEN_MARGIN,
+          y: FULLSCREEN_MARGIN,
+        }
+      : { width: 560, height: 420, x: 80 + seq * 24, y: 60 + seq * 24 };
+
     api.addPanel({
       id,
       component: 'json',
       title,
       params: { dataId: id },
-      floating: { width: 560, height: 420, x: 80 + seq * 24, y: 60 + seq * 24 },
+      floating,
     });
     api.getPanel(id)?.api.setActive();
   }, []);

@@ -423,14 +423,18 @@ function JsonBlock({
             ) : null}
           </div>
           <div className="ml-auto flex shrink-0 items-center gap-1.5">
-            <Button size="sm" tone="accent" onClick={() => setIsFullscreen((current) => !current)}>
+            {/* 전체화면은 모달 대신 화면을 가득 채우는 플로팅 패널(pop out)로 연다.
+                워크스페이스 컨텍스트가 없을 때만 기존 모달로 폴백한다. */}
+            <Button
+              size="sm"
+              tone="accent"
+              onClick={() =>
+                onOpenPanel ? onOpenPanel(value, { fullscreen: true }) : setIsFullscreen((current) => !current)
+              }
+              title={onOpenPanel ? '화면을 가득 채우는 창으로 열기' : undefined}
+            >
               {isFullscreen ? 'Close' : 'Fullscreen'}
             </Button>
-            {onOpenPanel ? (
-              <Button size="sm" tone="accent" onClick={() => onOpenPanel(value)} title="새 창(패널)으로 열기">
-                Pop out
-              </Button>
-            ) : null}
             <Button size="sm" tone="accent" onClick={handleCopy}>
               {copied ? 'Copied' : 'Copy'}
             </Button>

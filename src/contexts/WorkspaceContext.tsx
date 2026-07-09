@@ -98,8 +98,11 @@ export type WorkspaceContextValue = {
   /** 이미지 썸네일용 응답 본문 지연 로드(상세 스피너 미표시). */
   onEnsureThumbnailBody: (requestId: string) => void;
   onCloseDetail: () => void;
-  /** JSON 값을 이동·크기조절 가능한 dockview 플로팅 패널로 연다. */
-  openJsonPanel: (value: unknown) => void;
+  /**
+   * JSON 값을 이동·크기조절 가능한 dockview 플로팅 패널로 연다.
+   * fullscreen이면 마진만 남기고 화면을 가득 채우는 크기로 연다(전체화면 대체).
+   */
+  openJsonPanel: (value: unknown, options?: { fullscreen?: boolean }) => void;
   /** dockview JSON 패널이 자신의 데이터를 조회한다(패널 id로). */
   getJsonPanelData: (dataId: string) => JsonPanelData | undefined;
   // Storage

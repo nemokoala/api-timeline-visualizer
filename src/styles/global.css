@@ -357,6 +357,28 @@ button:not(:disabled) {
     min-height: 120px;
   }
 
+  /* Pop out 패널: 뷰어가 패널 높이를 가득 채우고 내부 body/pre가 남는 공간을 채우며
+     넘치면 스크롤한다(전체화면과 동일). 이미지 프리뷰(.json-value-sections)는 콘텐츠
+     높이로 두고 패널이 스크롤한다. */
+  .json-dock-panel > .json-viewer-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .json-dock-panel .json-viewer-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .json-dock-panel .json-viewer {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    overflow: auto;
+  }
+
   /* ── Flow 카드 코어 (react-flow .selected와 결합) ───────────── */
   .flow-node {
     display: grid;

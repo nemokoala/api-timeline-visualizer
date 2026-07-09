@@ -42,7 +42,7 @@ function JsonDockPanel({ params }: IDockviewPanelProps) {
   const data = getJsonPanelData(dataId);
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-auto p-2">
+    <div className="json-dock-panel flex h-full min-h-0 flex-col overflow-auto p-2">
       {data ? (
         <JsonViewer value={data.value} />
       ) : (
