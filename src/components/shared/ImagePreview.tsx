@@ -3,9 +3,10 @@ import { useEffect, useState } from 'react';
 type ImagePreviewProps = {
   src: string;
   alt: string;
+  className?: string;
 };
 
-export function ImagePreview({ src, alt }: ImagePreviewProps) {
+export function ImagePreview({ src, alt, className }: ImagePreviewProps) {
   const [displaySrc, setDisplaySrc] = useState(src);
 
   useEffect(() => {
@@ -24,7 +25,7 @@ export function ImagePreview({ src, alt }: ImagePreviewProps) {
     return () => URL.revokeObjectURL(objectUrl);
   }, [src]);
 
-  return <img src={displaySrc} alt={alt} />;
+  return <img src={displaySrc} alt={alt} className={className} />;
 }
 
 function dataUrlToObjectUrl(src: string): string | null {

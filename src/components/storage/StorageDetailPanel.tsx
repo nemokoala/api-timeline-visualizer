@@ -17,8 +17,11 @@ import {
   SplitLayoutToggleButton,
 } from "../shared/DetailPanelCloseButton";
 import { DetailSection } from "../shared/DetailSection";
+import { DetailTitleBar } from "../shared/DetailTitleBar";
+import { DefinitionList } from "../shared/DefinitionList";
 import { JsonViewer } from "../shared/JsonViewer";
 import { Button } from "../ui/Button";
+import { TextArea } from "../ui/Input";
 import { CookieForm } from "./CookieForm";
 import { formatCookieExpires, formatSameSite } from "./cookieFormat";
 import type { SelectedStorageItem } from "./storageShared";
@@ -128,53 +131,50 @@ export function StorageDetailPanel({
       ));
 
   return (
-    <aside className="storage-detail-panel" ref={panelRef}>
-      <div className="detail-title-bar">
-        <div>
-          <span className="detail-kicker">{detail.subtitle}</span>
-          <h2 title={detail.title}>
-            {hasSearch
-              ? highlightSearchText(detail.title, searchText, searchOptions)
-              : detail.title}
-          </h2>
-        </div>
-        <div className="detail-panel-title-actions">
-          {editable && !isEditing ? (
-            <Button size="sm" onClick={startEditing}>
-              Edit
-            </Button>
-          ) : null}
-          <SplitLayoutToggleButton
-            isStacked={isStacked}
-            onClick={onToggleLayout}
-          />
-          <DetailPanelCloseButton
-            onClick={onClose}
-            label="Close storage detail"
-          />
-        </div>
-      </div>
+    <aside
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-surface"
+      ref={panelRef}
+    >
+      <DetailTitleBar
+        kicker={detail.subtitle}
+        title={
+          hasSearch
+            ? highlightSearchText(detail.title, searchText, searchOptions)
+            : detail.title
+        }
+        titleAttr={detail.title}
+        actions={
+          <>
+            {editable && !isEditing ? (
+              <Button size="sm" onClick={startEditing}>
+                Edit
+              </Button>
+            ) : null}
+            <SplitLayoutToggleButton isStacked={isStacked} onClick={onToggleLayout} />
+            <DetailPanelCloseButton onClick={onClose} label="Close storage detail" />
+          </>
+        }
+      />
       <DetailSection
         sectionId={`${detail.instanceId}:meta`}
         title="Details"
         defaultOpen={false}
+        density="compact"
+        className="shrink-0"
         expandForSearch={metaMatchesSearch}
         searchExpandToken={searchFocusKey}
       >
-        <dl className="definition-list storage-detail-meta">
-          {detail.metaRows.map(([label, value]) => (
-            <div key={label}>
-              <dt>{label}</dt>
-              <dd>
-                {hasSearch
-                  ? highlightSearchText(value, searchText, searchOptions)
-                  : value}
-              </dd>
-            </div>
-          ))}
-        </dl>
+        <DefinitionList
+          className="gap-1"
+          rowClassName="grid-cols-[68px_minmax(0,1fr)] gap-2"
+          textClassName="text-[11px] leading-[1.35]"
+          rows={detail.metaRows.map(([label, value]) => [
+            label,
+            hasSearch ? highlightSearchText(value, searchText, searchOptions) : value,
+          ])}
+        />
       </DetailSection>
-      <div className="storage-detail-value">
+      <div className="storage-detail-value min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 [scrollbar-gutter:stable]">
         {isEditing && cookie ? (
           <CookieForm
             mode="edit"
@@ -188,9 +188,9 @@ export function StorageDetailPanel({
             onCancel={() => setIsEditing(false)}
           />
         ) : isEditing ? (
-          <div className="storage-edit">
-            <textarea
-              className="input storage-edit-textarea"
+          <div className="flex h-full min-h-0 flex-col gap-2 p-3">
+            <TextArea
+              className="min-h-40 flex-1 resize-y p-2.5 text-[12px] leading-normal [font-family:var(--mono,ui-monospace,SFMono-Regular,Menlo,monospace)]"
               value={draftValue}
               onChange={(event) => setDraftValue(event.currentTarget.value)}
               spellCheck={false}

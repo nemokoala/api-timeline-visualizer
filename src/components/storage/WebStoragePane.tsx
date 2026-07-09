@@ -13,6 +13,7 @@ import { formatBytes } from "../../utils/formatters";
 import { ColumnMenu } from "../shared/ColumnMenu";
 import { DataTable } from "../shared/DataTable";
 import { Button } from "../ui/Button";
+import { Input } from "../ui/Input";
 import { RowDeleteButton } from "./RowDeleteButton";
 import {
   WEB_DEFAULT_PREFS,
@@ -129,7 +130,7 @@ export function WebStoragePane({
         size: 44,
         minSize: 44,
         enableResizing: false,
-        meta: { cellClassName: "storage-actions-cell" },
+        meta: { cellClassName: "px-1.5 py-0 text-center" },
         cell: ({ row }) => (
           <RowDeleteButton
             label={`Delete ${row.original.key}`}
@@ -144,20 +145,20 @@ export function WebStoragePane({
 
   return (
     <>
-      <div className="storage-table-wrap">
+      <div className="min-h-0 min-w-0 overflow-auto bg-surface">
         {canEdit ? (
-          <div className="storage-add">
+          <div className="border-b border-line-weak bg-surface-sub px-2.5 py-2">
             {adding ? (
-              <div className="storage-add-form">
-                <input
-                  className="input input-md storage-add-input"
+              <div className="flex items-center gap-1.5">
+                <Input
+                  className="flex-[0_0_30%]"
                   placeholder="Key"
                   value={newKey}
                   onChange={(event) => setNewKey(event.currentTarget.value)}
                   autoFocus
                 />
-                <input
-                  className="input input-md storage-add-input"
+                <Input
+                  className="flex-auto"
                   placeholder="Value"
                   value={newValue}
                   onChange={(event) => setNewValue(event.currentTarget.value)}

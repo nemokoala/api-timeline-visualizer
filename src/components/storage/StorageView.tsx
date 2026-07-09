@@ -392,11 +392,11 @@ export function StorageView({
   };
 
   return (
-    <section className="storage-panel">
-      <div className="storage-header">
-        <span className="storage-header-label">Storage</span>
+    <section className="storage-panel @container grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden bg-bg">
+      <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-2 gap-y-0.5 border-b border-line-weak bg-surface px-3 py-1.5 @max-[560px]:grid-cols-[minmax(0,1fr)_auto] @max-[560px]:gap-y-[3px] max-[820px]:grid-cols-[minmax(0,1fr)_auto] max-[820px]:gap-y-[3px] max-[820px]:px-2 max-[820px]:py-1">
+        <span className="col-start-1 row-start-1 whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.04em] text-ink-weak">Storage</span>
         <span
-          className="storage-header-origin"
+          className={`col-start-2 row-start-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-ink @max-[560px]:col-span-full @max-[560px]:col-start-1 @max-[560px]:row-start-2 max-[820px]:col-span-full max-[820px]:col-start-1 max-[820px]:row-start-2 ${snapshot ? "" : "col-end-4"}`}
           title={
             snapshot
               ? snapshot.origin
@@ -409,7 +409,7 @@ export function StorageView({
         </span>
         {snapshot ? (
           <span
-            className="storage-header-captured"
+            className="col-start-3 row-start-1 whitespace-nowrap text-[10px] text-ink-weak tabular-nums @max-[560px]:hidden max-[820px]:hidden"
             title={formatLocaleDateTime(Date.parse(snapshot.capturedAt))}
           >
             {formatDateTime(Date.parse(snapshot.capturedAt))}
@@ -417,7 +417,7 @@ export function StorageView({
         ) : null}
         <Button
           size="sm"
-          className="storage-refresh-button"
+          className="col-start-4 row-start-1 @max-[560px]:col-start-2 @max-[560px]:row-start-1 @max-[560px]:justify-self-end max-[820px]:col-start-2 max-[820px]:row-start-1 max-[820px]:justify-self-end"
           onClick={() => void loadSnapshot()}
           disabled={isLoading}
         >
@@ -441,22 +441,18 @@ export function StorageView({
         ]}
       />
 
-      {error ? <div className="storage-message is-error">{error}</div> : null}
-      {mutationError ? (
-        <div className="storage-message is-error">{mutationError}</div>
-      ) : null}
+      {error ? <StorageMessage error>{error}</StorageMessage> : null}
+      {mutationError ? <StorageMessage error>{mutationError}</StorageMessage> : null}
       {snapshot?.errors.length ? (
-        <div className="storage-message">{snapshot.errors.join(" ")}</div>
+        <StorageMessage>{snapshot.errors.join(" ")}</StorageMessage>
       ) : null}
       {activeTab === "cookies" && cookieSnapshot?.errors.length ? (
-        <div className="storage-message is-error">
-          {cookieSnapshot.errors.join(" ")}
-        </div>
+        <StorageMessage error>{cookieSnapshot.errors.join(" ")}</StorageMessage>
       ) : null}
 
       <div
         ref={storageWorkspaceRef}
-        className={`storage-workspace ${hasDetail ? "has-detail" : ""} ${hasDetail && isSplitStacked ? "split-layout-stacked" : ""}`}
+        className={`storage-workspace grid h-full min-h-0 overflow-hidden ${hasDetail ? "has-detail" : ""} ${hasDetail && isSplitStacked ? "split-layout-stacked" : ""}`}
         style={hasDetail ? splitLayoutStyle : undefined}
       >
         {activeTab === "indexeddb" ? (
@@ -550,3 +546,15 @@ export function StorageView({
   );
 }
 
+/** 스토리지 상단 안내/오류 메시지 카드. */
+function StorageMessage({ error, children }: { error?: boolean; children: React.ReactNode }) {
+  return (
+    <div
+      className={`mx-3.5 mt-2.5 rounded-xl border-0 px-3 py-[9px] text-[12px] shadow-card ${
+        error ? "bg-danger-soft text-danger" : "bg-surface text-ink-sub"
+      }`}
+    >
+      {children}
+    </div>
+  );
+}

@@ -3,6 +3,7 @@ import type { ApiRequest } from '../../types/network';
 import { buildJsonDiff } from '../../utils/jsonDiff';
 import { formatDateTime, getStatusTone } from '../../utils/formatters';
 import { Button } from '../ui/Button';
+import { Select } from '../ui/Input';
 import { DetailPanelCloseButton } from '../shared/DetailPanelCloseButton';
 
 type ResponseDiffModalProps = {
@@ -84,7 +85,9 @@ export function ResponseDiffModal({
       >
         <div className="flex items-start justify-between gap-3 px-4 pt-3.5 pb-2.5">
           <div className="min-w-0">
-            <span className="detail-kicker">Compare responses</span>
+            <span className="block overflow-hidden text-ellipsis whitespace-nowrap text-[10px] leading-[1.2] text-ink-weak">
+              Compare responses
+            </span>
             <h2 className="m-0 mt-1 flex items-center gap-2 text-sm [overflow-wrap:anywhere]">
               <span className={`method method-${baseRequest.method.toLowerCase()}`}>
                 {baseRequest.method}
@@ -98,8 +101,7 @@ export function ResponseDiffModal({
         <div className="flex flex-wrap items-center gap-2.5 px-4 pb-3">
           <div className="flex min-w-0 items-center gap-2">
             <span className="flex-none text-[11px] font-bold text-danger">− 비교 대상</span>
-            <select
-              className="input input-md"
+            <Select
               value={compareId ?? ''}
               onChange={(event) => setCompareId(event.currentTarget.value)}
               aria-label="비교할 요청 선택"
@@ -109,7 +111,7 @@ export function ResponseDiffModal({
                   {formatDateTime(item.startedAt)} · {item.status || 'n/a'}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
           <span className="text-ink-weak" aria-hidden="true">
             →

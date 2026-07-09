@@ -9,6 +9,29 @@ type PanelHeaderProps = {
   scope: WorkspaceMode;
 };
 
+type FilterFieldProps = {
+  label: string;
+  value: string;
+  placeholder: string;
+  onChange: (next: string) => void;
+};
+
+/** Include/Exclude 알약형 필터 입력. 포커스 시 파란 테두리 + surface 배경. */
+function FilterField({ label, value, placeholder, onChange }: FilterFieldProps) {
+  return (
+    <label className="flex h-6 min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-transparent bg-fill px-2 text-[11px] text-ink-weak transition-[background-color,border-color] duration-[120ms] focus-within:border-accent focus-within:bg-surface">
+      <span className="flex-none whitespace-nowrap font-medium">{label}</span>
+      <input
+        type="text"
+        className="h-[22px] w-0 min-w-0 flex-auto border-0 bg-transparent text-[11px] text-ink-strong outline-none [font-family:inherit]"
+        value={value}
+        onChange={(event) => onChange(event.currentTarget.value)}
+        placeholder={placeholder}
+      />
+    </label>
+  );
+}
+
 /** 각 도킹 패널 헤더: 슬림 검색바 + 접을 수 있는 Include/Exclude 필터. 뷰마다 독립적으로 동작한다. */
 export function PanelHeader({ scope }: PanelHeaderProps) {
   const { searchModels, filterModels, searchOptions } = useWorkspace();
@@ -61,10 +84,14 @@ export function PanelHeader({ scope }: PanelHeaderProps) {
   };
 
   return (
-    <div className="panel-header">
-      <div className="panel-search" role="search" data-panel-search={scope}>
+    <div className="flex shrink-0 flex-col border-b border-line-weak bg-surface">
+      <div
+        className="flex h-7 items-center gap-1.5 pl-2.5 pr-1.5"
+        role="search"
+        data-panel-search={scope}
+      >
         <input
-          className="panel-search-input"
+          className="h-[22px] min-w-0 flex-[1_1_80px] border-0 bg-transparent text-xs text-ink-strong outline-none [font-family:inherit]"
           type="search"
           value={model.searchText}
           onChange={(event) => model.onSearchTextChange(event.currentTarget.value)}
@@ -73,25 +100,30 @@ export function PanelHeader({ scope }: PanelHeaderProps) {
           aria-label={`Search ${scope}`}
         />
         <SearchOptionToggles
-          className="panel-search-options"
+          className="flex shrink-0 items-center gap-0.5"
           matchCase={matchCase}
           wholeWord={wholeWord}
           onMatchCaseChange={onMatchCaseChange}
           onWholeWordChange={onWholeWordChange}
         />
         {hasActiveSearch ? (
-          <div className="panel-search-nav" aria-label="Search navigation">
+          <div
+            className="flex shrink-0 items-center gap-1 border-l border-line pl-1.5"
+            aria-label="Search navigation"
+          >
             <IconButton size="xs" onClick={model.onPrevious} title="Previous hit (Shift+Enter)">
               ‹
             </IconButton>
-            <span className="search-position">
+            <span className="min-w-[34px] whitespace-nowrap px-px text-center text-[10px] text-ink-weak tabular-nums">
               {searchPosition}/{model.occurrenceCount}
             </span>
             <IconButton size="xs" onClick={model.onNext} title="Next hit (Enter)">
               ›
             </IconButton>
-            <span className="search-nav-divider" aria-hidden="true" />
-            <span className="search-nav-label">{model.scopeLabel}</span>
+            <span className="h-4 w-px shrink-0 bg-line" aria-hidden="true" />
+            <span className="px-0.5 text-[9px] font-bold uppercase tracking-[0.04em] text-ink-faint">
+              {model.scopeLabel}
+            </span>
             <IconButton
               size="xs"
               onClick={model.onPreviousScope}
@@ -99,7 +131,7 @@ export function PanelHeader({ scope }: PanelHeaderProps) {
             >
               «
             </IconButton>
-            <span className="search-position">
+            <span className="min-w-[34px] whitespace-nowrap px-px text-center text-[10px] text-ink-weak tabular-nums">
               {scopePosition}/{model.scopeJumpCount}
             </span>
             <IconButton
@@ -115,7 +147,11 @@ export function PanelHeader({ scope }: PanelHeaderProps) {
           size="xs"
           ghost
           active={filtersOpen}
-          className={`panel-filter-toggle ${!filtersOpen && hasFilterText ? 'has-filter' : ''}`}
+          className={`relative ${
+            !filtersOpen && hasFilterText
+              ? "text-accent after:absolute after:top-[2px] after:right-[2px] after:h-[5px] after:w-[5px] after:rounded-full after:bg-accent after:content-['']"
+              : ''
+          }`}
           aria-expanded={filtersOpen}
           aria-label={filtersOpen ? '필터 접기' : '필터 펼치기'}
           title={filtersOpen ? '필터 접기' : hasFilterText ? '필터 펼치기 (필터 적용 중)' : '필터 펼치기'}
@@ -127,25 +163,19 @@ export function PanelHeader({ scope }: PanelHeaderProps) {
         </IconButton>
       </div>
       {filtersOpen ? (
-        <div className="panel-filters">
-          <label className="panel-filter-field">
-            <span className="panel-filter-label">Include</span>
-            <input
-              type="text"
-              value={filter.includeText}
-              onChange={(event) => filter.onIncludeTextChange(event.currentTarget.value)}
-              placeholder={filter.includePlaceholder}
-            />
-          </label>
-          <label className="panel-filter-field">
-            <span className="panel-filter-label">Exclude</span>
-            <input
-              type="text"
-              value={filter.excludeText}
-              onChange={(event) => filter.onExcludeTextChange(event.currentTarget.value)}
-              placeholder={filter.excludePlaceholder}
-            />
-          </label>
+        <div className="flex h-[30px] items-center gap-1.5 px-2 pb-1">
+          <FilterField
+            label="Include"
+            value={filter.includeText}
+            placeholder={filter.includePlaceholder}
+            onChange={filter.onIncludeTextChange}
+          />
+          <FilterField
+            label="Exclude"
+            value={filter.excludeText}
+            placeholder={filter.excludePlaceholder}
+            onChange={filter.onExcludeTextChange}
+          />
         </div>
       ) : null}
     </div>

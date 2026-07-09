@@ -95,23 +95,28 @@ export function IndexedDbPane({
 
   if (!databases.length && !isLoading) {
     return (
-      <div className="storage-empty">No matching IndexedDB databases.</div>
+      <div className="grid min-h-[220px] place-content-center text-[13px] text-ink-weak">No matching IndexedDB databases.</div>
     );
   }
 
   return (
     <>
-      <div className="indexeddb-tree">
+      <div className="min-h-0 min-w-0 overflow-auto bg-surface p-3">
         {databases.map((database) => (
-          <section className="indexeddb-database" key={database.name}>
-            <h3>
+          <section
+            className="grid gap-2 [&+&]:mt-4 [&+&]:border-t [&+&]:border-line-weak [&+&]:pt-3.5"
+            key={database.name}
+          >
+            <h3 className="m-0 flex items-center gap-2 text-[13px] text-ink-strong">
               {hasSearch
                 ? highlightSearchText(database.name, searchText, searchOptions)
                 : database.name}
-              {database.version ? <span>v{database.version}</span> : null}
+              {database.version ? (
+                <span className="text-[11px] font-medium text-ink-weak">v{database.version}</span>
+              ) : null}
             </h3>
             {database.error ? (
-              <p className="storage-inline-error">{database.error}</p>
+              <p className="mx-3 my-2 rounded-[10px] bg-danger-soft px-3 py-[7px] text-[11px] leading-[1.4] text-danger">{database.error}</p>
             ) : null}
             {database.stores.map((store) => (
               <IndexedDbStore
@@ -214,7 +219,7 @@ function IndexedDbStore({
         size: 44,
         minSize: 44,
         enableResizing: false,
-        meta: { cellClassName: "storage-actions-cell" },
+        meta: { cellClassName: "px-1.5 py-0 text-center" },
         cell: ({ row }) => (
           <RowDeleteButton
             label="Delete record"
@@ -251,28 +256,27 @@ function IndexedDbStore({
 
   return (
     <details
-      className="indexeddb-store"
+      className="overflow-hidden rounded-xl border border-line-weak bg-surface"
       open={open}
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
-      <summary>
+      <summary className="flex cursor-pointer justify-between gap-3 bg-surface-sub px-3 py-[9px] text-ink">
         <span>
           {hasSearch
             ? highlightSearchText(store.name, searchText, searchOptions)
             : store.name}
         </span>
-        <span>{store.count ?? store.records.length} rows</span>
+        <span className="text-[11px] text-ink-weak">{store.count ?? store.records.length} rows</span>
       </summary>
       {store.error ? (
-        <p className="storage-inline-error">{store.error}</p>
+        <p className="mx-3 my-2 rounded-[10px] bg-danger-soft px-3 py-[7px] text-[11px] leading-[1.4] text-danger">{store.error}</p>
       ) : null}
       {store.truncated ? (
-        <p className="storage-note">
+        <p className="mx-3 my-2 rounded-[10px] bg-warn-soft px-3 py-[7px] text-[11px] leading-[1.4] text-warn">
           Showing the first {store.records.length} records.
         </p>
       ) : null}
       <DataTable
-        className="indexeddb-record-table"
         ariaLabel={`${store.name} records`}
         columns={columns}
         data={store.records.map((record, index) => ({ record, index }))}

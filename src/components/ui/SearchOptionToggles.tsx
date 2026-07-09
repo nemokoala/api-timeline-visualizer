@@ -35,7 +35,7 @@ export function SearchOptionToggles({
         active={wholeWord}
         aria-pressed={wholeWord}
         title="Match whole word"
-        className="search-option-whole-word"
+        className="text-[10px] leading-none tracking-[-0.02em]"
         onClick={() => onWholeWordChange(!wholeWord)}
       >
         ab

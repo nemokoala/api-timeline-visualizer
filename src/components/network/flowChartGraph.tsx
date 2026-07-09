@@ -16,6 +16,8 @@ import {
 import { getImageSource } from "../../utils/imageSource";
 import { ImagePreview } from "../shared/ImagePreview";
 import { SearchHitBadge } from "./SearchHitBadge";
+import { MethodBadge } from "./MethodBadge";
+import { StatusBadge } from "./StatusBadge";
 import {
   AUTO_CONTINUATION_COLUMNS,
   COLUMN_GAP,
@@ -77,43 +79,56 @@ export function toFlowNodes(
               selectedRequestId === item.requestId ? "selected" : ""
             }`}
           >
-            <div className="flow-node-top">
-              <div className="flow-node-top-main">
-                <span className={`method method-${item.method.toLowerCase()}`}>
-                  {item.method}
-                </span>
-                <span className={`flow-status ${statusTone}`}>
+            <div className="flex min-h-0 items-center justify-between gap-1.5 leading-none">
+              <div className="inline-flex min-w-0 items-center gap-[5px]">
+                <MethodBadge method={item.method} size="node" />
+                <StatusBadge variant="node" tone={statusTone}>
                   {item.status || "n/a"}
-                </span>
+                </StatusBadge>
               </div>
               {searchSummary ? (
                 <SearchHitBadge
                   summary={searchSummary}
                   activeGlobalSearchIndex={activeGlobalSearchIndex}
+                  className="ml-auto"
                 />
               ) : null}
             </div>
             {imageSource ? (
-              <div className="flow-node-image-title">
-                <ImagePreview src={imageSource} alt="Base64 request preview" />
-                <strong title={item.path}>Image payload</strong>
+              <div className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)] items-center gap-2.5">
+                <ImagePreview
+                  src={imageSource}
+                  alt="Base64 request preview"
+                  className="block h-10 w-10 rounded-lg border border-line-weak bg-fill object-cover"
+                />
+                <strong
+                  className="block text-left text-[14px] font-bold leading-[1.35] tracking-[-0.01em] text-ink-strong [overflow-wrap:anywhere] [-webkit-line-clamp:1]"
+                  title={item.path}
+                >
+                  Image payload
+                </strong>
               </div>
             ) : (
-              <strong title={`${item.path}${query}`}>
+              <strong
+                className="block text-left text-[14px] font-bold leading-[1.35] tracking-[-0.01em] text-ink-strong [overflow-wrap:anywhere]"
+                title={`${item.path}${query}`}
+              >
                 {getNodeTitle(item)}
                 {query ? (
-                  <span className="flow-node-query">{query}</span>
+                  <span className="font-medium text-ink-sub">{query}</span>
                 ) : null}
               </strong>
             )}
-            <div className="flow-node-summary">
+            <div className="grid min-w-0 gap-0.5 overflow-hidden text-[11px] leading-[1.3] text-[#6b7684]">
               {bodySummary.map((summary) => (
-                <span key={summary}>{summary}</span>
+                <span className="overflow-hidden text-ellipsis whitespace-nowrap" key={summary}>
+                  {summary}
+                </span>
               ))}
             </div>
-            <div className="flow-node-bottom">
+            <div className="flex items-center justify-between gap-2 text-[11px] text-ink-weak">
               <span>{formatDateTime(request?.startedAt ?? NaN)}</span>
-              <span className={item.isSlow ? "slow-text" : ""}>
+              <span className={item.isSlow ? "text-warn" : ""}>
                 {formatDuration(request?.duration ?? item.duration)}
               </span>
             </div>

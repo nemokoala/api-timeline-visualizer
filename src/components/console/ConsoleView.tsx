@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+} from 'react';
 import type { ConsoleEntry, ConsoleLevelFilter } from '../../types/console';
 import { useSplitPanelLayout } from '../../hooks/useSplitPanelLayout';
 import { clearInspectedConsoleBuffer } from '../../utils/consoleInspector';
@@ -15,6 +22,8 @@ import {
 import { formatConsoleMessagePreview } from '../../utils/consoleMessagePreview';
 import { DetailPanelCloseButton, SplitLayoutToggleButton } from '../shared/DetailPanelCloseButton';
 import { DetailSection } from '../shared/DetailSection';
+import { DetailTitleBar } from '../shared/DetailTitleBar';
+import { DefinitionList } from '../shared/DefinitionList';
 import { JsonViewer } from '../shared/JsonViewer';
 import { SplitPanelResizer } from '../shared/SplitPanelResizer';
 import { formatDateTime } from '../../utils/formatters';
@@ -57,6 +66,15 @@ const CONSOLE_COLUMNS: Array<{ id: ConsoleColumnId; label: string }> = [
 ];
 
 const WRAP_LINES_STORAGE_KEY = 'console-wrap-lines';
+
+/* 레벨별 글자색. error는 강조를 위해 진한 빨강 원색(--red). */
+const LEVEL_TEXT_COLOR: Record<string, string> = {
+  log: 'text-ink-sub',
+  info: 'text-accent',
+  warn: 'text-warn',
+  error: 'text-danger-bg',
+  debug: 'text-purple',
+};
 const CONSOLE_PREFS_KEY = 'console-table-prefs';
 
 const CONSOLE_DEFAULT_PREFS: TablePrefs = {
@@ -120,7 +138,13 @@ export function ConsoleView({
         size: 60,
         minSize: 44,
         cell: ({ row }) => (
-          <span className={`console-level-badge is-${row.original.level}`}>{row.original.level}</span>
+          <span
+            className={`overflow-hidden text-ellipsis whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.04em] ${
+              LEVEL_TEXT_COLOR[row.original.level] ?? 'text-ink-weak'
+            }`}
+          >
+            {row.original.level}
+          </span>
         ),
       },
       {
@@ -129,7 +153,9 @@ export function ConsoleView({
         size: 96,
         minSize: 72,
         cell: ({ row }) => (
-          <span className="console-log-timestamp">{formatDateTime(row.original.timestamp)}</span>
+          <span className="text-[11px] text-ink-weak tabular-nums">
+            {formatDateTime(row.original.timestamp)}
+          </span>
         ),
       },
       {
@@ -140,7 +166,14 @@ export function ConsoleView({
         cell: ({ row }) => {
           const preview = formatConsoleMessagePreview(row.original.text);
           return (
-            <span className="console-log-message" title={row.original.text}>
+            <span
+              className={
+                wrapLines
+                  ? 'min-w-0 overflow-visible whitespace-pre-wrap [overflow-wrap:anywhere] [word-break:break-word]'
+                  : 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap'
+              }
+              title={row.original.text}
+            >
               {searchText.trim() ? highlightSearchText(preview, searchText, searchOptions) : preview}
             </span>
           );
@@ -154,7 +187,9 @@ export function ConsoleView({
         enableResizing: false,
         cell: ({ row }) =>
           row.original.repeatCount && row.original.repeatCount > 1 ? (
-            <span className="console-repeat-badge">{row.original.repeatCount}</span>
+            <span className="min-w-[18px] rounded-full bg-accent-soft px-1.5 py-px text-center text-[10px] font-bold leading-[15px] text-accent-strong">
+              {row.original.repeatCount}
+            </span>
           ) : null,
       },
       {
@@ -166,14 +201,21 @@ export function ConsoleView({
           const source = row.original.source;
           if (!source) return null;
           return (
-            <span className="console-log-source" title={source}>
+            <span
+              className={`text-[10px] text-ink-weak ${
+                wrapLines
+                  ? 'overflow-visible whitespace-pre-wrap [overflow-wrap:anywhere] [word-break:break-word]'
+                  : 'max-w-[180px] overflow-hidden text-ellipsis whitespace-nowrap'
+              }`}
+              title={source}
+            >
               {searchText.trim() ? highlightSearchText(source, searchText, searchOptions) : source}
             </span>
           );
         },
       },
     ],
-    [searchOptions, searchText],
+    [searchOptions, searchText, wrapLines],
   );
 
   const handleColumnContextMenu = (event: ReactMouseEvent) => {
@@ -310,8 +352,8 @@ export function ConsoleView({
   };
 
   return (
-    <section className="console-panel">
-      <div className="console-toolbar">
+    <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-bg">
+      <div className="flex min-w-0 items-center justify-between gap-3 border-b border-line-weak bg-surface px-3.5 py-2.5">
         <PillTabs
           className="min-w-0 overflow-x-auto"
           ariaLabel="Console level filter"
@@ -337,12 +379,13 @@ export function ConsoleView({
 
       <div
         ref={consoleWorkspaceRef}
-        className={`console-workspace ${hasDetail ? 'has-detail' : ''} ${hasDetail && isSplitStacked ? 'split-layout-stacked' : ''}`}
+        className={`grid h-full min-h-0 overflow-hidden ${hasDetail && isSplitStacked ? 'split-layout-stacked' : ''}`}
         style={hasDetail ? splitLayoutStyle : undefined}
       >
         <DataTable
           ariaLabel="Console logs"
-          className={`console-log-list ${wrapLines ? 'wrap-lines' : ''}`}
+          className="console-log-list min-h-0 min-w-0 bg-surface"
+          rowAlign={wrapLines ? 'start' : 'center'}
           rootRef={(element) => {
             logListRef.current = element;
           }}
@@ -354,7 +397,19 @@ export function ConsoleView({
           columnVisibility={tablePrefs.columnVisibility}
           selectedRowId={selectedEntryId}
           onRowClick={(entry) => handleSelectEntry(entry.id)}
-          rowClassName={(entry) => `is-${entry.level}`}
+          rowClassName={(entry) => {
+            // 레벨 색조는 hover/selected 배경보다 우선한다(원본 CSS 우선순위 유지).
+            if (entry.level === 'error') {
+              const strong = entry.id === selectedEntryId;
+              return strong
+                ? 'bg-[rgba(240,68,82,0.1)] hover:bg-[rgba(240,68,82,0.1)]'
+                : 'bg-[rgba(240,68,82,0.05)] hover:bg-[rgba(240,68,82,0.1)]';
+            }
+            if (entry.level === 'warn') {
+              return 'bg-[rgba(255,158,44,0.07)] hover:bg-[rgba(255,158,44,0.07)]';
+            }
+            return '';
+          }}
           onHeaderContextMenu={handleColumnContextMenu}
           emptyState="No console output yet. Logs appear after the panel opens."
         />
@@ -451,62 +506,81 @@ function ConsoleDetailPanel({
     hasSearch && entry.stack ? textMatchesSearch(entry.stack, searchText, searchOptions) : false;
 
   return (
-    <aside className="console-detail-panel" ref={panelRef}>
-      <div className="detail-title-bar">
-        <div>
-          <span className="detail-kicker detail-kicker-caps">{entry.level}</span>
-          <h2 title={entry.text}>{entry.text}</h2>
-        </div>
-        <div className="detail-panel-title-actions">
-          <span className="console-detail-timestamp">{formatDateTime(entry.timestamp)}</span>
-          <SplitLayoutToggleButton isStacked={isStacked} onClick={onToggleLayout} />
-          <DetailPanelCloseButton onClick={onClose} label="Close log detail" />
-        </div>
-      </div>
+    <aside
+      className="h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto bg-surface pb-[30px] [scrollbar-gutter:stable]"
+      ref={panelRef}
+    >
+      <DetailTitleBar
+        kicker={entry.level}
+        kickerCaps
+        title={entry.text}
+        titleAttr={entry.text}
+        actions={
+          <>
+            <span className="flex-none text-[11px] text-ink-weak tabular-nums">
+              {formatDateTime(entry.timestamp)}
+            </span>
+            <SplitLayoutToggleButton isStacked={isStacked} onClick={onToggleLayout} />
+            <DetailPanelCloseButton onClick={onClose} label="Close log detail" />
+          </>
+        }
+      />
 
       <DetailSection
         sectionId={`${entry.id}:summary`}
         title="Summary"
         defaultOpen
+        density="compact"
         expandForSearch={summaryMatchesSearch}
         searchExpandToken={searchFocusKey}
       >
-        <dl className="definition-list console-detail-meta">
-          <div>
-            <dt>Level</dt>
-            <dd>{hasSearch ? highlightSearchText(entry.level, searchText, searchOptions) : entry.level}</dd>
-          </div>
-          {entry.args.length === 0 ? (
-            <div>
-              <dt>Message</dt>
-              <dd>{hasSearch ? highlightSearchText(entry.text, searchText, searchOptions) : entry.text}</dd>
-            </div>
-          ) : null}
-          {entry.source ? (
-            <div>
-              <dt>Source</dt>
-              <dd>{hasSearch ? highlightSearchText(entry.source, searchText, searchOptions) : entry.source}</dd>
-            </div>
-          ) : null}
-          {entry.repeatCount && entry.repeatCount > 1 ? (
-            <div>
-              <dt>Repeated</dt>
-              <dd>{entry.repeatCount} times</dd>
-            </div>
-          ) : null}
-        </dl>
+        <DefinitionList
+          className="gap-1"
+          rowClassName="grid-cols-[68px_minmax(0,1fr)] gap-2"
+          textClassName="text-[11px] leading-[1.35]"
+          rows={[
+            [
+              'Level',
+              hasSearch ? highlightSearchText(entry.level, searchText, searchOptions) : entry.level,
+            ] as [string, ReactNode],
+            ...(entry.args.length === 0
+              ? [
+                  [
+                    'Message',
+                    hasSearch
+                      ? highlightSearchText(entry.text, searchText, searchOptions)
+                      : entry.text,
+                  ] as [string, ReactNode],
+                ]
+              : []),
+            ...(entry.source
+              ? [
+                  [
+                    'Source',
+                    hasSearch
+                      ? highlightSearchText(entry.source, searchText, searchOptions)
+                      : entry.source,
+                  ] as [string, ReactNode],
+                ]
+              : []),
+            ...(entry.repeatCount && entry.repeatCount > 1
+              ? [['Repeated', `${entry.repeatCount} times`] as [string, ReactNode]]
+              : []),
+          ]}
+        />
       </DetailSection>
 
       <DetailSection
         sectionId={`${entry.id}:args`}
         title={`Arguments (${entry.args.length})`}
         defaultOpen
+        density="compact"
         expandForSearch={argsMatchesSearch}
         searchExpandToken={searchFocusKey}
       >
-        <div className="console-arg-stack">
+        <div className="grid gap-2.5">
           {entry.args.length === 0 ? (
-            <p className="console-arg-empty">No arguments.</p>
+            <p className="m-0 text-[12px] text-ink-weak">No arguments.</p>
           ) : (
             entry.args.map((arg, index) => (
               <ConsoleArgBlock
@@ -527,10 +601,11 @@ function ConsoleDetailPanel({
           sectionId={`${entry.id}:stack`}
           title="Stack"
           defaultOpen={entry.level === 'error'}
+          density="compact"
           expandForSearch={stackMatchesSearch}
           searchExpandToken={searchFocusKey}
         >
-          <pre className="console-stack-trace">
+          <pre className="m-0 overflow-auto whitespace-pre-wrap rounded-[10px] border border-line-weak bg-surface-sub px-[11px] py-[9px] text-[11px] leading-[1.45] text-ink [word-break:break-word] [font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace]">
             {hasSearch ? highlightSearchText(entry.stack, searchText, searchOptions) : entry.stack}
           </pre>
         </DetailSection>
@@ -557,8 +632,8 @@ function ConsoleArgBlock({
 
   if (shouldRenderArgInJsonViewer(value)) {
     return (
-      <div className="console-arg-block">
-        <div className="console-arg-label">arg[{index}]</div>
+      <div className="console-arg-block grid gap-1">
+        <div className="text-[10px] font-bold uppercase tracking-[0.04em] text-ink-weak">arg[{index}]</div>
         <JsonViewer
           instanceId={`console:${entryId}:arg:${index}`}
           value={value}
@@ -572,9 +647,9 @@ function ConsoleArgBlock({
 
   const display = value === undefined ? 'undefined' : value === null ? 'null' : String(value);
   return (
-    <div className="console-arg-block">
-      <div className="console-arg-label">arg[{index}]</div>
-      <pre className="console-arg-primitive">
+    <div className="console-arg-block grid gap-1">
+      <div className="text-[10px] font-bold uppercase tracking-[0.04em] text-ink-weak">arg[{index}]</div>
+      <pre className="m-0 overflow-auto whitespace-pre-wrap rounded-[10px] border border-line-weak bg-surface-sub px-[11px] py-[9px] text-[11px] leading-[1.45] text-ink [word-break:break-word] [font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace]">
         {hasSearch ? highlightSearchText(display, searchText, searchOptions) : display}
       </pre>
     </div>

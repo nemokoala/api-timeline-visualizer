@@ -16,12 +16,28 @@ const STATIC_KINDS: ToggleableResourceKind[] = TOGGLEABLE_RESOURCE_KINDS.filter(
   (kind) => !API_KINDS.includes(kind),
 );
 
+/* 종류별 점 색. API 계열은 blue/purple, 정적 리소스는 각기 다른 색으로 구분. */
+const KIND_DOT_COLOR: Record<ToggleableResourceKind, string> = {
+  fetch: 'bg-accent',
+  document: 'bg-accent',
+  xhr: 'bg-purple',
+  websocket: 'bg-purple',
+  stylesheet: 'bg-teal',
+  script: 'bg-warn',
+  image: 'bg-ok',
+  font: 'bg-pink',
+  media: 'bg-danger',
+};
+
 function toItem(kind: ToggleableResourceKind): FilterMenuItem<ToggleableResourceKind> {
   return {
     value: kind,
     label: (
       <>
-        <span className={`kind-dot kind-${kind}`} aria-hidden="true" />
+        <span
+          className={`h-2 w-2 shrink-0 rounded-full ${KIND_DOT_COLOR[kind] ?? 'bg-ink-faint'}`}
+          aria-hidden="true"
+        />
         <span>{getRequestKindLabel(kind)}</span>
       </>
     ),

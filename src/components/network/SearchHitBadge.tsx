@@ -1,11 +1,17 @@
 import type { RequestSearchSummary } from '../../utils/requestSearch';
+import { cn } from '../../utils/cn';
 
 type SearchHitBadgeProps = {
   summary: RequestSearchSummary;
   activeGlobalSearchIndex: number | null;
+  className?: string;
 };
 
-export function SearchHitBadge({ summary, activeGlobalSearchIndex }: SearchHitBadgeProps) {
+export function SearchHitBadge({
+  summary,
+  activeGlobalSearchIndex,
+  className,
+}: SearchHitBadgeProps) {
   const label =
     summary.hitCount === 1
       ? `#${summary.globalStart}`
@@ -18,11 +24,24 @@ export function SearchHitBadge({ summary, activeGlobalSearchIndex }: SearchHitBa
 
   return (
     <span
-      className={`search-hit-badge ${isActive ? 'is-active' : ''}`}
+      className={cn(
+        'inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border-0 py-[2px] pl-[5px] pr-[7px] text-[10px] font-bold leading-[14px]',
+        isActive ? 'bg-highlight text-highlight-deep' : 'bg-fill text-ink-sub',
+        className,
+      )}
       title={`${summary.hitCount} hits · request ${summary.requestOrder}`}
     >
-      <span className="search-hit-order">{summary.requestOrder}</span>
-      <span className="search-hit-range">{label}</span>
+      <span
+        className={cn(
+          'inline-flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-[3px] text-[9px]',
+          isActive
+            ? 'bg-[rgba(0,0,0,0.08)] text-highlight-deep'
+            : 'bg-accent-soft text-accent-strong',
+        )}
+      >
+        {summary.requestOrder}
+      </span>
+      <span className="tabular-nums">{label}</span>
     </span>
   );
 }

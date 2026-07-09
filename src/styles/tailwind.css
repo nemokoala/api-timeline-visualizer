@@ -1,17 +1,17 @@
 /**
- * Tailwind v4 진입점 — 점진 도입용 설정.
+ * Tailwind v4 진입점.
  *
- * preflight(base 리셋)는 의도적으로 뺐다. global.css가 리셋 없이 작성돼 있어
- * preflight를 켜면 기존 화면이 바뀐다. 유틸리티와 테마 토큰만 가져온다.
- *
- * 주의: global.css는 레이어 밖(unlayered)이라 레이어에 들어간 유틸리티보다
- * 항상 우선한다(전역 `button { font: inherit }` 같은 요소 선택자도 이긴다).
- * 그래서 utilities는 important로 가져온다 — global.css가 전부 이관되면 제거.
- * 유틸리티로 새로 짜는 컴포넌트는 global.css 클래스와 섞어 쓰지 말 것.
+ * 레이어 순서: theme < vendor < base < components < utilities.
+ * - vendor: 서드파티 CSS(dockview, react-flow). 레이어에 넣어 utilities가
+ *   레이어 순서만으로 이기게 한다(important 불필요).
+ * - base/components: global.css가 채운다(토큰·리셋·이관하지 않은 코어).
+ * - preflight(base 리셋)는 여전히 뺀다 — 기존 리셋(global.css base)을 유지.
  */
-@layer theme, utilities;
+@layer theme, vendor, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/utilities.css" layer(utilities) important;
+@import "@xyflow/react/dist/style.css" layer(vendor);
+@import "dockview-react/dist/styles/dockview.css" layer(vendor);
+@import "tailwindcss/utilities.css" layer(utilities);
 
 /*
  * 기존 테마 변수(global.css의 라이트/다크 토큰)를 Tailwind 토큰으로 연결한다.
@@ -49,7 +49,20 @@
   --color-ok: var(--green-text);
   --color-ok-bg: var(--green);
   --color-warn: var(--orange-text);
+  --color-warn-strong: var(--orange-strong);
+  --color-warn-bg: var(--orange);
   --color-warn-soft: var(--orange-soft);
+
+  --color-purple: var(--purple);
+  --color-teal: var(--teal);
+  --color-pink: var(--pink);
+
+  --color-highlight: var(--highlight-bg);
+  --color-highlight-ink: var(--highlight-text);
+  --color-highlight-deep: var(--highlight-deep);
+
+  --color-json-string: var(--json-string);
+  --color-json-number: var(--json-number);
 
   --color-seg-active: var(--seg-active-bg);
   --color-backdrop: var(--backdrop);
@@ -57,4 +70,28 @@
   --shadow-card: var(--shadow-card);
   --shadow-float: var(--shadow-float);
   --shadow-node: var(--shadow-node);
+}
+
+/* 이미지 프리뷰 프레임용 큰 체커보드(16px, surface-sub 바탕). */
+@utility bg-checker-lg {
+  background-color: var(--surface-sub);
+  background-image:
+    linear-gradient(45deg, var(--checker) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--checker) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--checker) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--checker) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+
+/* 투명 이미지용 체커보드 배경(썸네일/프리뷰 공용). */
+@utility bg-checker {
+  background-color: var(--fill);
+  background-image:
+    linear-gradient(45deg, var(--border-weak) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--border-weak) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--border-weak) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--border-weak) 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 0 4px, 4px -4px, -4px 0;
 }

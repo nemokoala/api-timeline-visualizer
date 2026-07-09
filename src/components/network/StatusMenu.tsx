@@ -4,6 +4,7 @@ import {
   type StatusGroup,
 } from '../../utils/requestFilterPrefs';
 import { FilterMenu } from '../shared/FilterMenu';
+import { StatusBadge } from './StatusBadge';
 
 type StatusMenuProps = {
   enabledGroups: StatusGroup[];
@@ -30,11 +31,7 @@ export function StatusMenu({ enabledGroups, onToggle, onSetAll }: StatusMenuProp
         {
           items: STATUS_GROUPS.map((group) => ({
             value: group,
-            label: (
-              <span className={`flow-status ${GROUP_TONE[group]}`}>
-                {STATUS_GROUP_LABELS[group]}
-              </span>
-            ),
+            label: <StatusBadge tone={GROUP_TONE[group]}>{STATUS_GROUP_LABELS[group]}</StatusBadge>,
           })),
         },
       ]}

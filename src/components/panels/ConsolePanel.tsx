@@ -7,9 +7,9 @@ export function ConsolePanel() {
   const ctx = useWorkspace();
 
   return (
-    <div className="dock-panel-shell">
+    <div className="flex h-full min-h-0 flex-col">
       <PanelHeader scope="console" />
-      <div className="dock-pane workspace-console">
+      <div className="min-h-0 flex-auto overflow-hidden">
         <ConsoleView
           entries={ctx.consoleEntries}
           selectedEntryId={ctx.selectedConsoleEntryId}

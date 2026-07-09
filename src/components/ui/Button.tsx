@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes } from 'react';
+import { cn } from '../../utils/cn';
 
 export type ButtonTone = 'neutral' | 'accent' | 'danger';
 
@@ -13,23 +14,40 @@ type SharedButtonProps = {
   float?: boolean;
 };
 
+const base =
+  'inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 border-0 p-0 ' +
+  'whitespace-nowrap bg-fill font-semibold text-ink-sub ' +
+  'transition-colors duration-[120ms] hover:enabled:bg-fill-hover active:enabled:scale-[0.97] ' +
+  'disabled:cursor-not-allowed disabled:opacity-45 ' +
+  'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-solid focus-visible:outline-accent';
+
+const toneClasses: Record<ButtonTone, string> = {
+  neutral: '',
+  accent: 'hover:enabled:bg-accent hover:enabled:text-[#fff]',
+  danger: 'hover:enabled:bg-danger-bg hover:enabled:text-[#fff]',
+};
+
 function buttonClassName(
   size: string,
   { tone, ghost, active, float }: SharedButtonProps,
   className?: string,
 ): string {
-  return [
-    'btn',
+  return cn(
+    base,
     size,
-    ghost ? 'btn-ghost' : '',
-    tone && tone !== 'neutral' ? `btn-${tone}` : '',
-    float ? 'btn-float' : '',
-    active ? 'active' : '',
-    className ?? '',
-  ]
-    .filter(Boolean)
-    .join(' ');
+    ghost && 'bg-transparent text-ink-weak hover:enabled:bg-fill-hover hover:enabled:text-ink-sub',
+    tone ? toneClasses[tone] : '',
+    float && 'bg-surface shadow-float',
+    active && 'bg-accent text-[#fff] hover:enabled:bg-accent hover:enabled:text-[#fff]',
+    className,
+  );
 }
+
+// leading-none은 twMerge가 text-*에 밀리지 않도록 크기 클래스 뒤에 둔다(원본 .btn line-height: 1).
+const textSizes = {
+  md: 'h-7 rounded-[9px] px-3 text-xs leading-none',
+  sm: 'h-6 rounded-lg px-[9px] text-[11px] leading-none',
+};
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
   SharedButtonProps & {
@@ -51,11 +69,18 @@ export function Button({
   return (
     <button
       type={type}
-      className={buttonClassName(`btn-${size}`, { tone, ghost, active, float }, className)}
+      className={buttonClassName(textSizes[size], { tone, ghost, active, float }, className)}
       {...rest}
     />
   );
 }
+
+const iconSizes = {
+  xs: 'h-[22px] min-w-[22px] rounded-md px-1 text-xs leading-none',
+  sm: 'h-6 w-6 rounded-lg text-xs leading-none',
+  md: 'h-8 w-8 rounded-[10px] leading-none',
+  lg: 'h-9 w-9 rounded-[10px] leading-none',
+};
 
 type IconButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
   SharedButtonProps & {
@@ -77,7 +102,7 @@ export function IconButton({
   return (
     <button
       type={type}
-      className={buttonClassName(`btn-icon-${size}`, { tone, ghost, active, float }, className)}
+      className={buttonClassName(iconSizes[size], { tone, ghost, active, float }, className)}
       {...rest}
     />
   );

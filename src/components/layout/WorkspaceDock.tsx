@@ -8,7 +8,6 @@ import {
   type IDockviewPanelProps,
   type IWatermarkPanelProps,
 } from 'dockview-react';
-import 'dockview-react/dist/styles/dockview.css';
 import type { WorkspaceMode } from './Toolbar';
 import { useTheme } from '../../hooks/useTheme';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
@@ -43,14 +42,11 @@ function JsonDockPanel({ params }: IDockviewPanelProps) {
   const data = getJsonPanelData(dataId);
 
   return (
-    <div className="dock-panel-shell json-dock-panel">
+    <div className="flex h-full min-h-0 flex-col overflow-auto p-2">
       {data ? (
         <JsonViewer value={data.value} />
       ) : (
-        <div className="dock-watermark">
-          <p>JSON 데이터가 없습니다.</p>
-          <p className="dock-watermark-hint">패널을 닫고 다시 Pop out 해 주세요.</p>
-        </div>
+        <DockWatermark message="JSON 데이터가 없습니다." hint="패널을 닫고 다시 Pop out 해 주세요." />
       )}
     </div>
   );
@@ -63,11 +59,21 @@ const components: Record<string, React.FunctionComponent<IDockviewPanelProps>> =
   json: (props) => <JsonDockPanel {...props} />,
 };
 
-function DockWatermark(_props: IWatermarkPanelProps) {
+function DockviewWatermark(_props: IWatermarkPanelProps) {
+  return <DockWatermark />;
+}
+
+function DockWatermark({
+  message = '표시할 패널이 없습니다.',
+  hint = '상단에서 Network · Storage · Console을 선택해 다시 여세요.',
+}: {
+  message?: string;
+  hint?: string;
+}) {
   return (
-    <div className="dock-watermark">
-      <p>표시할 패널이 없습니다.</p>
-      <p className="dock-watermark-hint">상단에서 Network · Storage · Console을 선택해 다시 여세요.</p>
+    <div className="grid h-full place-content-center gap-1.5 p-6 text-center text-ink-sub">
+      <p>{message}</p>
+      <p className="text-[12px] text-ink-weak">{hint}</p>
     </div>
   );
 }
@@ -156,10 +162,10 @@ export function WorkspaceDock({ onApiReady, onActivePanelChange, onOpenPanelsCha
   }, [isDark]);
 
   return (
-    <div className="workspace-dock">
+    <div className="relative h-full min-h-0 w-full overflow-hidden">
       <DockviewReact
         components={components}
-        watermarkComponent={DockWatermark}
+        watermarkComponent={DockviewWatermark}
         onReady={onReady}
         theme={isDark ? themeDark : themeLight}
       />

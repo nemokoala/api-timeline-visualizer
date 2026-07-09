@@ -3,6 +3,7 @@ import {
   type FilterableMethod,
 } from '../../utils/requestFilterPrefs';
 import { FilterMenu } from '../shared/FilterMenu';
+import { MethodBadge } from './MethodBadge';
 
 type MethodMenuProps = {
   enabledMethods: FilterableMethod[];
@@ -20,11 +21,7 @@ export function MethodMenu({ enabledMethods, onToggle, onSetAll }: MethodMenuPro
         {
           items: FILTERABLE_METHODS.map((method) => ({
             value: method,
-            label: (
-              <span className={`method method-${method.toLowerCase()}`}>
-                {method === 'OTHER' ? 'Other' : method}
-              </span>
-            ),
+            label: <MethodBadge method={method === 'OTHER' ? 'Other' : method} />,
           })),
         },
       ]}

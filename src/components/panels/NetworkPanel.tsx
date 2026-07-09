@@ -49,9 +49,9 @@ export function NetworkPanel() {
   }, [selectedRequest?.id]);
 
   return (
-    <div className="dock-panel-shell">
+    <div className="flex h-full min-h-0 flex-col">
       <PanelHeader scope="network" />
-      <div className="network-actions">
+      <div className="flex h-[38px] shrink-0 items-center gap-2.5 overflow-x-auto border-b border-line-weak bg-surface px-2.5">
         <SegmentedControl
           size="sm"
           ariaLabel="Network view mode"
@@ -62,7 +62,7 @@ export function NetworkPanel() {
             { value: 'timeline', label: 'Timeline' },
           ]}
         />
-        <span className="network-actions-sep" aria-hidden="true" />
+        <span className="h-[18px] w-px shrink-0 bg-line" aria-hidden="true" />
         <ResourceTypeMenu
           enabledKinds={ctx.enabledResourceKinds}
           onToggle={ctx.onToggleResourceKind}
@@ -80,7 +80,7 @@ export function NetworkPanel() {
         />
         {ctx.networkViewMode === 'flow' ? (
           <>
-            <span className="network-actions-sep" aria-hidden="true" />
+            <span className="h-[18px] w-px shrink-0 bg-line" aria-hidden="true" />
             <ToggleControl
               size="sm"
               label="Group time"
@@ -89,8 +89,12 @@ export function NetworkPanel() {
             />
           </>
         ) : null}
-        {ctx.sessionNotice ? <p className="toolbar-notice">{ctx.sessionNotice}</p> : null}
-        <div className="toolbar-button-group" aria-label="Session actions">
+        {ctx.sessionNotice ? (
+          <p className="m-0 whitespace-nowrap text-[11px] font-medium text-accent">
+            {ctx.sessionNotice}
+          </p>
+        ) : null}
+        <div className="ml-auto flex shrink-0 items-center gap-1" aria-label="Session actions">
           <Button size="sm" onClick={ctx.onExportSession} disabled={!ctx.canExport}>
             Export
           </Button>
@@ -104,7 +108,7 @@ export function NetworkPanel() {
       </div>
       <div
         ref={containerRef}
-        className={`workspace network-dock-panel ${selectedRequest && isStacked ? 'split-layout-stacked' : ''}`}
+        className={`grid min-h-0 flex-auto items-stretch overflow-hidden ${selectedRequest && isStacked ? 'split-layout-stacked max-[820px]:grid-cols-[minmax(0,1fr)]!' : ''}`}
         style={selectedRequest ? layoutStyle : undefined}
       >
       {ctx.networkViewMode === 'flow' ? (

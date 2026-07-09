@@ -806,7 +806,7 @@ export default function App() {
 
   return (
     <SearchOptionsProvider value={searchOptions}>
-    <main className="app-shell">
+    <main className="grid h-screen grid-rows-[auto_1fr] overflow-hidden">
       <Toolbar
         requestCount={isConsoleMode ? displayedConsoleEntries.length : displayedRequests.length}
         totalRequestCount={isConsoleMode ? displayedConsoleEntries.length : requests.length}

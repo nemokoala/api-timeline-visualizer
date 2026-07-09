@@ -14,7 +14,7 @@ export function RowDeleteButton({
     <IconButton
       ghost
       tone="danger"
-      className="storage-row-delete"
+      className="opacity-0 transition-[color,background-color,opacity] duration-[120ms] focus-visible:opacity-100 group-hover/row:opacity-100 disabled:opacity-0 group-hover/row:disabled:opacity-100"
       aria-label={label}
       title={label}
       disabled={disabled}

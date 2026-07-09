@@ -7,9 +7,9 @@ export function StoragePanel() {
   const ctx = useWorkspace();
 
   return (
-    <div className="dock-panel-shell">
+    <div className="flex h-full min-h-0 flex-col">
       <PanelHeader scope="storage" />
-      <div className="dock-pane workspace-storage">
+      <div className="min-h-0 flex-auto overflow-hidden">
         <StorageView
           searchText={ctx.storageSearchText}
           searchMatchIndex={ctx.storageSearchMatchIndex}

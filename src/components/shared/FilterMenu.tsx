@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { Button } from '../ui/Button';
+import { MenuCheckItem, MenuGroupLabel, MenuSeparator, MenuSurface } from '../ui/Menu';
 
 export type FilterMenuItem<T extends string> = {
   value: T;
@@ -73,14 +74,18 @@ export function FilterMenu<T extends string>({
     <>
       <Button size="sm" active={open} onClick={toggleOpen} aria-expanded={open} aria-haspopup="menu">
         {buttonLabel}
-        <span className="resource-type-count">
+        <span
+          className={`ml-[5px] rounded-full px-[5px] text-[10px] font-semibold tabular-nums ${
+            open ? 'bg-[rgba(255,255,255,0.24)] text-inherit' : 'bg-fill text-ink-sub'
+          }`}
+        >
           {enabledValues.length}/{totalCount}
         </span>
       </Button>
       {open ? (
-        <div
+        <MenuSurface
           ref={menuRef}
-          className="column-menu resource-type-popover"
+          className="min-w-[168px]"
           style={{ top: position.y, left: position.x }}
           role="menu"
           aria-label={menuAriaLabel}
@@ -105,33 +110,23 @@ export function FilterMenu<T extends string>({
           </div>
           {groups.map((group, groupIndex) => (
             <div key={group.label ?? groupIndex}>
-              {groupIndex > 0 || group.label ? (
-                <div className="column-menu-separator" role="separator" />
-              ) : null}
-              {group.label ? (
-                <div className="resource-type-group-label">{group.label}</div>
-              ) : null}
+              {groupIndex > 0 || group.label ? <MenuSeparator /> : null}
+              {group.label ? <MenuGroupLabel>{group.label}</MenuGroupLabel> : null}
               {group.items.map((item) => {
                 const checked = enabledSet.has(item.value);
                 return (
-                  <button
+                  <MenuCheckItem
                     key={item.value}
-                    type="button"
-                    role="menuitemcheckbox"
-                    aria-checked={checked}
-                    className={`column-menu-item ${checked ? 'checked' : ''}`}
+                    checked={checked}
                     onClick={() => onToggle(item.value, !checked)}
                   >
-                    <span className="column-menu-check" aria-hidden="true">
-                      {checked ? '✓' : ''}
-                    </span>
                     {item.label}
-                  </button>
+                  </MenuCheckItem>
                 );
               })}
             </div>
           ))}
-        </div>
+        </MenuSurface>
       ) : null}
     </>
   );

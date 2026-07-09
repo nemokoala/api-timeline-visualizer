@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { CookieEntry, CookieSameSite } from "../../types/storage";
 import type { CookieWriteInput } from "../../utils/cookieInspector";
 import { Button } from "../ui/Button";
+import { Input, Select } from "../ui/Input";
 import { epochToLocalInput, formatSameSite, hostnameFromUrl } from "./cookieFormat";
 
 const SAME_SITE_OPTIONS: CookieSameSite[] = [
@@ -69,49 +70,44 @@ export function CookieForm({
   };
 
   return (
-    <div className="cookie-form">
-      <div className="cookie-form-grid">
-        <label className="cookie-field">
+    <div className="flex w-full flex-col gap-2.5 p-3">
+      <div className="grid grid-cols-2 gap-x-2.5 gap-y-2">
+        <label className="flex min-w-0 flex-col gap-[3px] text-[11px] text-ink-weak">
           <span>Name</span>
-          <input
-            className="input input-md"
+          <Input
             value={name}
             disabled={isEdit}
             onChange={(event) => setName(event.currentTarget.value)}
             autoFocus={!isEdit}
           />
         </label>
-        <label className="cookie-field cookie-field-wide">
+        <label className="col-span-full flex min-w-0 flex-col gap-[3px] text-[11px] text-ink-weak">
           <span>Value</span>
-          <input
-            className="input input-md"
+          <Input
             value={value}
             onChange={(event) => setValue(event.currentTarget.value)}
             autoFocus={isEdit}
           />
         </label>
-        <label className="cookie-field">
+        <label className="flex min-w-0 flex-col gap-[3px] text-[11px] text-ink-weak">
           <span>Domain</span>
-          <input
-            className="input input-md"
+          <Input
             value={domain}
             disabled={isEdit}
             onChange={(event) => setDomain(event.currentTarget.value)}
           />
         </label>
-        <label className="cookie-field">
+        <label className="flex min-w-0 flex-col gap-[3px] text-[11px] text-ink-weak">
           <span>Path</span>
-          <input
-            className="input input-md"
+          <Input
             value={path}
             disabled={isEdit}
             onChange={(event) => setPath(event.currentTarget.value)}
           />
         </label>
-        <label className="cookie-field">
+        <label className="flex min-w-0 flex-col gap-[3px] text-[11px] text-ink-weak">
           <span>SameSite</span>
-          <select
-            className="input input-md"
+          <Select
             value={sameSite}
             onChange={(event) =>
               setSameSite(event.currentTarget.value as CookieSameSite)
@@ -122,12 +118,11 @@ export function CookieForm({
                 {formatSameSite(option)}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
-        <label className="cookie-field">
+        <label className="flex min-w-0 flex-col gap-[3px] text-[11px] text-ink-weak">
           <span>Expires</span>
-          <input
-            className="input input-md"
+          <Input
             type="datetime-local"
             value={expiresLocal}
             disabled={session}
@@ -135,8 +130,8 @@ export function CookieForm({
           />
         </label>
       </div>
-      <div className="cookie-form-flags">
-        <label className="cookie-check">
+      <div className="flex flex-wrap gap-3.5">
+        <label className="inline-flex cursor-pointer items-center gap-1.5 text-[12px] text-ink">
           <input
             type="checkbox"
             checked={session}
@@ -144,7 +139,7 @@ export function CookieForm({
           />
           <span>Session</span>
         </label>
-        <label className="cookie-check">
+        <label className="inline-flex cursor-pointer items-center gap-1.5 text-[12px] text-ink">
           <input
             type="checkbox"
             checked={secure}
@@ -152,7 +147,7 @@ export function CookieForm({
           />
           <span>Secure</span>
         </label>
-        <label className="cookie-check">
+        <label className="inline-flex cursor-pointer items-center gap-1.5 text-[12px] text-ink">
           <input
             type="checkbox"
             checked={httpOnly}

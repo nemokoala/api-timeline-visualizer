@@ -13,6 +13,15 @@ import type { RequestSearchSummary } from '../../utils/requestSearch';
 import { formatBytes, formatDateTime, formatDuration, getRequestKindLabel, getStatusTone } from '../../utils/formatters';
 import { getResponseImageThumbnail } from '../../utils/imageSource';
 import { SearchHitBadge } from './SearchHitBadge';
+import { MethodBadge } from './MethodBadge';
+import { EmptyState } from '../ui/EmptyState';
+
+/* 상태 톤별 글자색(배지 배경은 공통 fill). bad는 강조를 위해 진한 빨강 원색. */
+const STATUS_TONE_TEXT: Record<string, string> = {
+  good: 'text-ok',
+  warn: 'text-warn',
+  bad: 'text-danger-bg',
+};
 import { ColumnMenu } from '../shared/ColumnMenu';
 import { DataTable } from '../shared/DataTable';
 
@@ -151,7 +160,11 @@ export function TimelineView({
         minSize: 64,
         cell: ({ row }) => {
           const request = ctxRef.current.requestById.get(row.original.requestId);
-          return <span className="offset">{formatDateTime(request?.startedAt ?? NaN)}</span>;
+          return (
+            <span className="whitespace-nowrap text-[12px] text-ink-weak tabular-nums">
+              {formatDateTime(request?.startedAt ?? NaN)}
+            </span>
+          );
         },
       },
       {
@@ -169,7 +182,11 @@ export function TimelineView({
         size: 52,
         minSize: 40,
         cell: ({ row }) => (
-          <span className={`status ${getStatusTone(row.original.status)}`}>
+          <span
+            className={`justify-self-center whitespace-nowrap rounded-md bg-fill px-1 py-[2px] text-center text-[11px] ${
+              STATUS_TONE_TEXT[getStatusTone(row.original.status)] ?? 'text-ink-weak'
+            }`}
+          >
             {row.original.status || 'n/a'}
           </span>
         ),
@@ -182,7 +199,11 @@ export function TimelineView({
         minSize: 48,
         cell: ({ row }) => {
           const request = ctxRef.current.requestById.get(row.original.requestId);
-          return <span className="duration">{formatDuration(request?.duration ?? row.original.duration)}</span>;
+          return (
+            <span className="whitespace-nowrap text-right text-[11px] text-ink-weak">
+              {formatDuration(request?.duration ?? row.original.duration)}
+            </span>
+          );
         },
       },
       {
@@ -193,7 +214,11 @@ export function TimelineView({
         minSize: 52,
         cell: ({ row }) => {
           const request = ctxRef.current.requestById.get(row.original.requestId);
-          return <span className="size">{formatBytes(request?.size ?? row.original.size)}</span>;
+          return (
+            <span className="whitespace-nowrap text-right text-[11px] text-ink-weak tabular-nums">
+              {formatBytes(request?.size ?? row.original.size)}
+            </span>
+          );
         },
       },
     ],
@@ -245,7 +270,10 @@ export function TimelineView({
   }, [items, requestById]);
 
   return (
-    <section className="timeline-panel" aria-label="Timeline">
+    <section
+      className="min-h-0 min-w-0 overflow-auto bg-surface max-[820px]:border-b max-[820px]:border-line-weak"
+      aria-label="Timeline"
+    >
       {columnMenu ? (
         <ColumnMenu
           columns={TIMELINE_COLUMNS.map((id) => ({ id, label: TIMELINE_COLUMN_LABELS[id] }))}
@@ -261,7 +289,6 @@ export function TimelineView({
       ) : null}
 
       <DataTable
-        className="timeline-table"
         ariaLabel="API requests"
         columns={columns}
         data={items}
@@ -274,21 +301,22 @@ export function TimelineView({
         enableSorting
         selectedRowId={selectedRequestId}
         onRowClick={(item) => onSelectRequest(item.requestId)}
-        rowClassName={() => (hasSearch ? 'search-match' : '')}
+        rowClassName={(item) =>
+          hasSearch && item.requestId !== selectedRequestId
+            ? 'bg-[rgba(49,130,246,0.05)] hover:bg-[rgba(49,130,246,0.05)]'
+            : ''
+        }
         registerRowRef={(id, element) => {
           if (element) rowRefs.current.set(id, element);
           else rowRefs.current.delete(id);
         }}
         onHeaderContextMenu={handleColumnContextMenu}
         emptyState={
-          <div className="empty-state">
-            <strong>{hasSearch ? 'No matching API requests.' : 'No API requests captured.'}</strong>
-            <span>
-              {hasSearch
-                ? 'Try another keyword or clear the search field.'
-                : 'Open a page with DevTools active and trigger XHR or fetch traffic.'}
-            </span>
-          </div>
+          <EmptyState title={hasSearch ? 'No matching API requests.' : 'No API requests captured.'}>
+            {hasSearch
+              ? 'Try another keyword or clear the search field.'
+              : 'Open a page with DevTools active and trigger XHR or fetch traffic.'}
+          </EmptyState>
         }
       />
     </section>
@@ -312,27 +340,49 @@ function RequestCell({ item, ctx }: { item: TimelineItem; ctx: RenderContext }) 
   );
 
   return (
-    <span className="request-main">
-      <span className="request-meta">
-        <span className={`method method-${item.method.toLowerCase()}`}>{item.method}</span>
+    <span className="grid min-w-0 gap-[3px]">
+      <span className="flex min-w-0 items-center gap-1.5">
+        <MethodBadge method={item.method} size="sm" />
         {thumbnailSrc ? (
-          <img className="row-thumb" src={thumbnailSrc} alt="" loading="lazy" decoding="async" />
+          <img
+            className="bg-checker h-5 w-5 flex-none rounded border border-line-weak object-cover"
+            src={thumbnailSrc}
+            alt=""
+            loading="lazy"
+            decoding="async"
+          />
         ) : null}
-        <span className="path">
+        {/* 긴 주소가 1줄에서 잘리지 않고 최대 2줄까지 표시되도록 줄바꿈 허용. */}
+        <span className="min-w-0 text-[11px] font-semibold leading-[1.3] tracking-[-0.01em] text-ink-strong line-clamp-2 [overflow-wrap:anywhere]">
           {item.normalizedPath}
-          {queryString ? <span className="path-query">{queryString}</span> : null}
+          {queryString ? <span className="font-normal text-ink-weak">{queryString}</span> : null}
         </span>
         {searchSummary ? (
-          <SearchHitBadge summary={searchSummary} activeGlobalSearchIndex={ctx.activeGlobalSearchIndex} />
+          <SearchHitBadge
+            summary={searchSummary}
+            activeGlobalSearchIndex={ctx.activeGlobalSearchIndex}
+            className="ml-auto"
+          />
         ) : null}
       </span>
-      <span className="request-timing">
+      <span className="flex min-w-0 items-center gap-1.5">
         {request ? (
-          <span className={`kind-tag kind-${request.type}`}>{getRequestKindLabel(request.type)}</span>
-        ) : null}
-        <span className="bar-track" aria-hidden="true">
           <span
-            className={`bar ${item.isError ? 'error' : item.isSlow ? 'slow' : 'ok'}`}
+            className={`min-w-10 flex-none text-center text-[9px] font-bold uppercase leading-[1.1] tracking-[0.02em] ${
+              KIND_TEXT_COLOR[request.type] ?? 'text-ink-weak'
+            }`}
+          >
+            {getRequestKindLabel(request.type)}
+          </span>
+        ) : null}
+        <span
+          className="relative block h-1.5 min-w-0 flex-auto overflow-hidden rounded-full bg-line-weak"
+          aria-hidden="true"
+        >
+          <span
+            className={`absolute inset-y-0 min-w-[3px] rounded-full ${
+              item.isError ? 'bg-danger-bg' : item.isSlow ? 'bg-warn-bg' : 'bg-ok-bg'
+            }`}
             style={{ left: `${startPercent}%`, width: `${widthPercent}%` }}
           />
         </span>
@@ -340,3 +390,16 @@ function RequestCell({ item, ctx }: { item: TimelineItem; ctx: RenderContext }) 
     </span>
   );
 }
+
+/* 종류별 라벨 색. API 계열은 blue/purple, 정적 리소스는 각기 다른 색으로 구분. */
+const KIND_TEXT_COLOR: Record<string, string> = {
+  fetch: 'text-accent',
+  document: 'text-accent',
+  xhr: 'text-purple',
+  websocket: 'text-purple',
+  stylesheet: 'text-teal',
+  script: 'text-warn',
+  image: 'text-ok',
+  font: 'text-pink',
+  media: 'text-danger',
+};

@@ -150,7 +150,7 @@ export function CookiePane({
         header: "HttpOnly",
         size: 80,
         minSize: 60,
-        meta: { cellClassName: "storage-bool-cell" },
+        meta: { cellClassName: "text-center" },
         cell: ({ row }) => (row.original.httpOnly ? "✓" : ""),
       },
       {
@@ -158,7 +158,7 @@ export function CookiePane({
         header: "Secure",
         size: 70,
         minSize: 56,
-        meta: { cellClassName: "storage-bool-cell" },
+        meta: { cellClassName: "text-center" },
         cell: ({ row }) => (row.original.secure ? "✓" : ""),
       },
     ];
@@ -169,7 +169,7 @@ export function CookiePane({
         size: 44,
         minSize: 44,
         enableResizing: false,
-        meta: { cellClassName: "storage-actions-cell" },
+        meta: { cellClassName: "px-1.5 py-0 text-center" },
         cell: ({ row }) => (
           <RowDeleteButton
             label={`Delete ${row.original.name}`}
@@ -184,9 +184,9 @@ export function CookiePane({
 
   return (
     <>
-      <div className="storage-table-wrap">
+      <div className="min-h-0 min-w-0 overflow-auto bg-surface">
         {canEdit ? (
-          <div className="storage-add">
+          <div className="border-b border-line-weak bg-surface-sub px-2.5 py-2">
             {adding ? (
               <CookieForm
                 mode="add"

@@ -1,3 +1,21 @@
+/**
+ * 이관 후 남은 전역 CSS. 모두 레이어 안에 있어 utilities가 항상 이긴다.
+ *
+ * - base: 테마 토큰(:root/[data-theme]) + 리셋 + 스크롤바.
+ * - components: 유틸리티로 옮기기 어려운 코어들.
+ *   · 검색 하이라이트(.search-highlight/.json-local-hit): JS가 classList로
+ *     is-active를 토글해서 클래스 기반 유지.
+ *   · JsonViewer 크기 조절 코어(.json-viewer-wrap/-body/.json-viewer +
+ *     is-fullscreen/is-resized + 임베드 컨텍스트별 결합): 상태·컨텍스트가
+ *     캐스케이드로 얽혀 있어 한 덩어리로 유지. 옮기려면 JsonViewer에
+ *     variant prop을 도입하는 리팩터링이 필요하다.
+ *   · flow 카드 코어(.flow-node/.flow-text-note): react-flow가 붙이는
+ *     .selected 클래스(다중 선택)와 결합되어 유지.
+ * - 파일 끝의 vendor 오버라이드(.flow-panel .react-flow__*, .dv-dockview)는
+ *   components 레이어 — vendor 레이어(tailwind.css에서 import)보다 뒤라 이긴다.
+ */
+
+@layer base {
 :root {
   color-scheme: light;
   font-family: "Pretendard Variable", Pretendard, -apple-system,
@@ -168,2990 +186,356 @@ button:not(:disabled) {
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
-
-.app-shell {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  height: 100vh;
-  overflow: hidden;
 }
 
-.toolbar {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 14px 12px;
-  border-bottom: 1px solid var(--border-weak);
-  background: var(--surface);
-}
-
-.toolbar.is-collapsed {
-  gap: 0;
-  padding-bottom: 10px;
-}
-
-.toolbar-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.toolbar-row-primary {
-  gap: 12px;
-}
-
-.toolbar-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 0 0 auto;
-}
-
-.toolbar h1 {
-  margin: 0;
-  color: var(--text-strong);
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-}
-
-.toolbar-stats {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.toolbar-chip {
-  border: 0;
-  border-radius: 999px;
-  padding: 3px 10px;
-  color: var(--text-weak);
-  background: var(--fill);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1.35;
-  white-space: nowrap;
-}
-
-.search-option-whole-word {
-  font-size: 10px;
-  letter-spacing: -0.02em;
-}
-
-.toolbar-cluster {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
-}
-
-.toolbar-button-group {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.toolbar-notice {
-  margin: 0;
-  color: var(--blue);
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.search-nav-label {
-  padding: 0 2px;
-  color: var(--text-faint);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.search-nav-divider {
-  width: 1px;
-  height: 16px;
-  background: var(--border);
-  flex-shrink: 0;
-}
-
-.search-position {
-  min-width: 34px;
-  padding: 0 1px;
-  color: var(--text-weak);
-  font-size: 10px;
-  text-align: center;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-@media (max-width: 980px) {
-  .toolbar-row-primary {
-    flex-wrap: wrap;
+@layer components {
+  /* ── 검색 하이라이트 (JS classList 토글) ─────────────────────── */
+  .search-highlight,
+  .json-local-hit {
+    border-radius: 3px;
+    padding: 0 1px;
+    color: var(--highlight-text);
+    background: var(--highlight-bg);
   }
 
-  .toolbar-brand {
-    flex: 1 1 auto;
+  .search-highlight.is-active,
+  .json-local-hit.is-active {
+    outline: 2px solid #ff9f1a;
+    outline-offset: 1px;
   }
 
-  .toolbar-cluster {
-    flex: 0 0 auto;
-    margin-left: auto;
-  }
-}
-
-@media (max-width: 720px) {
-  .toolbar-stats {
-    display: none;
-  }
-}
-
-/* ---------------------------------------------------------------------------
-   공통 버튼 시스템 (components/ui/Button.tsx)
-   .btn + 크기(.btn-sm/.btn-md 텍스트, .btn-icon-* 정사각) + 톤(.btn-ghost /
-   .btn-accent / .btn-danger / .btn-float) 조합으로 모든 버튼을 표현한다. */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  flex-shrink: 0;
-  border: 0;
-  padding: 0;
-  color: var(--text-sub);
-  background: var(--fill);
-  font-weight: 600;
-  line-height: 1;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
-}
-
-.btn:hover:not(:disabled) {
-  background: var(--fill-hover);
-}
-
-.btn:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-.btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-/* 텍스트 버튼 크기 */
-.btn-md {
-  height: 28px;
-  border-radius: 9px;
-  padding: 0 12px;
-  font-size: 12px;
-}
-
-.btn-sm {
-  height: 24px;
-  border-radius: 8px;
-  padding: 0 9px;
-  font-size: 11px;
-}
-
-/* 정사각 아이콘 버튼 크기 */
-.btn-icon-xs {
-  min-width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  padding: 0 4px;
-  font-size: 12px;
-}
-
-.btn-icon-sm {
-  width: 24px;
-  height: 24px;
-  border-radius: 8px;
-  font-size: 12px;
-}
-
-.btn-icon-md {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-}
-
-.btn-icon-lg {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-}
-
-/* 배경 없는 버튼 */
-.btn-ghost {
-  color: var(--text-weak);
-  background: transparent;
-}
-
-.btn-ghost:hover:not(:disabled) {
-  color: var(--text-sub);
-  background: var(--fill-hover);
-}
-
-/* hover 시 파랑 강조 */
-.btn-accent:hover:not(:disabled) {
-  color: #ffffff;
-  background: var(--blue);
-}
-
-/* hover 시 위험(빨강) 강조 */
-.btn-danger:hover:not(:disabled) {
-  color: #ffffff;
-  background: var(--red);
-}
-
-/* 캔버스 위에 떠 있는 버튼 */
-.btn-float {
-  background: var(--surface);
-  box-shadow: var(--shadow-float);
-}
-
-/* 토글형 버튼의 켜짐 상태 */
-.btn.active,
-.btn.active:hover:not(:disabled) {
-  color: #ffffff;
-  background: var(--blue);
-}
-
-.btn:focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 1px;
-}
-
-/* ---------------------------------------------------------------------------
-   공통 입력 필드 시스템
-   .input + 크기(.input-sm/.input-md) 조합. 포커스 시 파란 테두리로 통일한다. */
-.input {
-  min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text-strong);
-  background: var(--surface);
-  font: inherit;
-  transition: border-color 0.12s ease;
-}
-
-.input::placeholder {
-  color: var(--text-faint);
-}
-
-.input:focus {
-  outline: none;
-  border-color: var(--blue);
-}
-
-.input-md {
-  height: 28px;
-  padding: 0 10px;
-  font-size: 12px;
-}
-
-.input-sm {
-  height: 24px;
-  padding: 0 8px;
-  font-size: 11px;
-}
-
-.workspace {
-  display: grid;
-  min-height: 0;
-  height: 100%;
-  overflow: hidden;
-  align-items: stretch;
-}
-
-.workspace-storage,
-.workspace-console {
-  display: block;
-}
-
-.workspace.split-layout-stacked > .flow-panel,
-.workspace.split-layout-stacked > .timeline-panel,
-.workspace.split-layout-stacked > .detail-panel {
-  min-height: 0;
-}
-
-.flow-panel,
-.timeline-panel {
-  min-width: 0;
-  min-height: 0;
-  overflow: auto;
-  background: var(--surface);
-}
-
-.detail-resizer {
-  position: relative;
-  border: 0;
-  padding: 0;
-  background: var(--bg);
-}
-
-.detail-resizer-vertical {
-  min-width: 8px;
-  width: 8px;
-  height: 100%;
-  border-left: 1px solid var(--border-weak);
-  border-right: 1px solid var(--border-weak);
-  cursor: col-resize;
-}
-
-.detail-resizer-horizontal {
-  display: none;
-  min-width: 0;
-  width: 100%;
-  min-height: 8px;
-  height: 8px;
-  border-top: 1px solid var(--border-weak);
-  border-bottom: 1px solid var(--border-weak);
-  cursor: row-resize;
-}
-
-.split-layout-stacked .detail-resizer-vertical {
-  display: none;
-}
-
-.split-layout-stacked .detail-resizer-horizontal {
-  display: block;
-}
-
-.detail-resizer-vertical::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 3px;
-  height: 36px;
-  border-radius: 999px;
-  background: var(--resizer);
-  transform: translate(-50%, -50%);
-}
-
-.detail-resizer-horizontal::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 36px;
-  height: 3px;
-  border-radius: 999px;
-  background: var(--resizer);
-  transform: translate(-50%, -50%);
-}
-
-.detail-resizer:hover,
-.resizing-split-panel-width .detail-resizer-vertical,
-.resizing-split-panel-height .detail-resizer-horizontal {
-  background: var(--fill-hover);
-}
-
-.detail-resizer-vertical:hover::after,
-.resizing-split-panel-width .detail-resizer-vertical::after,
-.detail-resizer-horizontal:hover::after,
-.resizing-split-panel-height .detail-resizer-horizontal::after {
-  background: var(--blue);
-}
-
-.storage-panel {
-  container-type: inline-size;
-  display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  background: var(--bg);
-}
-
-.storage-header {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
-  align-items: center;
-  column-gap: 8px;
-  row-gap: 2px;
-  min-width: 0;
-  padding: 6px 12px;
-  border-bottom: 1px solid var(--border-weak);
-  background: var(--surface);
-}
-
-.storage-header-label {
-  grid-column: 1;
-  grid-row: 1;
-  color: var(--text-weak);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.storage-header-origin {
-  grid-column: 2;
-  grid-row: 1;
-  overflow: hidden;
-  min-width: 0;
-  color: var(--text);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.storage-header-captured {
-  grid-column: 3;
-  grid-row: 1;
-  color: var(--text-weak);
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.storage-refresh-button {
-  grid-column: 4;
-  grid-row: 1;
-}
-
-.storage-header:not(:has(.storage-header-captured)) .storage-header-origin {
-  grid-column: 2 / 4;
-}
-
-.storage-header:not(:has(.storage-header-captured)) .storage-refresh-button {
-  grid-column: 4;
-}
-
-@container (max-width: 560px) {
-  .storage-header {
-    grid-template-columns: minmax(0, 1fr) auto;
-    row-gap: 3px;
+  /* ── 분할 리사이즈 드래그 중 body 상태 ──────────────────────── */
+  .resizing-split-panel-width {
+    cursor: col-resize;
+    user-select: none;
   }
 
-  .storage-header-label {
-    grid-column: 1;
-    grid-row: 1;
+  .resizing-split-panel-height {
+    cursor: row-resize;
+    user-select: none;
   }
 
-  .storage-refresh-button {
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: end;
+  /* ── JsonViewer 크기 조절 코어 ──────────────────────────────── */
+  .json-viewer-wrap {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--border-weak);
+    border-radius: 12px;
+    background: var(--surface-sub);
   }
 
-  .storage-header-origin {
-    grid-column: 1 / -1;
-    grid-row: 2;
+  .json-viewer-wrap.is-fullscreen {
+    position: fixed;
+    inset: 16px;
+    z-index: 1000;
+    /* 임베드 컨텍스트의 고정 크기(예: .response-json-slot의 height:318px)를 덮어써
+       inset으로 화면을 가득 채우게 한다. 컨텍스트 규칙과 명시도가 같아 !important로 강제한다. */
+    height: auto !important;
+    min-height: 0;
+    overflow: hidden;
+    border-color: var(--border-weak);
+    border-radius: 20px;
+    background: var(--surface);
+    box-shadow: 0 24px 64px rgba(25, 31, 40, 0.24);
   }
 
-  .storage-header-captured {
-    display: none;
-  }
-}
-
-/* ---------------------------------------------------------------------------
-   공통 알약형 탭/필터 (스토리지 탭, 콘솔 레벨 필터 공용) */
-.storage-message {
-  margin: 10px 14px 0;
-  border: 0;
-  border-radius: 12px;
-  padding: 9px 12px;
-  color: var(--text-sub);
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
-  font-size: 12px;
-}
-
-.storage-message.is-error,
-.storage-inline-error {
-  border-color: transparent;
-  color: var(--red-text);
-  background: var(--red-soft);
-}
-
-.storage-workspace {
-  display: grid;
-  min-height: 0;
-  height: 100%;
-  overflow: hidden;
-}
-
-.storage-workspace > .storage-table-wrap,
-.storage-workspace > .indexeddb-tree,
-.storage-workspace > .storage-detail-panel {
-  min-height: 0;
-}
-
-.storage-table-wrap,
-.indexeddb-tree {
-  min-width: 0;
-  min-height: 0;
-  overflow: auto;
-  background: var(--surface);
-}
-
-.storage-detail-panel {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-  overflow: hidden;
-  background: var(--surface);
-}
-
-/* ---------------------------------------------------------------------------
-   상세 패널 상단 타이틀 바 (콘솔/스토리지 공용) */
-.detail-title-bar {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  flex-shrink: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border-weak);
-  background: var(--surface);
-}
-
-.detail-title-bar > div {
-  min-width: 0;
-}
-
-.detail-kicker {
-  display: block;
-  overflow: hidden;
-  color: var(--text-weak);
-  font-size: 10px;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.detail-kicker-caps {
-  text-transform: uppercase;
-}
-
-.detail-title-bar h2 {
-  margin: 2px 0 0;
-  overflow: hidden;
-  color: var(--text-strong);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.3;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.storage-detail-panel > .detail-section {
-  flex-shrink: 0;
-}
-
-.storage-detail-panel > .detail-section .detail-section-toggle {
-  padding: 8px 12px;
-}
-
-.storage-detail-panel > .detail-section .detail-section-body {
-  padding: 0 12px 10px;
-}
-
-.storage-detail-meta {
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.storage-detail-meta div {
-  grid-template-columns: 68px minmax(0, 1fr);
-  gap: 8px;
-}
-
-.storage-detail-meta dt,
-.storage-detail-meta dd {
-  font-size: 11px;
-  line-height: 1.35;
-}
-
-.storage-detail-value {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding: 12px;
-  scrollbar-gutter: stable;
-}
-
-/* ── Storage 편집/삭제 UI ───────────────────────────── */
-.storage-actions-cell {
-  padding: 0 6px !important;
-  text-align: center;
-}
-
-/* 행 hover 때만 드러나는 삭제 버튼(시각 스타일은 공통 .btn 사용). */
-.data-table-row .storage-row-delete {
-  opacity: 0;
-  transition: opacity 0.12s ease, color 0.12s ease, background 0.12s ease;
-}
-
-.data-table-row:hover .storage-row-delete,
-.storage-row-delete:focus-visible {
-  opacity: 1;
-}
-
-.storage-add {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border-weak);
-  background: var(--surface-sub);
-}
-
-.storage-add-form {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.storage-add-input:first-child {
-  flex: 0 0 30%;
-}
-
-.storage-add-input:nth-child(2) {
-  flex: 1 1 auto;
-}
-
-.storage-edit {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  height: 100%;
-  min-height: 0;
-  padding: 12px;
-}
-
-.storage-edit-textarea {
-  flex: 1;
-  min-height: 160px;
-  resize: vertical;
-  padding: 10px;
-  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-/* 불리언(HttpOnly/Secure) 컬럼은 가운데 정렬. */
-.storage-bool-cell {
-  text-align: center;
-}
-
-/* ── Cookie 추가/편집 폼 ───────────────────────────── */
-.cookie-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-  width: 100%;
-}
-
-.cookie-form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 10px;
-}
-
-.cookie-field {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.cookie-field > span {
-  font-size: 11px;
-  color: var(--text-weak, #8a8f98);
-}
-
-.cookie-field-wide {
-  grid-column: 1 / -1;
-}
-
-.cookie-form-flags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-}
-
-.cookie-check {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.json-value-sections .detail-section-body {
-  padding: 12px;
-}
-
-.image-preview-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 8px;
-}
-
-.image-preview-stack {
-  display: grid;
-  gap: 10px;
-}
-
-.image-preview-stack.is-grid-layout {
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-  gap: 8px;
-}
-
-.image-preview-stack.is-grid-layout .image-preview-frame {
-  min-height: 0;
-  max-height: none;
-  padding: 6px;
-  align-items: stretch;
-}
-
-.image-preview-stack.is-grid-layout .image-preview-caption {
-  margin-bottom: 4px;
-}
-
-.image-preview-stack.is-grid-layout .image-preview-caption strong {
-  display: -webkit-box;
-  overflow: hidden;
-  font-size: 10px;
-  white-space: normal;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.image-preview-stack.is-grid-layout .image-preview-frame img {
-  width: 100%;
-  max-height: 88px;
-}
-
-.image-preview-stack.is-grid-layout .image-preview-unavailable {
-  min-height: 72px;
-  padding: 6px;
-  font-size: 10px;
-  line-height: 1.35;
-}
-
-.storage-detail-value .json-viewer-wrap {
-  min-height: 180px;
-  overflow: visible;
-}
-
-.storage-detail-value .json-viewer-body {
-  /* 내용이 적어도 body가 wrap의 min-height(180px)를 채우게 해서 리사이즈 핸들을 카드 바닥에
-     고정한다. flex:none이면 핸들이 콘텐츠 바로 아래에 뜨고, 드래그 시작 시 is-resized로 body가
-     flex:1이 되며 핸들이 최소높이 바닥으로 갑자기 튀어 내려간다. basis:auto·shrink:0이라
-     내용이 많으면 기존처럼 콘텐츠 높이로 자라난다(overflow:visible 유지). */
-  flex: 1 0 auto;
-  min-height: 0;
-}
-
-.storage-detail-value .json-viewer {
-  max-height: none;
-  overflow: visible;
-}
-
-.indexeddb-tree {
-  padding: 12px;
-}
-
-.indexeddb-database {
-  display: grid;
-  gap: 8px;
-}
-
-.indexeddb-database + .indexeddb-database {
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border-weak);
-}
-
-.indexeddb-database h3 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  color: var(--text-strong);
-  font-size: 13px;
-}
-
-.indexeddb-database h3 span {
-  color: var(--text-weak);
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.indexeddb-store {
-  border: 1px solid var(--border-weak);
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--surface);
-}
-
-.indexeddb-store summary {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 9px 12px;
-  color: var(--text);
-  background: var(--surface-sub);
-  cursor: pointer;
-}
-
-.indexeddb-store summary span:last-child {
-  color: var(--text-weak);
-  font-size: 11px;
-}
-
-.storage-inline-error,
-.storage-note {
-  margin: 8px 12px;
-  border-radius: 10px;
-  padding: 7px 12px;
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-.storage-note {
-  color: var(--orange-text);
-  background: var(--orange-soft);
-}
-
-.storage-empty {
-  display: grid;
-  place-content: center;
-  min-height: 220px;
-  color: var(--text-weak);
-  font-size: 13px;
-}
-
-.console-panel {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  background: var(--bg);
-}
-
-.console-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border-weak);
-  background: var(--surface);
-}
-
-.console-workspace {
-  display: grid;
-  min-height: 0;
-  height: 100%;
-  overflow: hidden;
-}
-
-.console-workspace > .console-log-list,
-.console-workspace > .console-detail-panel {
-  min-height: 0;
-}
-
-.console-log-list {
-  min-width: 0;
-  min-height: 0;
-  overflow: auto;
-  background: var(--surface);
-}
-
-.console-level-badge {
-  overflow: hidden;
-  color: var(--text-weak);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.console-level-badge.is-log {
-  color: var(--text-sub);
-}
-
-.console-level-badge.is-info {
-  color: var(--blue);
-}
-
-.console-level-badge.is-warn {
-  color: var(--orange-text);
-}
-
-.console-level-badge.is-error {
-  color: var(--red);
-}
-
-.console-level-badge.is-debug {
-  color: var(--purple);
-}
-
-.console-log-timestamp {
-  color: var(--text-weak);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.console-log-message {
-  overflow: hidden;
-  min-width: 0;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.console-log-source {
-  overflow: hidden;
-  max-width: 180px;
-  color: var(--text-weak);
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.console-repeat-badge {
-  min-width: 18px;
-  border-radius: 999px;
-  padding: 1px 6px;
-  color: var(--blue-strong);
-  background: var(--blue-soft);
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 15px;
-  text-align: center;
-}
-
-.console-detail-panel {
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-  background: var(--surface);
-  padding-bottom: 30px;
-}
-
-.console-detail-timestamp {
-  flex: 0 0 auto;
-  color: var(--text-weak);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.console-detail-panel > .detail-section .detail-section-toggle {
-  padding: 8px 12px;
-}
-
-.console-detail-panel > .detail-section .detail-section-body {
-  padding: 0 12px 10px;
-}
-
-.console-detail-meta {
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.console-detail-meta div {
-  grid-template-columns: 68px minmax(0, 1fr);
-  gap: 8px;
-}
-
-.console-detail-meta dt,
-.console-detail-meta dd {
-  font-size: 11px;
-  line-height: 1.35;
-}
-
-.console-arg-stack {
-  display: grid;
-  gap: 10px;
-}
-
-.console-arg-block {
-  display: grid;
-  gap: 4px;
-}
-
-.console-arg-label {
-  color: var(--text-weak);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.console-arg-primitive,
-.console-stack-trace {
-  margin: 0;
-  overflow: auto;
-  border: 1px solid var(--border-weak);
-  border-radius: 10px;
-  padding: 9px 11px;
-  color: var(--text);
-  background: var(--surface-sub);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
-  line-height: 1.45;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.console-arg-empty {
-  margin: 0;
-  color: var(--text-weak);
-  font-size: 12px;
-}
-
-.console-arg-block .json-viewer-wrap {
-  min-height: 120px;
-}
-
-.resizing-split-panel-width {
-  cursor: col-resize;
-  user-select: none;
-}
-
-.resizing-split-panel-height {
-  cursor: row-resize;
-  user-select: none;
-}
-
-.flow-panel {
-  position: relative;
-  background: var(--bg);
-}
-
-.flow-panel .react-flow {
-  width: 100%;
-  height: 100%;
-}
-
-.flow-panel .react-flow__pane {
-  cursor: grab;
-}
-
-.flow-panel .react-flow__node {
-  cursor: pointer;
-  text-align: left;
-}
-
-.flow-panel .react-flow__node-default {
-  width: auto;
-  min-width: 0;
-  border: 0;
-  padding: 0;
-  color: inherit;
-  background: transparent;
-}
-
-.flow-panel .react-flow__handle {
-  width: 12px;
-  height: 12px;
-  border: 1.5px solid var(--text-faint);
-  border-radius: 50%;
-  background: var(--surface);
-}
-
-.flow-panel .react-flow__handle-left {
-  left: -6px;
-}
-
-.flow-panel .react-flow__handle-right {
-  right: -6px;
-}
-
-.flow-panel .react-flow__handle-top {
-  top: -6px;
-}
-
-.flow-panel .react-flow__handle-bottom {
-  bottom: -6px;
-}
-
-.flow-panel .react-flow__handle.connectingfrom,
-.flow-panel .react-flow__handle.connectingto,
-.flow-panel .react-flow__handle:hover {
-  border-color: var(--blue);
-  background: var(--blue);
-}
-
-/* 연결선은 인라인 stroke를 쓰므로 선택 강조는 !important로 덮어쓴다. */
-.flow-panel .react-flow__edge.selected .react-flow__edge-path {
-  stroke: var(--blue) !important;
-  stroke-width: 2.8 !important;
-}
-
-.flow-panel .react-flow__controls {
-  border: 1px solid var(--border-weak);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: var(--shadow-card);
-}
-
-.flow-panel .react-flow__controls-button {
-  border-bottom: 1px solid var(--border-weak);
-  background: var(--surface);
-  fill: var(--text-sub);
-}
-
-.flow-panel .react-flow__controls-button:hover {
-  background: var(--fill);
-}
-
-.flow-export-panel {
-  margin: 12px 12px 0 0;
-}
-
-.flow-export-controls {
-  display: grid;
-  gap: 6px;
-  justify-items: end;
-  max-width: min(280px, calc(100vw - 48px));
-}
-
-.flow-export-buttons {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.flow-text-note {
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-  border: 1px dashed var(--border-weak);
-  border-radius: 12px;
-  padding: 6px;
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
-}
-
-/* 배경 없는 메모: 테두리/배경/그림자 제거하고 글자만 띄운다. */
-.flow-text-note.no-bg {
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
-  padding: 2px;
-}
-
-.flow-panel .react-flow__node.selected .flow-text-note,
-.flow-panel .react-flow__node:focus .flow-text-note {
-  border-color: var(--blue);
-  border-style: solid;
-}
-
-/* 선택 중에는 배경 없는 메모도 편집 영역을 알 수 있게 옅은 테두리를 보여준다. */
-.flow-panel .react-flow__node.selected .flow-text-note.no-bg,
-.flow-panel .react-flow__node:focus .flow-text-note.no-bg {
-  border-color: var(--blue);
-  border-style: dashed;
-}
-
-/* 다중 선택(박스/Shift)된 요청 카드 강조. */
-.flow-panel .react-flow__node.selected .flow-node {
-  border-color: var(--blue);
-  box-shadow: 0 0 0 2px rgba(49, 130, 246, 0.35);
-}
-
-.flow-text-note-input {
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-  border: 0;
-  padding: 2px 4px;
-  color: var(--text);
-  background: transparent;
-  font: inherit;
-  font-size: 12px;
-  line-height: 1.4;
-  resize: none;
-  outline: none;
-}
-
-.flow-text-note-input::placeholder {
-  color: var(--text-faint);
-}
-
-.flow-export-error {
-  border: 0;
-  border-radius: 10px;
-  padding: 5px 10px;
-  color: var(--red-text);
-  background: var(--red-soft);
-  font-size: 11px;
-  line-height: 1.35;
-  text-align: right;
-}
-
-/* 하단 중앙 편집 도구막대 */
-.flow-tool-panel {
-  margin-bottom: 16px;
-}
-
-.flow-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px;
-  border: 1px solid var(--border-weak);
-  border-radius: 14px;
-  background: var(--surface);
-  box-shadow: var(--shadow-float);
-}
-
-.flow-toolbar-divider {
-  width: 1px;
-  height: 20px;
-  margin: 0 2px;
-  background: var(--border-weak);
-}
-
-/* 사각형 도형 노드 */
-.flow-shape {
-  width: 100%;
-  height: 100%;
-  border: 2px solid var(--text-faint);
-  border-radius: 10px;
-  box-sizing: border-box;
-}
-
-.flow-shape-toolbar {
-  position: absolute;
-  top: -44px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 7px;
-  border: 1px solid var(--border-weak);
-  border-radius: 12px;
-  background: var(--surface);
-  box-shadow: var(--shadow-float);
-  white-space: nowrap;
-}
-
-.flow-shape-swatch {
-  width: 18px;
-  height: 18px;
-  border: 2px solid transparent;
-  border-radius: 50%;
-  padding: 0;
-  cursor: pointer;
-}
-
-.flow-shape-swatch.active {
-  border-color: var(--text);
-}
-
-.flow-shape-toolbar-divider {
-  width: 1px;
-  height: 18px;
-  margin: 0 2px;
-  background: var(--border-weak);
-}
-
-/* 도형 채움 토글: 짧은 글자(BG/Fill/Line)라 여백만 넓힌다. */
-.flow-shape-fill-toggle {
-  padding: 0 8px;
-  font-size: 11px;
-}
-
-.flow-shape-font-button {
-  font-size: 11px;
-}
-
-.flow-shape-resize-line {
-  border-color: var(--blue) !important;
-}
-
-.flow-shape-resize-handle {
-  width: 9px !important;
-  height: 9px !important;
-  border: 1.5px solid var(--blue) !important;
-  border-radius: 2px !important;
-  background: var(--surface) !important;
-}
-
-.flow-node {
-  display: grid;
-  grid-template-rows: auto minmax(34px, auto) minmax(34px, auto) auto;
-  align-content: start;
-  gap: 5px;
-  width: 240px;
-  min-height: 152px;
-  border: 1px solid var(--border-weak);
-  border-radius: 16px;
-  padding: 11px 12px 14px;
-  color: var(--text);
-  background: var(--surface);
-  box-shadow: var(--shadow-node);
-}
-
-.flow-node.selected {
-  border-color: var(--blue);
-  box-shadow: 0 0 0 3px rgba(49, 130, 246, 0.16);
-}
-
-.flow-node-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  min-height: 0;
-  line-height: 1;
-}
-
-.flow-node-top-main {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-}
-
-.flow-node-top .method {
-  min-width: 0;
-  padding: 0 5px;
-  border-radius: 5px;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 16px;
-}
-
-.flow-node-top .flow-status {
-  padding: 0;
-  background: transparent;
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 16px;
-}
-
-.flow-node-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.flow-node strong {
-  display: block;
-  color: var(--text-strong);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.35;
-  text-align: left;
-  overflow-wrap: anywhere;
-}
-
-.flow-node-query {
-  color: var(--text-sub);
-  font-weight: 500;
-}
-
-.flow-node-image-title {
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.flow-node-image-title img {
-  display: block;
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--border-weak);
-  border-radius: 8px;
-  object-fit: cover;
-  background: var(--fill);
-}
-
-.flow-node-image-title strong {
-  -webkit-line-clamp: 1;
-}
-
-.flow-node-summary {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  overflow: hidden;
-  color: #6b7684;
-  font-size: 11px;
-  line-height: 1.3;
-}
-
-.flow-node-summary span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.flow-node-bottom {
-  color: var(--text-weak);
-  font-size: 11px;
-}
-
-.flow-status {
-  border-radius: 6px;
-  padding: 2px 7px;
-  background: var(--fill);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.flow-node-top .flow-status::before {
-  content: "·";
-  margin-right: 5px;
-  color: var(--text-faint);
-  font-weight: 400;
-}
-
-.flow-status.good {
-  color: var(--green-text);
-}
-
-.flow-status.warn {
-  color: var(--orange-text);
-}
-
-.flow-status.bad {
-  color: var(--red);
-}
-
-.slow-text {
-  color: var(--orange-text);
-}
-
-.column-menu {
-  position: fixed;
-  z-index: 30;
-  min-width: 148px;
-  border: 1px solid var(--border-weak);
-  border-radius: 12px;
-  padding: 5px;
-  background: var(--surface);
-  box-shadow: var(--shadow-float);
-}
-
-.column-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  border: 0;
-  border-radius: 8px;
-  padding: 7px 9px;
-  color: var(--text);
-  background: transparent;
-  font-size: 12px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.column-menu-item:hover:not(:disabled) {
-  background: var(--fill);
-}
-
-.column-menu-item:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.column-menu-check {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  color: var(--blue);
-  font-size: 11px;
-}
-
-.column-menu-separator {
-  height: 1px;
-  margin: 4px 6px;
-  background: var(--border-weak);
-}
-
-/* ---------------------------------------------------------------------------
-   공용 DataTable (components/shared/DataTable.tsx)
-   Network·Storage·Console이 공유하는 헤더/행/셀/리사이즈 스타일.
-   도메인 셀(.method, .kind-tag, .bar-track, .console-level-badge 등)은 각자 유지. */
-.data-table {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  overflow: auto;
-}
-
-.data-table-header {
-  display: grid;
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border-weak);
-}
-
-.data-table-header-cell {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  padding: 7px 10px;
-  color: var(--text-weak);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  user-select: none;
-}
-
-.data-table-header-cell.is-sortable {
-  cursor: pointer;
-}
-
-.data-table-header-cell.is-sorted {
-  color: var(--text-strong);
-}
-
-.data-table-header-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.data-table-sort-indicator {
-  color: var(--blue);
-  font-size: 10px;
-}
-
-.data-table-resize-handle {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 9px;
-  height: 100%;
-  cursor: col-resize;
-  touch-action: none;
-  user-select: none;
-}
-
-.data-table-resize-handle::after {
-  content: "";
-  position: absolute;
-  top: 22%;
-  right: 4px;
-  width: 2px;
-  height: 56%;
-  border-radius: 2px;
-  background: var(--border);
-}
-
-.data-table-resize-handle:hover::after,
-.data-table-resize-handle.is-resizing::after {
-  top: 0;
-  height: 100%;
-  background: var(--blue);
-}
-
-.data-table-body {
-  flex: 0 0 auto;
-}
-
-.data-table-row {
-  border-bottom: 1px solid var(--border-weak);
-  color: var(--text);
-  cursor: pointer;
-}
-
-.data-table-row:hover {
-  background: var(--row-hover);
-}
-
-.data-table-row.selected {
-  background: var(--blue-soft);
-  box-shadow: inset 3px 0 0 var(--blue);
-}
-
-.data-table-row-cells {
-  display: grid;
-  align-items: center;
-}
-
-.data-table-cell {
-  min-width: 0;
-  overflow: hidden;
-  padding: 7px 10px;
-  font-size: 12px;
-}
-
-.data-table-empty {
-  padding: 16px 12px;
-  color: var(--text-weak);
-  font-size: 12px;
-}
-
-/* Console 레벨 색조(행 클래스 is-error/is-warn). 기본 hover/selected 뒤에 와서 우선. */
-.data-table-row.is-error {
-  background: rgba(240, 68, 82, 0.05);
-}
-
-.data-table-row.is-error:hover,
-.data-table-row.is-error.selected {
-  background: rgba(240, 68, 82, 0.1);
-}
-
-.data-table-row.is-warn {
-  background: rgba(255, 158, 44, 0.07);
-}
-
-/* Console wrap lines: 메시지/소스 줄바꿈 허용. */
-.data-table.wrap-lines .data-table-row-cells {
-  align-items: flex-start;
-}
-
-.data-table.wrap-lines .console-log-message {
-  overflow: visible;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.data-table.wrap-lines .console-log-source {
-  overflow: visible;
-  max-width: none;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.data-table-row.search-match:not(.selected) {
-  background: rgba(49, 130, 246, 0.05);
-}
-
-.offset {
-  color: var(--text-weak);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.status {
-  color: var(--text-weak);
-  font-size: 11px;
-  white-space: nowrap;
-  text-align: center;
-}
-
-.duration {
-  color: var(--text-weak);
-  font-size: 11px;
-  white-space: nowrap;
-  text-align: right;
-}
-
-.size {
-  color: var(--text-weak);
-  font-size: 11px;
-  white-space: nowrap;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.request-main {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.request-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.timeline-table .method {
-  min-width: 40px;
-  padding: 1px 5px;
-  font-size: 10px;
-}
-
-/* 두 번째 줄: 리소스 종류 라벨 + 시간 막대를 한 줄에 배치. */
-.request-timing {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-/* 라벨은 메소드 열 폭에 맞춰 정렬하고, 막대가 나머지 폭을 채운다. */
-.request-timing .kind-tag {
-  flex: 0 0 auto;
-  min-width: 40px;
-  text-align: center;
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--text-weak);
-}
-
-.request-timing .bar-track {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-/* 종류별 색상. API 계열은 blue/purple, 정적 리소스는 각기 다른 색으로 구분. */
-.timeline-table .kind-fetch,
-.timeline-table .kind-document {
-  color: var(--blue);
-}
-
-.timeline-table .kind-xhr,
-.timeline-table .kind-websocket {
-  color: var(--purple);
-}
-
-.timeline-table .kind-stylesheet {
-  color: var(--teal);
-}
-
-.timeline-table .kind-script {
-  color: var(--orange-text);
-}
-
-.timeline-table .kind-image {
-  color: var(--green-text);
-}
-
-.timeline-table .kind-font {
-  color: var(--pink);
-}
-
-.timeline-table .kind-media {
-  color: var(--red-text);
-}
-
-.timeline-table .path {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  min-width: 0;
-  overflow: hidden;
-  /* 긴 주소가 1줄에서 잘리지 않고 최대 2줄까지 표시되도록 줄바꿈 허용. */
-  white-space: normal;
-  overflow-wrap: anywhere;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-/* 이미지 요청 행의 응답 썸네일. */
-.row-thumb {
-  flex: 0 0 auto;
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
-  border: 1px solid var(--border-weak);
-  object-fit: cover;
-  /* 투명 이미지가 배경에 묻히지 않도록 체커보드. */
-  background-color: var(--fill);
-  background-image:
-    linear-gradient(45deg, var(--border-weak) 25%, transparent 25%),
-    linear-gradient(-45deg, var(--border-weak) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, var(--border-weak) 75%),
-    linear-gradient(-45deg, transparent 75%, var(--border-weak) 75%);
-  background-size: 8px 8px;
-  background-position: 0 0, 0 4px, 4px -4px, -4px 0;
-}
-
-.method {
-  flex: 0 0 auto;
-  min-width: 46px;
-  border-radius: 6px;
-  padding: 2px 6px;
-  color: var(--blue-strong);
-  background: var(--blue-soft);
-  font-size: 11px;
-  font-weight: 700;
-  text-align: center;
-}
-
-.method-post,
-.method-put,
-.method-patch {
-  color: var(--orange-strong);
-  background: var(--orange-soft);
-}
-
-.method-delete {
-  color: var(--red-text);
-  background: var(--red-soft);
-}
-
-.path {
-  overflow: hidden;
-  color: var(--text-strong);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.path-query {
-  color: var(--text-weak);
-  font-weight: 400;
-}
-
-.bar-track {
-  position: relative;
-  display: block;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--border-weak);
-  overflow: hidden;
-}
-
-.bar {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  min-width: 3px;
-  border-radius: 999px;
-}
-
-.bar.ok {
-  background: var(--green);
-}
-
-.bar.slow {
-  background: var(--orange);
-}
-
-.bar.error {
-  background: var(--red);
-}
-
-.status {
-  justify-self: center;
-  border-radius: 6px;
-  padding: 2px 4px;
-  background: var(--fill);
-}
-
-.status.good,
-.detail-status.good {
-  color: var(--green-text);
-}
-
-.status.warn {
-  color: var(--orange-text);
-}
-
-.status.bad,
-.detail-status.bad {
-  color: var(--red);
-}
-
-.empty-state {
-  display: grid;
-  place-content: center;
-  gap: 7px;
-  min-height: 220px;
-  color: var(--text-weak);
-  text-align: center;
-}
-
-.empty-state strong {
-  color: var(--text-strong);
-  font-size: 14px;
-}
-
-.detail-panel {
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-  background: var(--surface);
-  padding-bottom: 30px;
-}
-
-.detail-panel-title-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
-}
-
-.detail-title {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  max-height: 120px;
-  overflow: hidden;
-  padding: 14px;
-  border-bottom: 1px solid var(--border-weak);
-  background: var(--surface);
-}
-
-.detail-title > div {
-  min-width: 0;
-}
-
-.detail-title .method {
-  min-width: 40px;
-  padding: 1px 5px;
-  font-size: 10px;
-}
-
-.detail-title h2 {
-  display: -webkit-box;
-  margin: 6px 0 2px;
-  overflow: hidden;
-  color: var(--text-strong);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.3;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow-wrap: anywhere;
-}
-
-.detail-image-title {
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.detail-image-title h2 {
-  margin: 0;
-}
-
-.detail-image-title img {
-  display: block;
-  width: 48px;
-  height: 48px;
-  border: 1px solid var(--border-weak);
-  border-radius: 8px;
-  object-fit: contain;
-  background: var(--fill);
-}
-
-.detail-title p {
-  margin: 0;
-  color: var(--text-weak);
-  font-size: 11px;
-}
-
-.detail-status {
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.detail-section {
-  border-bottom: 1px solid var(--border-weak);
-}
-
-.detail-section-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  width: 100%;
-  border: 0;
-  padding: 13px 16px;
-  color: var(--text-strong);
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-
-.detail-section-toggle:hover {
-  background: var(--surface-sub);
-}
-
-.detail-section-title {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.detail-section-chevron {
-  flex: 0 0 auto;
-  width: 7px;
-  height: 7px;
-  border-right: 1.5px solid var(--text-faint);
-  border-bottom: 1.5px solid var(--text-faint);
-  transform: rotate(-45deg);
-  transition: transform 120ms ease;
-}
-
-.detail-section.is-open .detail-section-chevron {
-  transform: rotate(45deg);
-}
-
-.detail-section.has-search-match .detail-section-title {
-  color: var(--blue-strong);
-}
-
-.search-highlight {
-  border-radius: 3px;
-  padding: 0 1px;
-  color: var(--highlight-text);
-  background: var(--highlight-bg);
-}
-
-.search-highlight.is-active {
-  outline: 2px solid #ff9f1a;
-  outline-offset: 1px;
-}
-
-.search-hit-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  border: 0;
-  border-radius: 999px;
-  padding: 2px 7px 2px 5px;
-  color: var(--text-sub);
-  background: var(--fill);
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 14px;
-  white-space: nowrap;
-}
-
-.search-hit-badge.is-active {
-  color: var(--highlight-deep);
-  background: var(--highlight-bg);
-}
-
-.search-hit-order {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 14px;
-  height: 14px;
-  border-radius: 999px;
-  padding: 0 3px;
-  color: var(--blue-strong);
-  background: var(--blue-soft);
-  font-size: 9px;
-}
-
-.search-hit-badge.is-active .search-hit-order {
-  color: var(--highlight-deep);
-  background: rgba(0, 0, 0, 0.08);
-}
-
-.search-hit-range {
-  font-variant-numeric: tabular-nums;
-}
-
-.request-meta .search-hit-badge {
-  margin-left: auto;
-}
-
-.detail-section-body {
-  padding: 12px;
-}
-
-.detail-section-body > :first-child {
-  margin-top: 0;
-}
-
-.detail-section h3 {
-  margin: 12px 0 7px;
-  color: var(--text-weak);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.definition-list {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-}
-
-.definition-list div {
-  display: grid;
-  grid-template-columns: 92px minmax(0, 1fr);
-  gap: 10px;
-}
-
-.definition-list dt {
-  color: var(--text-weak);
-  font-size: 12px;
-}
-
-.definition-list dd {
-  min-width: 0;
-  margin: 0;
-  color: var(--text);
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
-
-.json-viewer-wrap {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--border-weak);
-  border-radius: 12px;
-  background: var(--surface-sub);
-}
-
-.json-viewer-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  min-height: 38px;
-  padding: 7px 12px;
-  border-bottom: 1px solid var(--border-weak);
-  /* 래퍼가 overflow:visible인 컨텍스트(스토리지 상세)에서도 카드의 둥근 상단이 잘려 보이지 않도록
-     래퍼 radius(12px)에서 테두리 1px를 뺀 곡률을 직접 가진다.
-     배경도 래퍼와 같은 색을 써서 패널 배경과 구분되는 하나의 카드로 읽히게 한다. */
-  border-radius: 11px 11px 0 0;
-  background: var(--surface-sub);
-}
-
-.json-viewer-local-search {
-  display: flex;
-  flex: 1 1 auto;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.json-local-search-input {
-  flex: 1 1 auto;
-  width: 100%;
-  max-width: 240px;
-}
-
-.json-local-search-options {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 2px;
-}
-
-.json-local-search-count {
-  flex-shrink: 0;
-  color: var(--text-sub);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.json-local-hit {
-  border-radius: 3px;
-  padding: 0 1px;
-  color: var(--highlight-text);
-  background: var(--highlight-bg);
-}
-
-.json-local-hit.is-active {
-  outline: 2px solid #ff9f1a;
-  outline-offset: 1px;
-}
-
-.json-viewer-resize-handle {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  height: 9px;
-  border-top: 1px solid var(--border-weak);
-  /* 툴바와 같은 이유로 카드의 둥근 하단 곡률과 카드 배경색을 직접 가진다. */
-  border-radius: 0 0 11px 11px;
-  background: var(--surface-sub);
-  cursor: ns-resize;
-  touch-action: none;
-}
-
-.json-viewer-resize-handle::before {
-  content: "";
-  width: 28px;
-  height: 2px;
-  border-radius: 999px;
-  background: var(--text-sub);
-  opacity: 0.35;
-}
-
-.json-viewer-resize-handle:hover::before {
-  opacity: 0.7;
-}
-
-.json-fullscreen-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 999;
-  background: var(--backdrop);
-}
-
-.json-viewer-wrap.is-fullscreen {
-  position: fixed;
-  inset: 16px;
-  z-index: 1000;
-  /* 임베드 컨텍스트의 고정 크기(예: .response-json-slot의 height:318px)를 덮어써
-     inset으로 화면을 가득 채우게 한다. 컨텍스트 규칙과 명시도가 같아 !important로 강제한다. */
-  height: auto !important;
-  min-height: 0;
-  overflow: hidden;
-  border-color: var(--border-weak);
-  border-radius: 20px;
-  background: var(--surface);
-  box-shadow: 0 24px 64px rgba(25, 31, 40, 0.24);
-}
-
-.json-viewer-wrap.is-fullscreen .json-viewer-toolbar {
-  border-bottom-color: var(--border-weak);
-  background: var(--surface);
-}
-
-.json-viewer-body {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-}
-
-.json-viewer-wrap.is-fullscreen .json-viewer-body {
-  display: flex;
-  /* 컨텍스트가 flex:none으로 눌러도(예: .storage-detail-value) 전체화면에서는 늘어나야 한다. */
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.json-viewer-wrap.is-fullscreen .json-viewer {
-  flex: 1;
-  max-height: none;
-  min-height: 0;
-  /* 컨텍스트가 overflow:visible로 스크롤을 막아도(예: .storage-detail-value) 전체화면에서는 스크롤한다. */
-  overflow: auto;
-}
-
-/* 높이 핸들로 조절했을 때: 래퍼에 적용된 높이를 내부 body/pre가 채우고 스크롤한다. */
-.json-viewer-wrap.is-resized .json-viewer-body {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.json-viewer-wrap.is-resized .json-viewer {
-  flex: 1;
-  min-height: 0;
-  max-height: none;
-  overflow: auto;
-}
-
-.json-field-menu {
-  display: inline-flex;
-  gap: 4px;
-  border: 1px solid var(--border-weak);
-  border-radius: 9px;
-  padding: 3px;
-  background: var(--surface);
-  box-shadow: var(--shadow-float);
-}
-
-.json-field-menu-floating {
-  position: absolute;
-  z-index: 3;
-  transform: translateY(calc(-100% - 6px));
-}
-
-.json-field-menu button {
-  height: 22px;
-  border: 0;
-  border-radius: 6px;
-  padding: 0 7px;
-  color: var(--text-sub);
-  background: transparent;
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.json-field-menu button:hover {
-  color: #ffffff;
-  background: var(--blue);
-}
-
-.json-viewer {
-  max-height: 280px;
-  margin: 0;
-  overflow: auto;
-  border: 0;
-  padding: 10px 12px;
-  color: var(--text);
-  background: transparent;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 11px;
-  line-height: 1.55;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.json-tree {
-  color: var(--text);
-}
-
-/* 중첩 레벨마다 좌측 세로선으로 들여쓰기 가이드를 그린다. */
-.json-indent {
-  padding-left: 1.15em;
-  border-left: 1px solid var(--json-guide);
-}
-
-/* 레벨마다 다른 색(무지개)으로 어느 선인지 구분하기 쉽게 한다. depth는 GUIDE_COLOR_COUNT 주기로 순환. */
-.json-indent[data-depth="0"] {
-  border-left-color: var(--json-guide-0);
-}
-.json-indent[data-depth="1"] {
-  border-left-color: var(--json-guide-1);
-}
-.json-indent[data-depth="2"] {
-  border-left-color: var(--json-guide-2);
-}
-.json-indent[data-depth="3"] {
-  border-left-color: var(--json-guide-3);
-}
-.json-indent[data-depth="4"] {
-  border-left-color: var(--json-guide-4);
-}
-.json-indent[data-depth="5"] {
-  border-left-color: var(--json-guide-5);
-}
-
-/* 객체/배열의 각 항목을 한 줄(블록)로 배치한다. 값이 다시 객체면 내부에 .json-indent가 들어온다. */
-.json-line {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.json-tree .search-highlight,
-.json-key-button .search-highlight,
-.json-string .search-highlight,
-.json-number .search-highlight,
-.json-boolean .search-highlight {
-  color: var(--highlight-text);
-  background: var(--highlight-bg);
-}
-
-.json-key {
-  color: var(--blue);
-}
-
-.json-key-button {
-  border: 0;
-  padding: 0;
-  color: var(--blue);
-  background: transparent;
-  font: inherit;
-  cursor: pointer;
-}
-
-.json-key-button:hover {
-  color: var(--blue-strong);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.json-string {
-  color: var(--json-string);
-}
-
-.json-number {
-  color: var(--json-number);
-}
-
-.json-boolean {
-  color: var(--purple);
-}
-
-.json-null {
-  color: var(--red);
-}
-
-.json-punctuation {
-  color: var(--text-weak);
-}
-
-.image-preview-frame {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 150px;
-  max-height: 360px;
-  overflow: auto;
-  border: 1px solid var(--border-weak);
-  border-radius: 12px;
-  padding: 14px;
-  background: linear-gradient(45deg, var(--checker) 25%, transparent 25%),
-    linear-gradient(-45deg, var(--checker) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, var(--checker) 75%),
-    linear-gradient(-45deg, transparent 75%, var(--checker) 75%),
-    var(--surface-sub);
-  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
-  background-size: 16px 16px;
-}
-
-.image-preview-caption {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 100%;
-  margin-bottom: 10px;
-}
-
-.image-preview-caption span {
-  color: var(--text-weak);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.image-preview-caption strong {
-  overflow: hidden;
-  color: var(--text-strong);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.image-preview-unavailable {
-  display: grid;
-  gap: 4px;
-  width: 100%;
-  min-height: 120px;
-  place-content: center;
-  padding: 12px;
-  color: var(--text-weak);
-  font-size: 12px;
-  line-height: 1.45;
-  text-align: center;
-}
-
-.image-preview-unavailable p {
-  margin: 0;
-  color: var(--text-sub);
-}
-
-.image-preview-unavailable span {
-  color: var(--text-faint);
-  font-size: 11px;
-}
-
-.image-preview-frame img {
-  display: block;
-  max-width: 100%;
-  max-height: 320px;
-  object-fit: contain;
-}
-
-.response-json-slot {
-  position: relative;
-  flex-shrink: 0;
-}
-
-/* 기본 높이는 래퍼가 갖고, 핸들 드래그 시 인라인 height로 덮어쓴다. */
-.response-json-slot .json-viewer-wrap {
-  height: 318px;
-}
-
-.response-json-slot:not(.is-loading)
-  .json-viewer-wrap:not(.response-json-skeleton) {
-  animation: response-body-in 140ms ease;
-}
-
-@keyframes response-body-in {
-  from {
-    opacity: 0.72;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-.response-json-slot .json-viewer-body {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.response-json-slot .json-viewer {
-  flex: 1;
-  max-height: none;
-  min-height: 0;
-}
-
-.response-json-slot.is-loading .json-viewer-wrap {
-  pointer-events: none;
-}
-
-.response-json-slot.is-loading .json-viewer {
-  opacity: 0.35;
-}
-
-.response-json-skeleton .json-viewer-toolbar {
-  pointer-events: none;
-}
-
-.response-loading-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-weak);
-  font-size: 12px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 120ms ease;
-}
-
-.response-json-slot.is-loading .response-loading-overlay {
-  opacity: 1;
-}
-
-.code-snippet-block {
-  display: grid;
-  gap: 8px;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.code-snippet-viewer {
-  max-height: 220px;
-  margin: 0;
-  overflow: auto;
-  border: 1px solid var(--border-weak);
-  border-radius: 12px;
-  padding: 10px 12px;
-  color: var(--text);
-  background: var(--surface-sub);
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 11px;
-  line-height: 1.55;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-@media (max-width: 820px) {
-  .workspace.split-layout-stacked {
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
-
-  .timeline-panel {
-    border-right: 0;
-    border-bottom: 1px solid var(--border-weak);
-  }
-
-  .flow-panel {
-    border-right: 0;
-    border-bottom: 1px solid var(--border-weak);
-  }
-
-  .storage-header {
-    grid-template-columns: minmax(0, 1fr) auto;
-    row-gap: 3px;
-    padding: 4px 8px;
-  }
-
-  .storage-header-label {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .storage-refresh-button {
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: end;
-  }
-
-  .storage-header-origin {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
-  .storage-header-captured {
-    display: none;
-  }
-
-  .storage-tabs {
-    overflow-x: auto;
-    padding: 6px 8px;
-  }
-
-  .storage-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .storage-workspace.has-detail.split-layout-stacked {
-    grid-template-columns: minmax(0, 1fr) !important;
+  .json-viewer-body {
+    position: relative;
+    flex: 1;
     min-height: 0;
   }
-}
 
-/* ── 도킹 워크스페이스 (dockview) ───────────────────────────────── */
-.workspace-dock {
-  position: relative;
-  height: 100%;
-  width: 100%;
-  min-height: 0;
-  overflow: hidden;
-}
+  .json-viewer-wrap.is-fullscreen .json-viewer-body {
+    display: flex;
+    /* 컨텍스트가 flex:none으로 눌러도(예: .storage-detail-value) 전체화면에서는 늘어나야 한다. */
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
 
-/* dockview 테마 변수를 앱 팔레트에 맞춘다. */
-.workspace-dock .dv-dockview {
-  --dv-group-view-background-color: var(--bg);
-  --dv-tabs-and-actions-container-background-color: var(--surface);
-  --dv-tabs-and-actions-container-height: 34px;
-  --dv-activegroup-visiblepanel-tab-background-color: var(--bg);
-  --dv-activegroup-visiblepanel-tab-color: var(--text-strong);
-  --dv-activegroup-hiddenpanel-tab-background-color: var(--surface);
-  --dv-activegroup-hiddenpanel-tab-color: var(--text-weak);
-  --dv-inactivegroup-visiblepanel-tab-background-color: var(--surface-sub);
-  --dv-inactivegroup-visiblepanel-tab-color: var(--text-sub);
-  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--surface);
-  --dv-inactivegroup-hiddenpanel-tab-color: var(--text-weak);
-  --dv-separator-border: var(--border);
-  --dv-tab-divider-color: var(--border-weak);
-  --dv-paneview-header-border-color: var(--border);
-  --dv-sash-color: transparent;
-  --dv-active-sash-color: var(--blue);
-  --dv-icon-hover-background-color: var(--fill-hover);
-  --dv-drag-over-background-color: var(--blue-soft);
-  --dv-tab-close-icon-size: 14px;
-  height: 100%;
-}
+  .json-viewer-wrap.is-fullscreen .json-viewer {
+    flex: 1;
+    max-height: none;
+    min-height: 0;
+    /* 컨텍스트가 overflow:visible로 스크롤을 막아도(예: .storage-detail-value) 전체화면에서는 스크롤한다. */
+    overflow: auto;
+  }
 
-/* 패널 = 슬림 검색바(상단) + 콘텐츠(나머지). */
-.dock-panel-shell {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-}
+  /* 높이 핸들로 조절했을 때: 래퍼에 적용된 높이를 내부 body/pre가 채우고 스크롤한다. */
+  .json-viewer-wrap.is-resized .json-viewer-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
 
-/* Pop out으로 연 JSON 전용 패널: 뷰어가 패널을 채우고 넘치면 스크롤. */
-.json-dock-panel {
-  overflow: auto;
-  padding: 8px;
-}
+  .json-viewer-wrap.is-resized .json-viewer {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    overflow: auto;
+  }
 
-.dock-panel-shell > .panel-header,
-.dock-panel-shell > .network-actions {
-  flex: 0 0 auto;
-}
+  .json-viewer {
+    max-height: 280px;
+    margin: 0;
+    overflow: auto;
+    border: 0;
+    padding: 10px 12px;
+    color: var(--text);
+    background: transparent;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 11px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
 
-.dock-panel-shell > .dock-pane,
-.dock-panel-shell > .network-dock-panel {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-}
+  /* 네트워크 상세 Response 슬롯: 기본 높이는 래퍼가 갖고, 핸들 드래그 시 인라인 height로 덮어쓴다. */
+  .response-json-slot .json-viewer-wrap {
+    height: 318px;
+  }
 
-/* Network 패널 전용 세션 액션 행. */
-.network-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 38px;
-  padding: 0 10px;
-  border-bottom: 1px solid var(--border-weak);
-  background: var(--surface);
-  overflow-x: auto;
-}
+  .response-json-slot:not(.is-loading)
+    .json-viewer-wrap:not(.response-json-skeleton) {
+    animation: response-body-in 140ms ease;
+  }
 
-.network-actions .toolbar-notice {
-  margin: 0;
-  white-space: nowrap;
-}
+  @keyframes response-body-in {
+    from {
+      opacity: 0.72;
+    }
 
-.network-actions-sep {
-  width: 1px;
-  height: 18px;
-  flex-shrink: 0;
-  background: var(--border);
-}
+    to {
+      opacity: 1;
+    }
+  }
 
-.network-actions .toolbar-button-group {
-  margin-left: auto;
-  flex-shrink: 0;
-}
+  .response-json-slot .json-viewer-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
 
-/* 리소스 타입 표시 드롭다운("Types" 버튼 + 팝오버). */
-.resource-type-count {
-  margin-left: 5px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: var(--fill);
-  color: var(--text-sub);
-  font-size: 10px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
+  .response-json-slot .json-viewer {
+    flex: 1;
+    max-height: none;
+    min-height: 0;
+  }
 
-.btn.active .resource-type-count {
-  background: rgba(255, 255, 255, 0.24);
-  color: inherit;
-}
+  .response-json-slot.is-loading .json-viewer-wrap {
+    pointer-events: none;
+  }
 
-.resource-type-popover {
-  min-width: 168px;
-}
+  .response-json-slot.is-loading .json-viewer {
+    opacity: 0.35;
+  }
 
-.resource-type-group-label {
-  padding: 4px 9px 2px;
-  color: var(--text-weak);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
+  /* 스토리지 상세: 카드가 내용 높이만큼 자라고 핸들이 카드 바닥에 붙는다. */
+  .storage-detail-value .json-viewer-wrap {
+    min-height: 180px;
+    overflow: visible;
+  }
 
-.kind-dot {
-  width: 8px;
-  height: 8px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--text-faint);
-}
+  .storage-detail-value .json-viewer-body {
+    /* 내용이 적어도 body가 wrap의 min-height(180px)를 채우게 해서 리사이즈 핸들을 카드 바닥에
+       고정한다. flex:none이면 핸들이 콘텐츠 바로 아래에 뜨고, 드래그 시작 시 is-resized로 body가
+       flex:1이 되며 핸들이 최소높이 바닥으로 갑자기 튀어 내려간다. basis:auto·shrink:0이라
+       내용이 많으면 기존처럼 콘텐츠 높이로 자라난다(overflow:visible 유지). */
+    flex: 1 0 auto;
+    min-height: 0;
+  }
 
-.kind-dot.kind-fetch,
-.kind-dot.kind-document {
-  background: var(--blue);
-}
+  .storage-detail-value .json-viewer {
+    max-height: none;
+    overflow: visible;
+  }
 
-.kind-dot.kind-xhr,
-.kind-dot.kind-websocket {
-  background: var(--purple);
-}
+  .console-arg-block .json-viewer-wrap {
+    min-height: 120px;
+  }
 
-.kind-dot.kind-stylesheet {
-  background: var(--teal);
-}
+  /* ── Flow 카드 코어 (react-flow .selected와 결합) ───────────── */
+  .flow-node {
+    display: grid;
+    grid-template-rows: auto minmax(34px, auto) minmax(34px, auto) auto;
+    align-content: start;
+    gap: 5px;
+    width: 240px;
+    min-height: 152px;
+    border: 1px solid var(--border-weak);
+    border-radius: 16px;
+    padding: 11px 12px 14px;
+    color: var(--text);
+    background: var(--surface);
+    box-shadow: var(--shadow-node);
+  }
 
-.kind-dot.kind-script {
-  background: var(--orange-text);
-}
+  .flow-node.selected {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(49, 130, 246, 0.16);
+  }
 
-.kind-dot.kind-image {
-  background: var(--green-text);
-}
+  .flow-text-note {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    border: 1px dashed var(--border-weak);
+    border-radius: 12px;
+    padding: 6px;
+    background: var(--surface);
+    box-shadow: var(--shadow-card);
+  }
 
-.kind-dot.kind-font {
-  background: var(--pink);
-}
+  /* 배경 없는 메모: 테두리/배경/그림자 제거하고 글자만 띄운다. */
+  .flow-text-note.no-bg {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    padding: 2px;
+  }
 
-.kind-dot.kind-media {
-  background: var(--red-text);
-}
+  /* ── 좁은 화면: 분할 레이아웃 강제 단일 컬럼(인라인 style을 이겨야 해서 !important) ── */
+  @media (max-width: 820px) {
+    .storage-workspace.has-detail.split-layout-stacked {
+      grid-template-columns: minmax(0, 1fr) !important;
+      min-height: 0;
+    }
+  }
 
-/* 필터 접기/펴기 토글(검색바 끝). 시각 스타일은 공통 .btn 사용. */
-.panel-filter-toggle {
-  position: relative;
-}
+  /* ── react-flow 오버라이드 (vendor 레이어보다 뒤라 이긴다) ───── */
+  .flow-panel .react-flow {
+    width: 100%;
+    height: 100%;
+  }
 
-/* 필터가 걸려 있는데 접혀 있으면 점으로 표시. */
-.panel-filter-toggle.has-filter {
-  color: var(--blue);
-}
+  .flow-panel .react-flow__pane {
+    cursor: grab;
+  }
 
-.panel-filter-toggle.has-filter::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-  background: var(--blue);
-}
+  .flow-panel .react-flow__node {
+    cursor: pointer;
+    text-align: left;
+  }
 
-/* 패널 헤더 = 검색바 + 필터바(세로 스택). */
-.panel-header {
-  display: flex;
-  flex-direction: column;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border-weak);
-}
+  .flow-panel .react-flow__node-default {
+    width: auto;
+    min-width: 0;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    background: transparent;
+  }
 
-/* 패널 헤더의 슬림 검색바. */
-.panel-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 6px 0 10px;
-}
+  .flow-panel .react-flow__handle {
+    width: 12px;
+    height: 12px;
+    border: 1.5px solid var(--text-faint);
+    border-radius: 50%;
+    background: var(--surface);
+  }
 
-/* 패널 헤더의 Include/Exclude 필터바. */
-.panel-filters {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 8px 4px;
-}
+  .flow-panel .react-flow__handle-left {
+    left: -6px;
+  }
 
-.panel-filter-field {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1 1 0;
-  min-width: 0;
-  height: 24px;
-  padding: 0 8px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: var(--text-weak);
-  background: var(--fill);
-  font-size: 11px;
-  transition: background 0.12s ease, border-color 0.12s ease;
-}
+  .flow-panel .react-flow__handle-right {
+    right: -6px;
+  }
 
-.panel-filter-field:focus-within {
-  border-color: var(--blue);
-  background: var(--surface);
-}
+  .flow-panel .react-flow__handle-top {
+    top: -6px;
+  }
 
-.panel-filter-label {
-  flex: 0 0 auto;
-  white-space: nowrap;
-  font-weight: 500;
-}
+  .flow-panel .react-flow__handle-bottom {
+    bottom: -6px;
+  }
 
-.panel-filter-field input {
-  flex: 1 1 auto;
-  min-width: 0;
-  width: 0;
-  height: 22px;
-  border: 0;
-  outline: 0;
-  color: var(--text-strong);
-  background: transparent;
-  font: inherit;
-  font-size: 11px;
-}
+  .flow-panel .react-flow__handle.connectingfrom,
+  .flow-panel .react-flow__handle.connectingto,
+  .flow-panel .react-flow__handle:hover {
+    border-color: var(--blue);
+    background: var(--blue);
+  }
 
-.panel-search-input {
-  flex: 1 1 80px;
-  min-width: 0;
-  height: 22px;
-  border: 0;
-  outline: 0;
-  color: var(--text-strong);
-  background: transparent;
-  font: inherit;
-  font-size: 12px;
-}
+  /* 연결선은 인라인 stroke를 쓰므로 선택 강조는 !important로 덮어쓴다. */
+  .flow-panel .react-flow__edge.selected .react-flow__edge-path {
+    stroke: var(--blue) !important;
+    stroke-width: 2.8 !important;
+  }
 
-.panel-search-options {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-}
+  .flow-panel .react-flow__controls {
+    border: 1px solid var(--border-weak);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+  }
 
-.panel-search-nav {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  padding-left: 6px;
-  border-left: 1px solid var(--border);
-}
+  .flow-panel .react-flow__controls-button {
+    border-bottom: 1px solid var(--border-weak);
+    background: var(--surface);
+    fill: var(--text-sub);
+  }
 
-.dock-watermark {
-  display: grid;
-  place-content: center;
-  gap: 6px;
-  height: 100%;
-  padding: 24px;
-  text-align: center;
-  color: var(--text-sub);
-}
+  .flow-panel .react-flow__controls-button:hover {
+    background: var(--fill);
+  }
 
-.dock-watermark-hint {
-  font-size: 12px;
-  color: var(--text-weak);
-}
+  .flow-panel .react-flow__node.selected .flow-text-note,
+  .flow-panel .react-flow__node:focus .flow-text-note {
+    border-color: var(--blue);
+    border-style: solid;
+  }
 
-.toolbar-spacer {
-  flex: 1 1 auto;
-  min-width: 8px;
+  /* 선택 중에는 배경 없는 메모도 편집 영역을 알 수 있게 옅은 테두리를 보여준다. */
+  .flow-panel .react-flow__node.selected .flow-text-note.no-bg,
+  .flow-panel .react-flow__node:focus .flow-text-note.no-bg {
+    border-color: var(--blue);
+    border-style: dashed;
+  }
+
+  /* 다중 선택(박스/Shift)된 요청 카드 강조. */
+  .flow-panel .react-flow__node.selected .flow-node {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 2px rgba(49, 130, 246, 0.35);
+  }
+
+  /* NodeResizer(react-flow)의 인라인 스타일을 !important로 덮어쓴다. */
+  .flow-shape-resize-line {
+    border-color: var(--blue) !important;
+  }
+
+  .flow-shape-resize-handle {
+    width: 9px !important;
+    height: 9px !important;
+    border: 1.5px solid var(--blue) !important;
+    border-radius: 2px !important;
+    background: var(--surface) !important;
+  }
+
+  /* ── dockview 테마 변수를 앱 팔레트에 맞춘다 ─────────────────── */
+  .dv-dockview {
+    --dv-group-view-background-color: var(--bg);
+    --dv-tabs-and-actions-container-background-color: var(--surface);
+    --dv-tabs-and-actions-container-height: 34px;
+    --dv-activegroup-visiblepanel-tab-background-color: var(--bg);
+    --dv-activegroup-visiblepanel-tab-color: var(--text-strong);
+    --dv-activegroup-hiddenpanel-tab-background-color: var(--surface);
+    --dv-activegroup-hiddenpanel-tab-color: var(--text-weak);
+    --dv-inactivegroup-visiblepanel-tab-background-color: var(--surface-sub);
+    --dv-inactivegroup-visiblepanel-tab-color: var(--text-sub);
+    --dv-inactivegroup-hiddenpanel-tab-background-color: var(--surface);
+    --dv-inactivegroup-hiddenpanel-tab-color: var(--text-weak);
+    --dv-separator-border: var(--border);
+    --dv-tab-divider-color: var(--border-weak);
+    --dv-paneview-header-border-color: var(--border);
+    --dv-sash-color: transparent;
+    --dv-active-sash-color: var(--blue);
+    --dv-icon-hover-background-color: var(--fill-hover);
+    --dv-drag-over-background-color: var(--blue-soft);
+    --dv-tab-close-icon-size: 14px;
+    height: 100%;
+  }
 }

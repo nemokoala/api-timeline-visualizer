@@ -37,6 +37,7 @@ import type { RequestSearchSummary } from "../../utils/requestSearch";
 import { Button, IconButton } from "../ui/Button";
 import { ResetIcon, SquareIcon, TextIcon } from "./FlowChartIcons";
 import { NODE_TYPES } from "./FlowChartNodes";
+import { EmptyState } from "../ui/EmptyState";
 import {
   EDGE_COLORS,
   MANUAL_EDGE_PREFIX,
@@ -898,18 +899,15 @@ export function FlowChartView({
   return (
     <section
       ref={flowPanelRef}
-      className="flow-panel"
+      className="flow-panel relative min-h-0 min-w-0 overflow-auto bg-bg max-[820px]:border-b max-[820px]:border-line-weak"
       aria-label="Request flow chart"
       onWheel={handleWheel}
     >
       {items.length === 0 ? (
-        <div className="empty-state">
-          <strong>No API flow captured.</strong>
-          <span>
-            Open DevTools, trigger API traffic, then inspect the inferred
-            request sequence here.
-          </span>
-        </div>
+        <EmptyState title="No API flow captured.">
+          Open DevTools, trigger API traffic, then inspect the inferred request
+          sequence here.
+        </EmptyState>
       ) : !hasMeasuredSize ? null : (
         <>
           <ReactFlow
@@ -951,9 +949,9 @@ export function FlowChartView({
           >
             <Background color={EDGE_COLORS[theme].dot} gap={22} />
             <Controls showInteractive={false} />
-            <Panel position="top-right" className="flow-export-panel">
-              <div className="flow-export-controls">
-                <div className="flow-export-buttons">
+            <Panel position="top-right" className="m-0 mt-3 mr-3">
+              <div className="grid max-w-[min(280px,calc(100vw-48px))] justify-items-end gap-1.5">
+                <div className="flex flex-wrap justify-end gap-1.5">
                   <Button
                     tone="accent"
                     float
@@ -982,12 +980,14 @@ export function FlowChartView({
                   </Button>
                 </div>
                 {exportError ? (
-                  <span className="flow-export-error">{exportError}</span>
+                  <span className="rounded-[10px] border-0 bg-danger-soft px-2.5 py-[5px] text-right text-[11px] leading-[1.35] text-danger">
+                    {exportError}
+                  </span>
                 ) : null}
               </div>
             </Panel>
-            <Panel position="bottom-center" className="flow-tool-panel">
-              <div className="flow-toolbar">
+            <Panel position="bottom-center" className="mb-4">
+              <div className="flex items-center gap-1 rounded-[14px] border border-line-weak bg-surface p-[5px] shadow-float">
                 <IconButton
                   size="lg"
                   ghost
@@ -1018,7 +1018,7 @@ export function FlowChartView({
                 </IconButton>
                 {hasEdits ? (
                   <>
-                    <span className="flow-toolbar-divider" />
+                    <span className="mx-0.5 h-5 w-px bg-line-weak" />
                     <IconButton
                       size="lg"
                       ghost

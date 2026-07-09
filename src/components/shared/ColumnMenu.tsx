@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { MenuCheckItem, MenuSeparator, MenuSurface } from '../ui/Menu';
 
 type ColumnMenuOption = { id: string; label: string; checked: boolean };
 
@@ -46,9 +47,8 @@ export function ColumnMenu<T extends string>({
   const visibleCount = columns.filter((col) => visibility[col.id]).length;
 
   return (
-    <div
+    <MenuSurface
       ref={menuRef}
-      className="column-menu"
       style={{ top: position.y, left: position.x }}
       role="menu"
       aria-label="열 표시 설정"
@@ -57,42 +57,30 @@ export function ColumnMenu<T extends string>({
         const isVisible = visibility[col.id] ?? false;
         const isLastVisible = isVisible && visibleCount <= minVisible;
         return (
-          <button
+          <MenuCheckItem
             key={col.id}
-            type="button"
-            role="menuitemcheckbox"
-            aria-checked={isVisible}
-            className={`column-menu-item ${isVisible ? 'checked' : ''}`}
+            checked={isVisible}
             disabled={isLastVisible}
             onClick={() => onToggle(col.id)}
           >
-            <span className="column-menu-check" aria-hidden="true">
-              {isVisible ? '✓' : ''}
-            </span>
             <span>{col.label}</span>
-          </button>
+          </MenuCheckItem>
         );
       })}
       {options && options.length > 0 ? (
         <>
-          <div className="column-menu-separator" role="separator" />
+          <MenuSeparator />
           {options.map((option) => (
-            <button
+            <MenuCheckItem
               key={option.id}
-              type="button"
-              role="menuitemcheckbox"
-              aria-checked={option.checked}
-              className={`column-menu-item ${option.checked ? 'checked' : ''}`}
+              checked={option.checked}
               onClick={() => onToggleOption?.(option.id)}
             >
-              <span className="column-menu-check" aria-hidden="true">
-                {option.checked ? '✓' : ''}
-              </span>
               <span>{option.label}</span>
-            </button>
+            </MenuCheckItem>
           ))}
         </>
       ) : null}
-    </div>
+    </MenuSurface>
   );
 }

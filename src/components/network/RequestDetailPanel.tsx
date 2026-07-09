@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { ApiRequest } from '../../types/network';
 import { DetailSection } from '../shared/DetailSection';
+import { DefinitionList } from '../shared/DefinitionList';
 import { generateCurl, generateFetch } from '../../utils/requestCodeSnippets';
 import { canResendRequest, resendRequest } from '../../utils/requestResend';
 import { getMatchingDetailSections } from '../../utils/requestSearch';
@@ -15,6 +16,7 @@ import { DetailPanelCloseButton, SplitLayoutToggleButton } from '../shared/Detai
 import { JsonViewer } from '../shared/JsonViewer';
 import { Button, IconButton } from '../ui/Button';
 import { SegmentedControl } from '../ui/SegmentedControl';
+import { MethodBadge } from './MethodBadge';
 
 type RequestDetailPanelProps = {
   request: ApiRequest;
@@ -87,23 +89,43 @@ export function RequestDetailPanel({
   const isBodyPending = responseBodyValue === undefined;
   const showLoadingOverlay = isBodyPending || (isBodyLoading && request.responseContent === undefined);
 
+  const titleClass =
+    'line-clamp-2 text-[13px] font-bold leading-[1.3] tracking-[-0.01em] text-ink-strong [overflow-wrap:anywhere]';
+
   return (
-    <aside className="detail-panel" ref={panelRef}>
-      <div className="detail-title">
-        <div>
-          <span className={`method method-${request.method.toLowerCase()}`}>{request.method}</span>
+    <aside
+      className="h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto bg-surface pb-[30px] [scrollbar-gutter:stable]"
+      ref={panelRef}
+    >
+      <div className="sticky top-0 z-[1] flex max-h-[120px] justify-between gap-2.5 overflow-hidden border-b border-line-weak bg-surface p-3.5">
+        <div className="min-w-0">
+          <MethodBadge method={request.method} size="sm" />
           {titleImageSource ? (
-            <div className="detail-image-title">
-              <ImagePreview src={titleImageSource} alt="Base64 request preview" />
-              <h2>{hasSearch ? highlightSearchText(title, searchText, searchOptions) : title}</h2>
+            <div className="mt-1.5 grid grid-cols-[38px_minmax(0,1fr)] items-center gap-2">
+              <ImagePreview
+                src={titleImageSource}
+                alt="Base64 request preview"
+                className="block h-12 w-12 rounded-lg border border-line-weak bg-fill object-contain"
+              />
+              <h2 className={`m-0 ${titleClass}`}>
+                {hasSearch ? highlightSearchText(title, searchText, searchOptions) : title}
+              </h2>
             </div>
           ) : (
-            <h2>{hasSearch ? highlightSearchText(title, searchText, searchOptions) : title}</h2>
+            <h2 className={`mx-0 mt-1.5 mb-0.5 ${titleClass}`}>
+              {hasSearch ? highlightSearchText(title, searchText, searchOptions) : title}
+            </h2>
           )}
-          <p>{hasSearch ? highlightSearchText(request.host, searchText, searchOptions) : request.host}</p>
+          <p className="m-0 text-[11px] text-ink-weak">
+            {hasSearch ? highlightSearchText(request.host, searchText, searchOptions) : request.host}
+          </p>
         </div>
-        <div className="detail-panel-title-actions">
-          <span className={`detail-status ${request.status >= 400 ? 'bad' : 'good'}`}>{request.status || 'n/a'}</span>
+        <div className="flex flex-none items-center gap-2">
+          <span
+            className={`text-[15px] font-bold ${request.status >= 400 ? 'text-danger-bg' : 'text-ok'}`}
+          >
+            {request.status || 'n/a'}
+          </span>
           {canOpenInNewTab ? (
             <IconButton
               size="md"
@@ -140,7 +162,7 @@ export function RequestDetailPanel({
         searchExpandToken={searchFocusKey}
         expandForSearch={matchingSections.has('general')}
       >
-        <DefinitionList
+        <HighlightedDefinitionList
           searchText={searchText}
           rows={[
             ['Full URL', displayUrl],
@@ -159,9 +181,9 @@ export function RequestDetailPanel({
         searchExpandToken={searchFocusKey}
         expandForSearch={matchingSections.has('headers')}
       >
-        <h3>Request</h3>
+        <SectionHeading>Request</SectionHeading>
         <JsonViewer value={request.requestHeaders ?? {}} searchText={searchText} searchFocusKey={searchFocusKey} />
-        <h3>Response</h3>
+        <SectionHeading>Response</SectionHeading>
         <JsonViewer value={request.responseHeaders ?? {}} searchText={searchText} searchFocusKey={searchFocusKey} />
       </DetailSection>
 
@@ -171,9 +193,9 @@ export function RequestDetailPanel({
         searchExpandToken={searchFocusKey}
         expandForSearch={matchingSections.has('cookies')}
       >
-        <h3>Request</h3>
+        <SectionHeading>Request</SectionHeading>
         <JsonViewer value={requestCookieValue(request)} searchText={searchText} searchFocusKey={searchFocusKey} />
-        <h3>Response</h3>
+        <SectionHeading>Response</SectionHeading>
         <JsonViewer value={responseCookieValue(request)} searchText={searchText} searchFocusKey={searchFocusKey} />
       </DetailSection>
 
@@ -185,11 +207,11 @@ export function RequestDetailPanel({
       >
         {hasQueryParams ? (
           <>
-            <h3>Query Params</h3>
+            <SectionHeading>Query Params</SectionHeading>
             <JsonViewer value={request.queryParams ?? {}} searchText={searchText} searchFocusKey={searchFocusKey} />
           </>
         ) : null}
-        <h3>Request Body</h3>
+        <SectionHeading>Request Body</SectionHeading>
         <JsonViewer
           value={request.requestBody ?? 'Request payload is not available for this request.'}
           searchText={searchText}
@@ -227,9 +249,11 @@ export function RequestDetailPanel({
             Compare{compareCandidateCount > 0 ? ` (${compareCandidateCount})` : ''}
           </Button>
         </div>
-        <div className={`response-json-slot ${showLoadingOverlay ? 'is-loading' : ''}`}>
+        <div className={`response-json-slot relative shrink-0 ${showLoadingOverlay ? 'is-loading' : ''}`}>
           <div
-            className="response-loading-overlay"
+            className={`pointer-events-none absolute inset-0 z-[2] flex items-center justify-center text-[12px] text-ink-weak transition-opacity duration-[120ms] ${
+              showLoadingOverlay ? 'opacity-100' : 'opacity-0'
+            }`}
             aria-live="polite"
             aria-hidden={!showLoadingOverlay}
           >
@@ -255,7 +279,7 @@ export function RequestDetailPanel({
         searchExpandToken={searchFocusKey}
         expandForSearch={matchingSections.has('timing')}
       >
-        <DefinitionList
+        <HighlightedDefinitionList
           searchText={searchText}
           rows={[
             ['Started at', formatLocaleDateTime(request.startedAt)],
@@ -277,10 +301,19 @@ export function RequestDetailPanel({
   );
 }
 
+/** DetailSection 본문 안의 소제목(Request/Response 등). */
+function SectionHeading({ children }: { children: ReactNode }) {
+  return (
+    <h3 className="mx-0 mt-3 mb-[7px] text-[12px] font-semibold text-ink-weak first:mt-0">
+      {children}
+    </h3>
+  );
+}
+
 function ResponseBodySkeleton() {
   return (
     <div className="json-viewer-wrap response-json-skeleton" aria-hidden="true">
-      <div className="json-viewer-toolbar" />
+      <div className="pointer-events-none min-h-[38px] rounded-t-[11px] border-b border-line-weak bg-surface-sub" />
       <div className="json-viewer-body">
         <pre className="json-viewer" />
       </div>
@@ -294,7 +327,7 @@ function summarizeImageUrl(url: string): string {
   return `${mimeMatch[1]} base64 image data`;
 }
 
-function DefinitionList({
+function HighlightedDefinitionList({
   rows,
   searchText,
 }: {
@@ -305,14 +338,12 @@ function DefinitionList({
   const hasSearch = Boolean(searchText.trim());
 
   return (
-    <dl className="definition-list">
-      {rows.map(([label, value]) => (
-        <div key={label}>
-          <dt>{label}</dt>
-          <dd>{hasSearch ? highlightSearchText(value, searchText, searchOptions) : value}</dd>
-        </div>
-      ))}
-    </dl>
+    <DefinitionList
+      rows={rows.map(([label, value]) => [
+        label,
+        hasSearch ? highlightSearchText(value, searchText, searchOptions) : value,
+      ])}
+    />
   );
 }
 
@@ -358,7 +389,7 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
   };
 
   return (
-    <div className="code-snippet-block">
+    <div className="grid gap-2">
       <div className="flex items-center justify-between gap-2">
         <SegmentedControl
           size="sm"
@@ -391,7 +422,7 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
           재전송 실패: {resendError}
         </p>
       ) : null}
-      <pre className="code-snippet-viewer">
+      <pre className="m-0 max-h-[220px] overflow-auto whitespace-pre-wrap rounded-xl border border-line-weak bg-surface-sub px-3 py-2.5 text-[11px] leading-[1.55] text-ink [font-family:SFMono-Regular,Consolas,'Liberation_Mono',monospace] [overflow-wrap:anywhere]">
         {hasSearch ? highlightSearchText(snippet, searchText, searchOptions) : snippet}
       </pre>
     </div>

@@ -16,6 +16,7 @@ import { findStorageBlobPreviews, sanitizeStorageBlobsForDisplay } from '../../u
 import { DetailSection } from './DetailSection';
 import { ImagePreviewGallery } from './ImagePreviewGallery';
 import { Button, IconButton } from '../ui/Button';
+import { Input } from '../ui/Input';
 import { SearchOptionToggles } from '../ui/SearchOptionToggles';
 
 type ActiveFieldMenu = {
@@ -103,7 +104,7 @@ export function JsonViewer({
     const jsonMatchesSearch = hasSearch && textMatchesSearch(output, searchText, searchOptions);
 
     return (
-      <div className="json-value-sections">
+      <div>
         <DetailSection
           sectionId={`${sectionPrefix}:images`}
           title={imagePreviews.length > 1 ? 'Images' : 'Image'}
@@ -358,7 +359,11 @@ function JsonBlock({
   return (
     <>
       {isFullscreen ? (
-        <div className="json-fullscreen-backdrop" onClick={() => setIsFullscreen(false)} aria-hidden="true" />
+        <div
+          className="fixed inset-0 z-[999] bg-backdrop"
+          onClick={() => setIsFullscreen(false)}
+          aria-hidden="true"
+        />
       ) : null}
       <div
         ref={wrapRef}
@@ -368,11 +373,16 @@ function JsonBlock({
         aria-modal={isFullscreen ? true : undefined}
         aria-label={isFullscreen ? 'JSON fullscreen' : undefined}
       >
-        <div className="json-viewer-toolbar">
-          <div className="json-viewer-local-search">
-            <input
+        <div
+          className={`flex min-h-[38px] items-center justify-end gap-2 rounded-t-[11px] border-b border-line-weak px-3 py-[7px] ${
+            isFullscreen ? 'bg-surface' : 'bg-surface-sub'
+          }`}
+        >
+          <div className="flex min-w-0 flex-auto items-center gap-1.5">
+            <Input
               type="search"
-              className="input input-sm json-local-search-input"
+              size="sm"
+              className="w-full max-w-[240px] flex-auto"
               placeholder="Search in this viewer"
               value={localSearch}
               onChange={(event) => setLocalSearch(event.target.value)}
@@ -380,7 +390,7 @@ function JsonBlock({
               spellCheck={false}
             />
             <SearchOptionToggles
-              className="json-local-search-options"
+              className="flex shrink-0 items-center gap-0.5"
               matchCase={localMatchCase}
               wholeWord={localWholeWord}
               onMatchCaseChange={setLocalMatchCase}
@@ -388,7 +398,7 @@ function JsonBlock({
             />
             {localActive ? (
               <>
-                <span className="json-local-search-count">
+                <span className="shrink-0 whitespace-nowrap text-[11px] text-ink-sub tabular-nums">
                   {shownHitOrder}/{localHitCount}
                 </span>
                 <IconButton
@@ -429,22 +439,18 @@ function JsonBlock({
         <div className="json-viewer-body" ref={viewerBodyRef}>
           {fieldMenu ? (
             <div
-              className="json-field-menu json-field-menu-floating"
+              className="absolute z-[3] inline-flex gap-1 rounded-[9px] border border-line-weak bg-surface p-[3px] shadow-float [transform:translateY(calc(-100%-6px))]"
               style={{ left: fieldMenu.left, top: fieldMenu.top }}
             >
-              <button type="button" onClick={() => handleFieldCopy('value')}>
-                값 복사
-              </button>
-              <button type="button" onClick={() => handleFieldCopy('string')}>
-                문자열 복사
-              </button>
-              <button type="button" onClick={() => setFieldMenu(null)} aria-label="Close field copy menu">
+              <FieldMenuButton onClick={() => handleFieldCopy('value')}>값 복사</FieldMenuButton>
+              <FieldMenuButton onClick={() => handleFieldCopy('string')}>문자열 복사</FieldMenuButton>
+              <FieldMenuButton onClick={() => setFieldMenu(null)} aria-label="Close field copy menu">
                 ×
-              </button>
+              </FieldMenuButton>
             </div>
           ) : null}
           {isObject ? (
-            <div className="json-viewer json-tree">
+            <div className="json-viewer text-ink">
               {renderJsonValue(value, 0, 'root', handleFieldClick, effectiveSearch, effectiveOptions, markClassName)}
             </div>
           ) : (
@@ -455,7 +461,7 @@ function JsonBlock({
         </div>
         {!isFullscreen ? (
           <div
-            className="json-viewer-resize-handle"
+            className="flex h-[9px] shrink-0 cursor-ns-resize touch-none items-center justify-center rounded-b-[11px] border-t border-line-weak bg-surface-sub before:h-[2px] before:w-7 before:rounded-full before:bg-ink-sub before:opacity-35 before:content-[''] hover:before:opacity-70"
             onPointerDown={handleResizeStart}
             onDoubleClick={() => setCustomHeight(null)}
             role="separator"
@@ -472,6 +478,27 @@ function JsonBlock({
 // 들여쓰기 가이드선 색상 개수. 이 수를 주기로 depth별 색이 순환한다. (global.css의 --json-guide-N과 일치)
 const GUIDE_COLOR_COUNT = 6;
 
+/* 레벨마다 다른 색(무지개)으로 어느 선인지 구분하기 쉽게 한다. */
+const GUIDE_BORDER = [
+  'border-[color:var(--json-guide-0)]',
+  'border-[color:var(--json-guide-1)]',
+  'border-[color:var(--json-guide-2)]',
+  'border-[color:var(--json-guide-3)]',
+  'border-[color:var(--json-guide-4)]',
+  'border-[color:var(--json-guide-5)]',
+];
+
+/** 필드 복사 팝오버의 작은 버튼. */
+function FieldMenuButton(props: React.ComponentProps<'button'>) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className="h-[22px] cursor-pointer rounded-md border-0 bg-transparent px-[7px] text-[11px] text-ink-sub hover:bg-accent hover:text-[#fff]"
+    />
+  );
+}
+
 function renderJsonValue(
   value: unknown,
   depth: number,
@@ -482,58 +509,58 @@ function renderJsonValue(
   markClassName: string,
 ): React.ReactNode {
   if (Array.isArray(value)) {
-    if (value.length === 0) return <span className="json-punctuation">[]</span>;
+    if (value.length === 0) return <span className="text-ink-weak">[]</span>;
 
     // 각 중첩 레벨을 블록으로 감싸고 border-left로 들여쓰기 가이드선을 그린다.
     // data-depth로 레벨마다 다른 색(무지개)을 입혀 어느 선인지 구분하기 쉽게 한다.
     return (
       <>
-        <span className="json-punctuation">[</span>
-        <div className="json-indent" data-depth={depth % GUIDE_COLOR_COUNT}>
+        <span className="text-ink-weak">[</span>
+        <div className={`border-l pl-[1.15em] ${GUIDE_BORDER[depth % GUIDE_COLOR_COUNT]}`}>
           {value.map((item, index) => (
-            <div className="json-line" key={index}>
+            <div className="whitespace-pre-wrap [overflow-wrap:anywhere]" key={index}>
               {renderJsonValue(item, depth + 1, `${path}.${index}`, onFieldClick, searchText, searchOptions, markClassName)}
-              {index < value.length - 1 ? <span className="json-punctuation">,</span> : null}
+              {index < value.length - 1 ? <span className="text-ink-weak">,</span> : null}
             </div>
           ))}
         </div>
-        <span className="json-punctuation">]</span>
+        <span className="text-ink-weak">]</span>
       </>
     );
   }
 
   if (value && typeof value === 'object') {
     const entries = Object.entries(value as Record<string, unknown>);
-    if (entries.length === 0) return <span className="json-punctuation">{'{}'}</span>;
+    if (entries.length === 0) return <span className="text-ink-weak">{'{}'}</span>;
 
     return (
       <>
-        <span className="json-punctuation">{'{'}</span>
-        <div className="json-indent" data-depth={depth % GUIDE_COLOR_COUNT}>
+        <span className="text-ink-weak">{'{'}</span>
+        <div className={`border-l pl-[1.15em] ${GUIDE_BORDER[depth % GUIDE_COLOR_COUNT]}`}>
           {entries.map(([key, item], index) => (
-            <div className="json-line" key={key}>
+            <div className="whitespace-pre-wrap [overflow-wrap:anywhere]" key={key}>
               <button
-                className="json-key json-key-button"
+                className="cursor-pointer border-0 bg-transparent p-0 text-accent [font:inherit] hover:text-accent-strong hover:underline hover:underline-offset-2"
                 type="button"
                 onClick={(event) => onFieldClick(`${path}.${key}`, item, event)}
                 title="Copy field value"
               >
                 "{highlightSearchText(key, searchText, searchOptions, markClassName)}"
               </button>
-              <span className="json-punctuation">: </span>
+              <span className="text-ink-weak">: </span>
               {renderJsonValue(item, depth + 1, `${path}.${key}`, onFieldClick, searchText, searchOptions, markClassName)}
-              {index < entries.length - 1 ? <span className="json-punctuation">,</span> : null}
+              {index < entries.length - 1 ? <span className="text-ink-weak">,</span> : null}
             </div>
           ))}
         </div>
-        <span className="json-punctuation">{'}'}</span>
+        <span className="text-ink-weak">{'}'}</span>
       </>
     );
   }
 
   if (typeof value === 'string') {
     return (
-      <span className="json-string">
+      <span className="text-json-string">
         "{highlightSearchText(value, searchText, searchOptions, markClassName)}"
       </span>
     );
@@ -541,18 +568,18 @@ function renderJsonValue(
 
   if (typeof value === 'number') {
     return (
-      <span className="json-number">{highlightSearchText(String(value), searchText, searchOptions, markClassName)}</span>
+      <span className="text-json-number">{highlightSearchText(String(value), searchText, searchOptions, markClassName)}</span>
     );
   }
 
   if (typeof value === 'boolean') {
     return (
-      <span className="json-boolean">{highlightSearchText(String(value), searchText, searchOptions, markClassName)}</span>
+      <span className="text-purple">{highlightSearchText(String(value), searchText, searchOptions, markClassName)}</span>
     );
   }
 
   if (value === null) {
-    return <span className="json-null">null</span>;
+    return <span className="text-danger-bg">null</span>;
   }
 
   return (

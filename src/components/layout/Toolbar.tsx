@@ -32,29 +32,34 @@ export function Toolbar({
   const isStorageMode = workspaceMode === 'storage';
 
   return (
-    <header className="toolbar">
-      <div className="toolbar-row toolbar-row-primary">
-        <div className="toolbar-brand">
-          <h1>API Flow</h1>
-          <div className="toolbar-stats" aria-label="Capture summary">
+    <header className="flex flex-col gap-2 border-b border-line-weak bg-surface px-3.5 pt-2.5 pb-3">
+      <div className="flex min-w-0 items-center gap-3 max-[980px]:flex-wrap">
+        <div className="flex flex-none items-center gap-2.5 max-[980px]:flex-auto">
+          <h1 className="m-0 whitespace-nowrap text-[15px] font-bold tracking-[-0.01em] text-ink-strong">
+            API Flow
+          </h1>
+          <div
+            className="flex flex-wrap items-center gap-1.5 max-[720px]:hidden"
+            aria-label="Capture summary"
+          >
             {isNetworkMode ? (
               <>
-                <span className="toolbar-chip">{requestCount} shown</span>
+                <ToolbarChip>{requestCount} shown</ToolbarChip>
                 {totalRequestCount !== requestCount ? (
-                  <span className="toolbar-chip">{totalRequestCount} captured</span>
+                  <ToolbarChip>{totalRequestCount} captured</ToolbarChip>
                 ) : null}
               </>
             ) : isStorageMode ? (
-              <span className="toolbar-chip">Storage viewer</span>
+              <ToolbarChip>Storage viewer</ToolbarChip>
             ) : (
-              <span className="toolbar-chip">{requestCount} logs</span>
+              <ToolbarChip>{requestCount} logs</ToolbarChip>
             )}
           </div>
         </div>
 
-        <div className="toolbar-spacer" />
+        <div className="min-w-2 flex-auto" />
 
-        <div className="toolbar-cluster">
+        <div className="flex flex-none items-center gap-2 max-[980px]:ml-auto">
           <SegmentedControl
             size="sm"
             ariaLabel="Workspace panels"
@@ -90,6 +95,14 @@ export function Toolbar({
         </div>
       </div>
     </header>
+  );
+}
+
+function ToolbarChip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="whitespace-nowrap rounded-full border-0 bg-fill px-2.5 py-[3px] text-[11px] font-medium leading-[1.35] text-ink-weak">
+      {children}
+    </span>
   );
 }
 

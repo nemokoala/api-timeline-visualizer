@@ -133,7 +133,7 @@ function TextNoteNodeView({ id, data, selected }: NodeProps) {
         handleClassName="flow-shape-resize-handle"
       />
       <textarea
-        className="nodrag flow-text-note-input"
+        className="nodrag h-full w-full resize-none border-0 bg-transparent px-1 py-[2px] text-[12px] leading-[1.4] text-ink outline-none [font-family:inherit] placeholder:text-ink-faint"
         value={value}
         placeholder="메모 입력..."
         autoFocus={isInitialEmpty.current}
@@ -148,15 +148,15 @@ function TextNoteNodeView({ id, data, selected }: NodeProps) {
       />
       {selected ? (
         <div
-          className="nodrag flow-shape-toolbar"
+          className="nodrag absolute -top-11 left-1/2 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-xl border border-line-weak bg-surface px-[7px] py-[5px] shadow-float"
           onPointerDown={(event) => event.stopPropagation()}
         >
           {SHAPE_COLORS.map((color) => (
             <button
               key={color}
               type="button"
-              className={`flow-shape-swatch ${
-                noteData.color === color ? "active" : ""
+              className={`h-[18px] w-[18px] cursor-pointer rounded-full border-2 p-0 ${
+                noteData.color === color ? "border-ink" : "border-transparent"
               }`}
               style={{ background: color }}
               title="글자 색 변경"
@@ -164,11 +164,11 @@ function TextNoteNodeView({ id, data, selected }: NodeProps) {
               onClick={() => noteData.onStyleChange(id, { color })}
             />
           ))}
-          <span className="flow-shape-toolbar-divider" />
+          <span className="mx-0.5 h-[18px] w-px bg-line-weak" />
           <IconButton
             size="xs"
             tone="accent"
-            className="flow-shape-font-button"
+            className="text-[11px] leading-none"
             title="글자 작게"
             aria-label="글자 작게"
             disabled={fontSize <= TEXT_NOTE_MIN_FONT_SIZE}
@@ -186,7 +186,7 @@ function TextNoteNodeView({ id, data, selected }: NodeProps) {
           <IconButton
             size="xs"
             tone="accent"
-            className="flow-shape-font-button"
+            className="text-[11px] leading-none"
             title="글자 크게"
             aria-label="글자 크게"
             disabled={fontSize >= TEXT_NOTE_MAX_FONT_SIZE}
@@ -201,11 +201,11 @@ function TextNoteNodeView({ id, data, selected }: NodeProps) {
           >
             A+
           </IconButton>
-          <span className="flow-shape-toolbar-divider" />
+          <span className="mx-0.5 h-[18px] w-px bg-line-weak" />
           <IconButton
             size="xs"
             active={noteData.background}
-            className="flow-shape-fill-toggle"
+            className="px-2 text-[11px] leading-none"
             title={noteData.background ? "배경 없애기" : "배경 표시"}
             onClick={() =>
               noteData.onStyleChange(id, { background: !noteData.background })
@@ -213,7 +213,7 @@ function TextNoteNodeView({ id, data, selected }: NodeProps) {
           >
             BG
           </IconButton>
-          <span className="flow-shape-toolbar-divider" />
+          <span className="mx-0.5 h-[18px] w-px bg-line-weak" />
           <ZOrderButtons id={id} onZOrder={noteData.onZOrder} />
           <IconButton
             size="xs"
@@ -243,7 +243,7 @@ function ShapeNodeView({ id, data, selected }: NodeProps) {
         handleClassName="flow-shape-resize-handle"
       />
       <div
-        className="flow-shape"
+        className="h-full w-full rounded-[10px] border-2 border-ink-faint"
         style={{
           borderColor: shapeData.color,
           background: shapeData.filled
@@ -253,15 +253,15 @@ function ShapeNodeView({ id, data, selected }: NodeProps) {
       />
       {selected ? (
         <div
-          className="nodrag flow-shape-toolbar"
+          className="nodrag absolute -top-11 left-1/2 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-xl border border-line-weak bg-surface px-[7px] py-[5px] shadow-float"
           onPointerDown={(event) => event.stopPropagation()}
         >
           {SHAPE_COLORS.map((color) => (
             <button
               key={color}
               type="button"
-              className={`flow-shape-swatch ${
-                shapeData.color === color ? "active" : ""
+              className={`h-[18px] w-[18px] cursor-pointer rounded-full border-2 p-0 ${
+                shapeData.color === color ? "border-ink" : "border-transparent"
               }`}
               style={{ background: color }}
               title="색상 변경"
@@ -269,17 +269,17 @@ function ShapeNodeView({ id, data, selected }: NodeProps) {
               onClick={() => shapeData.onChange(id, { color })}
             />
           ))}
-          <span className="flow-shape-toolbar-divider" />
+          <span className="mx-0.5 h-[18px] w-px bg-line-weak" />
           <IconButton
             size="xs"
             active={shapeData.filled}
-            className="flow-shape-fill-toggle"
+            className="px-2 text-[11px] leading-none"
             title={shapeData.filled ? "테두리만 표시" : "색 채우기"}
             onClick={() => shapeData.onChange(id, { filled: !shapeData.filled })}
           >
             {shapeData.filled ? "Fill" : "Line"}
           </IconButton>
-          <span className="flow-shape-toolbar-divider" />
+          <span className="mx-0.5 h-[18px] w-px bg-line-weak" />
           <ZOrderButtons id={id} onZOrder={shapeData.onZOrder} />
           <IconButton
             size="xs"
