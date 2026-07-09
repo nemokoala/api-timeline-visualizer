@@ -194,6 +194,7 @@ export function DataTable<T>({
                 }}
               >
                 <div
+                  data-row-cells=""
                   className={cn('grid', rowAlign === 'start' ? 'items-start' : 'items-center')}
                   style={{ gridTemplateColumns }}
                 >
