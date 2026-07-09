@@ -50,6 +50,25 @@ export type ApiRequest = {
   error?: string;
 };
 
+/** 편집 가능한 헤더 한 줄. id는 편집 UI의 React key 용도로만 쓴다. */
+export type ReplayHeader = {
+  id: string;
+  name: string;
+  value: string;
+};
+
+/**
+ * 재전송할 요청의 편집 가능한 사본.
+ * cURL/fetch 스니펫과 실제 재전송이 모두 이 값을 읽으므로 미리보기와 전송이 항상 일치한다.
+ */
+export type ReplayDraft = {
+  url: string;
+  method: string;
+  headers: ReplayHeader[];
+  /** 본문 원문. 본문이 없으면 null. */
+  body: string | null;
+};
+
 export type TimelineItem = {
   id: string;
   requestId: string;
