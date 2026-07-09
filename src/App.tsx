@@ -439,6 +439,27 @@ export default function App() {
     [],
   );
 
+  // 도킹된(탭) 패널을 플로팅 창으로 분리한다. 이미 떠 있는 패널은 중앙에 다시 띄우지 않는다.
+  const floatPanel = useCallback((mode: WorkspaceMode) => {
+    const api = dockApiRef.current;
+    if (!api) return;
+
+    const panel = api.getPanel(mode);
+    if (!panel || panel.api.location.type === 'floating') {
+      panel?.api.setActive();
+      return;
+    }
+
+    const FLOAT_MARGIN = 48;
+    const width = Math.max(360, Math.min(760, api.width - FLOAT_MARGIN * 2));
+    const height = Math.max(280, Math.min(560, api.height - FLOAT_MARGIN * 2));
+    const x = Math.max(0, (api.width - width) / 2);
+    const y = Math.max(0, (api.height - height) / 2);
+
+    api.addFloatingGroup(panel, { x, y, width, height });
+    panel.api.setActive();
+  }, []);
+
   const handleActivePanelChange = useCallback((mode: WorkspaceMode) => {
     setWorkspaceMode(mode);
   }, []);
@@ -798,6 +819,7 @@ export default function App() {
     onCloseDetail: handleCloseDetail,
     openJsonPanel,
     getJsonPanelData,
+    floatPanel,
     storageSearchText,
     storageSearchMatchIndex,
     storageIncludeText,

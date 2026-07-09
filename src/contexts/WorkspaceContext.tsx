@@ -105,6 +105,8 @@ export type WorkspaceContextValue = {
   openJsonPanel: (value: unknown, options?: { fullscreen?: boolean }) => void;
   /** dockview JSON 패널이 자신의 데이터를 조회한다(패널 id로). */
   getJsonPanelData: (dataId: string) => JsonPanelData | undefined;
+  /** 도킹된(탭) 패널을 이동·크기조절 가능한 플로팅 창으로 분리한다. */
+  floatPanel: (mode: WorkspaceMode) => void;
   // Storage
   storageSearchText: string;
   storageSearchMatchIndex: number;

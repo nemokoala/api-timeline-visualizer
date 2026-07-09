@@ -34,7 +34,7 @@ function FilterField({ label, value, placeholder, onChange }: FilterFieldProps) 
 
 /** 각 도킹 패널 헤더: 슬림 검색바 + 접을 수 있는 Include/Exclude 필터. 뷰마다 독립적으로 동작한다. */
 export function PanelHeader({ scope }: PanelHeaderProps) {
-  const { searchModels, filterModels, searchOptions } = useWorkspace();
+  const { searchModels, filterModels, searchOptions, floatPanel } = useWorkspace();
   const model = searchModels[scope];
   const filter = filterModels[scope];
   const { matchCase, wholeWord, onMatchCaseChange, onWholeWordChange } = searchOptions;
@@ -143,6 +143,19 @@ export function PanelHeader({ scope }: PanelHeaderProps) {
             </IconButton>
           </div>
         ) : null}
+        <IconButton
+          size="xs"
+          ghost
+          aria-label="패널을 창으로 분리"
+          title="창으로 분리 (플로팅)"
+          onClick={() => floatPanel(scope)}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M14 3h7v7" />
+            <path d="M21 3l-9 9" />
+            <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
+          </svg>
+        </IconButton>
         <IconButton
           size="xs"
           ghost
