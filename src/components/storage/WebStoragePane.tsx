@@ -6,6 +6,7 @@ import {
 import type { ColumnDef, ColumnSizingState, OnChangeFn } from "@tanstack/react-table";
 import type { StorageEntry } from "../../types/storage";
 import { useSearchOptions } from "../../contexts/SearchOptionsContext";
+import { useExpandedRows } from "../../hooks/useExpandedRows";
 import { highlightSearchText } from "../../utils/searchHighlight";
 import { storageTargetKey } from "../../utils/storageSearch";
 import { getTablePrefs, saveTablePrefs, type TablePrefs } from "../../utils/tablePrefs";
@@ -15,6 +16,11 @@ import { DataTable } from "../shared/DataTable";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { RowDeleteButton } from "./RowDeleteButton";
+import {
+  isExpandableStorageValue,
+  StorageValueCell,
+  StorageValueSubTree,
+} from "./StorageValueCell";
 import {
   WEB_DEFAULT_PREFS,
   WEB_PREFS_KEY,
@@ -48,6 +54,7 @@ export function WebStoragePane({
   onAddEntry: (key: string, value: string) => Promise<boolean>;
 }) {
   const searchOptions = useSearchOptions();
+  const { isExpanded, toggle: toggleExpanded } = useExpandedRows();
   const [tablePrefs, setTablePrefs] = useState<TablePrefs>(() =>
     getTablePrefs(WEB_PREFS_KEY, WEB_DEFAULT_PREFS),
   );
@@ -110,10 +117,14 @@ export function WebStoragePane({
         header: "Value",
         enableResizing: false,
         meta: { flex: true, minWidth: 160 },
-        cell: ({ row }) =>
-          searchText.trim()
-            ? highlightSearchText(row.original.value, searchText, searchOptions)
-            : row.original.value,
+        cell: ({ row }) => (
+          <StorageValueCell
+            value={row.original.value}
+            searchText={searchText}
+            expanded={isExpanded(row.original.key)}
+            onToggle={() => toggleExpanded(row.original.key)}
+          />
+        ),
       },
       {
         id: "size",
@@ -141,7 +152,15 @@ export function WebStoragePane({
       });
     }
     return cols;
-  }, [canEdit, isMutating, onDeleteEntry, searchOptions, searchText]);
+  }, [
+    canEdit,
+    isExpanded,
+    isMutating,
+    onDeleteEntry,
+    searchOptions,
+    searchText,
+    toggleExpanded,
+  ]);
 
   return (
     <>
@@ -196,6 +215,11 @@ export function WebStoragePane({
               : null
           }
           onRowClick={(entry) => onSelectEntry(entry.key)}
+          renderSubRow={(entry) =>
+            isExpanded(entry.key) && isExpandableStorageValue(entry.value) ? (
+              <StorageValueSubTree value={entry.value} searchText={searchText} />
+            ) : null
+          }
           onHeaderContextMenu={handleColumnContextMenu}
           emptyState={isLoading ? "Loading…" : "No matching storage entries."}
         />
