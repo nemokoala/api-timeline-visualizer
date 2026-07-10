@@ -76,9 +76,11 @@ import {
 import { clearDockLayout } from './utils/dockLayoutPrefs';
 import { toTimelineItems } from './utils/timeline';
 import {
+  getClearNetworkOnReload,
   getCollapsePathIds,
   getGroupFlowByTime,
   getNetworkViewMode,
+  saveClearNetworkOnReload,
   saveCollapsePathIds,
   saveGroupFlowByTime,
   saveNetworkViewMode,
@@ -128,6 +130,10 @@ export default function App() {
   const [workspaceMode, setWorkspaceMode] = usePersistedState<WorkspaceMode>(getWorkspaceMode, saveWorkspaceMode);
   const [networkViewMode, setNetworkViewMode] = usePersistedState<NetworkViewMode>(getNetworkViewMode, saveNetworkViewMode);
   const [groupFlowByTime, setGroupFlowByTime] = usePersistedState(getGroupFlowByTime, saveGroupFlowByTime);
+  const [clearNetworkOnReload, setClearNetworkOnReload] = usePersistedState(
+    getClearNetworkOnReload,
+    saveClearNetworkOnReload,
+  );
   const [collapsePathIds, setCollapsePathIds] = usePersistedState(getCollapsePathIds, saveCollapsePathIds);
   const [enabledResourceKinds, setEnabledResourceKinds] = usePersistedState<ToggleableResourceKind[]>(
     getEnabledResourceKinds,
@@ -174,6 +180,9 @@ export default function App() {
   const networkRequestById = useRef(new Map<string, chrome.devtools.network.Request>());
   const preloadQueueRef = useRef<string[]>([]);
   const preloadInFlightRef = useRef(new Set<string>());
+  // onNavigated 리스너를 토글마다 다시 붙이지 않도록 최신 플래그를 ref로 읽는다.
+  const clearOnReloadRef = useRef(clearNetworkOnReload);
+  clearOnReloadRef.current = clearNetworkOnReload;
 
   const searchOptions = useMemo(
     () => ({ matchCase: searchMatchCase, matchWholeWord: searchWholeWord }),
@@ -394,6 +403,23 @@ export default function App() {
     flowLayoutRef.current = EMPTY_FLOW_LAYOUT;
     setFlowLayoutRevision((revision) => revision + 1);
   }, []);
+
+  // 검사 중인 페이지가 새로고침·이동되면(onNavigated) 옵션이 켜진 경우 기록을 지운다.
+  // 플래그는 ref로 읽어 토글마다 리스너를 다시 붙이지 않는다. onNavigated는 실제
+  // DevTools에서만 발생하므로 npm run dev(목업) 환경에서는 호출되지 않는다.
+  useEffect(() => {
+    if (typeof chrome === 'undefined' || !chrome.devtools?.network) return;
+
+    const handleNavigated = () => {
+      if (clearOnReloadRef.current) handleClear();
+    };
+
+    chrome.devtools.network.onNavigated.addListener(handleNavigated);
+
+    return () => {
+      chrome.devtools.network.onNavigated.removeListener(handleNavigated);
+    };
+  }, [handleClear]);
 
   const handleToggleResourceKind = useCallback((kind: ToggleableResourceKind, enabled: boolean) => {
     setEnabledResourceKinds((current) => {
@@ -850,6 +876,8 @@ export default function App() {
     displayedRequests,
     selectedRequestId,
     groupFlowByTime,
+    clearNetworkOnReload,
+    onClearNetworkOnReloadChange: setClearNetworkOnReload,
     collapsePathIds,
     enabledResourceKinds,
     onToggleResourceKind: handleToggleResourceKind,

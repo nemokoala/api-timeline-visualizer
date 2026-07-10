@@ -173,6 +173,23 @@ XML/SVG는 트리, `text/*`는 라이트 구문 강조. `JsonViewer`는 JSON 전
 
 ## 완료됨
 
+### 네트워크 뷰 정리와 새로고침 시 자동 지우기, JsonViewer 표시 옵션
+
+- **Flow/Timeline 토글을 숨기고 Timeline을 고정**했다. `NetworkPanel`이 뷰 모드와 무관하게 항상
+  `TimelineView`를 그린다(persisted가 `flow`여도 타임라인). `networkViewMode` 상태 자체는 남겨 뒀다.
+- **툴바의 Export/Import 버튼을 숨겼다.** Clear·Summary·Collapse IDs는 유지. `onExportSession` 등
+  컨텍스트 배선은 남아 있다(현재 미사용, 무해).
+- **새로고침 시 기록 자동 삭제 옵션**을 추가했다. 검사 중인 페이지가 이동/새로고침되면
+  (`chrome.devtools.network.onNavigated`) 켜져 있을 때 캡처 기록을 지운다. 기본 꺼짐, localStorage
+  영속. 툴바 우클릭으로 여는 `NetworkOptionsMenu`(MenuSurface + MenuCheckItem)로 조절한다 —
+  버튼을 늘리는 대신 우클릭에 담았다. onNavigated는 실제 DevTools에서만 발생하므로 dev 모드로는
+  이 동작만 재현 불가.
+- **JsonViewer 표시 옵션 2종**: 들여쓰기 가이드선 on/off, 무지개색(depth별 색) on/off. 뷰어 본문
+  우클릭으로 여는 설정 팝오버(MenuCheckItem 체크박스, 토글해도 안 닫힘)로 조절한다. 무지개색은
+  가이드가 꺼지면 비활성. 기본은 둘 다 켜짐(기존 모습 유지). prefs는 모듈 스토어 +
+  `useSyncExternalStore`로 반응형이라, 한 뷰어에서 바꾸면 인라인 `JsonTree`를 포함한 모든 인스턴스가
+  함께 갱신된다.
+
 ### 경로의 ID를 접어 보이던 것을 기본은 실제 값으로
 
 `/private/development/48213/90577/…` 같은 경로가 `:id`로 접혀 실제 값을 볼 수 없었다.
