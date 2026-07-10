@@ -10,5 +10,3 @@ export type ConsoleEntry = {
   source?: string;
   repeatCount?: number;
 };
-
-export type ConsoleLevelFilter = ConsoleLevel | 'all';

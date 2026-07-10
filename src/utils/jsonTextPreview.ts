@@ -1,9 +1,15 @@
+/**
+ * 표 한 행에 들어갈 만큼 JSON 텍스트를 줄인다. 콘솔 메시지 셀과 스토리지 값 셀이 함께 쓴다.
+ *
+ * 텍스트 전체가 JSON이면 통째로 요약하고, 평문 사이에 낀 JSON 구간만 있으면
+ * 그 구간만 요약한다(`App booted { env: "development", … +2 keys }`).
+ */
 const MAX_JSON_CHARS = 120;
 const MAX_OBJECT_KEYS = 4;
 const MAX_ARRAY_ITEMS = 3;
 const MAX_STRING_PREVIEW = 48;
 
-export function formatConsoleMessagePreview(text: string): string {
+export function formatJsonTextPreview(text: string): string {
   const trimmed = text.trim();
   if (!trimmed) return text;
 
