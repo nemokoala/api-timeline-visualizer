@@ -13,8 +13,10 @@ import { getTablePrefs, saveTablePrefs, type TablePrefs } from "../../utils/tabl
 import { formatBytes } from "../../utils/formatters";
 import { ColumnMenu } from "../shared/ColumnMenu";
 import { DataTable } from "../shared/DataTable";
+import { RowContextMenu, type RowContextMenuItem } from "../shared/RowContextMenu";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
+import { copyText } from "../../utils/clipboard";
 import { RowDeleteButton } from "./RowDeleteButton";
 import {
   isExpandableStorageValue,
@@ -61,6 +63,9 @@ export function WebStoragePane({
   const [columnMenu, setColumnMenu] = useState<{ x: number; y: number } | null>(
     null,
   );
+  const [rowMenu, setRowMenu] = useState<
+    { x: number; y: number; entry: StorageEntry } | null
+  >(null);
   const [adding, setAdding] = useState(false);
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
@@ -88,6 +93,33 @@ export function WebStoragePane({
   const handleColumnContextMenu = (event: ReactMouseEvent) => {
     event.preventDefault();
     setColumnMenu({ x: event.clientX, y: event.clientY });
+  };
+
+  const handleRowContextMenu = (entry: StorageEntry, event: ReactMouseEvent) => {
+    event.preventDefault();
+    setRowMenu({ x: event.clientX, y: event.clientY, entry });
+  };
+
+  const rowMenuItems = (entry: StorageEntry): RowContextMenuItem[] => {
+    const items: RowContextMenuItem[] = [
+      { id: "copy-key", label: "Copy key", onSelect: () => void copyText(entry.key) },
+      { id: "copy-value", label: "Copy value", onSelect: () => void copyText(entry.value) },
+      {
+        id: "copy-json",
+        label: "Copy as JSON",
+        onSelect: () => void copyText(JSON.stringify({ [entry.key]: entry.value })),
+      },
+    ];
+    if (canEdit) {
+      items.push({
+        id: "delete",
+        label: "Delete",
+        separatorBefore: true,
+        disabled: isMutating,
+        onSelect: () => onDeleteEntry(entry.key),
+      });
+    }
+    return items;
   };
 
   const handleAdd = async () => {
@@ -221,6 +253,7 @@ export function WebStoragePane({
             ) : null
           }
           onHeaderContextMenu={handleColumnContextMenu}
+          onRowContextMenu={handleRowContextMenu}
           emptyState={isLoading ? "Loading…" : "No matching storage entries."}
         />
       </div>
@@ -231,6 +264,14 @@ export function WebStoragePane({
           position={columnMenu}
           onToggle={handleColumnToggle}
           onClose={() => setColumnMenu(null)}
+        />
+      ) : null}
+      {rowMenu ? (
+        <RowContextMenu
+          x={rowMenu.x}
+          y={rowMenu.y}
+          items={rowMenuItems(rowMenu.entry)}
+          onClose={() => setRowMenu(null)}
         />
       ) : null}
     </>

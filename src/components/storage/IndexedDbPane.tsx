@@ -23,6 +23,8 @@ import {
 import { getTablePrefs, saveTablePrefs, type TablePrefs } from "../../utils/tablePrefs";
 import { ColumnMenu } from "../shared/ColumnMenu";
 import { DataTable } from "../shared/DataTable";
+import { RowContextMenu, type RowContextMenuItem } from "../shared/RowContextMenu";
+import { copyText } from "../../utils/clipboard";
 import { RowDeleteButton } from "./RowDeleteButton";
 import {
   isExpandableStorageValue,
@@ -264,12 +266,45 @@ function IndexedDbStore({
     ) ||
       textMatchesSearch(storeHaystack, searchText, searchOptions));
   const [open, setOpen] = useState(true);
+  const [rowMenu, setRowMenu] = useState<
+    { x: number; y: number; record: IndexedDbRecord } | null
+  >(null);
 
   useEffect(() => {
     if (containsActiveTarget || matchesSearch) {
       setOpen(true);
     }
   }, [containsActiveTarget, matchesSearch, activeSearchTarget]);
+
+  const handleRowContextMenu = (
+    record: IndexedDbRecord,
+    event: ReactMouseEvent,
+  ) => {
+    event.preventDefault();
+    setRowMenu({ x: event.clientX, y: event.clientY, record });
+  };
+
+  const rowMenuItems = (record: IndexedDbRecord): RowContextMenuItem[] => {
+    const items: RowContextMenuItem[] = [
+      { id: "copy-key", label: "Copy key", onSelect: () => void copyText(record.key) },
+      { id: "copy-value", label: "Copy value", onSelect: () => void copyText(record.value) },
+      {
+        id: "copy-json",
+        label: "Copy as JSON",
+        onSelect: () => void copyText(JSON.stringify({ [record.key]: record.value })),
+      },
+    ];
+    if (canEdit) {
+      items.push({
+        id: "delete",
+        label: "Delete",
+        separatorBefore: true,
+        disabled: isMutating,
+        onSelect: () => onDeleteRecord(databaseName, store.name, record.key),
+      });
+    }
+    return items;
+  };
 
   return (
     <details
@@ -334,8 +369,17 @@ function IndexedDbStore({
           ) : null
         }
         onHeaderContextMenu={onColumnContextMenu}
+        onRowContextMenu={(row, event) => handleRowContextMenu(row.record, event)}
         emptyState="No records."
       />
+      {rowMenu ? (
+        <RowContextMenu
+          x={rowMenu.x}
+          y={rowMenu.y}
+          items={rowMenuItems(rowMenu.record)}
+          onClose={() => setRowMenu(null)}
+        />
+      ) : null}
     </details>
   );
 }

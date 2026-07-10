@@ -28,7 +28,6 @@ export function Toolbar({
   onWorkspaceModeChange,
   onResetLayout,
 }: ToolbarProps) {
-  const isNetworkMode = workspaceMode === 'network';
   const isStorageMode = workspaceMode === 'storage';
 
   return (
@@ -42,17 +41,17 @@ export function Toolbar({
             className="flex flex-wrap items-center gap-1.5 max-[720px]:hidden"
             aria-label="Capture summary"
           >
-            {isNetworkMode ? (
+            {isStorageMode ? (
+              <ToolbarChip>Storage viewer</ToolbarChip>
+            ) : (
+              // Network·Console 모두 "N shown / M captured". 콘솔의 shown은 레벨·Include/Exclude
+              // 필터와 연속 중복 접기를 반영한 실제 행 수다(App에서 계산).
               <>
                 <ToolbarChip>{requestCount} shown</ToolbarChip>
                 {totalRequestCount !== requestCount ? (
                   <ToolbarChip>{totalRequestCount} captured</ToolbarChip>
                 ) : null}
               </>
-            ) : isStorageMode ? (
-              <ToolbarChip>Storage viewer</ToolbarChip>
-            ) : (
-              <ToolbarChip>{requestCount} logs</ToolbarChip>
             )}
           </div>
         </div>

@@ -41,9 +41,24 @@ export type HarResponse = {
   };
 };
 
+/**
+ * HAR entry.timings. 각 값은 ms이며 -1은 "해당 없음/알 수 없음"을 뜻한다.
+ * (예: 재사용된 커넥션은 dns/connect/ssl이 -1로 온다.)
+ */
+export type HarTimings = {
+  blocked?: number;
+  dns?: number;
+  connect?: number;
+  ssl?: number;
+  send?: number;
+  wait?: number;
+  receive?: number;
+};
+
 export type DevtoolsNetworkRequest = chrome.devtools.network.Request & {
   startedDateTime?: string;
   time?: number;
+  timings?: HarTimings;
   request?: HarRequest;
   response?: HarResponse;
   _resourceType?: string | null;

@@ -49,6 +49,40 @@ export async function clearInspectedConsoleBuffer(): Promise<void> {
   await evalInInspectedPage('window.__API_FLOW_CONSOLE_CLEAR__?.() ?? true');
 }
 
+export type ConsoleEvalResult = {
+  /** eval이 돌려준 값(직렬화된 형태). 예외를 던졌으면 그 메시지 문자열. */
+  value: unknown;
+  /** 표현식이 예외를 던졌는지. REPL에서는 정상적인 결과의 하나다. */
+  threw: boolean;
+};
+
+/**
+ * 콘솔 REPL 전용 표현식 평가기. evalInInspectedPage와 달리 페이지 쪽 예외로
+ * reject하지 않는다 — 던져진 표현식은 크래시가 아니라 정상적인 REPL 결과이므로,
+ * threw=true로 값을 담아 돌려준다. DevTools 밖에서는 평가할 페이지가 없어 안내 문구를 던진 것으로 취급한다.
+ */
+export function evalConsoleExpression(expression: string): Promise<ConsoleEvalResult> {
+  if (!canInspectConsole()) {
+    return Promise.resolve({
+      value: 'Console REPL is available only inside the Chrome DevTools panel.',
+      threw: true,
+    });
+  }
+
+  return new Promise((resolve) => {
+    chrome.devtools.inspectedWindow.eval(expression, (result, exceptionInfo) => {
+      if (exceptionInfo && (exceptionInfo.isException || exceptionInfo.isError)) {
+        resolve({
+          value: exceptionInfo.value ?? exceptionInfo.description ?? 'Uncaught exception',
+          threw: true,
+        });
+        return;
+      }
+      resolve({ value: result, threw: false });
+    });
+  });
+}
+
 function evalInInspectedPage(expression: string): Promise<unknown> {
   return new Promise((resolve, reject) => {
     chrome.devtools.inspectedWindow.eval(expression, (result, exceptionInfo) => {

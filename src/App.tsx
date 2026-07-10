@@ -99,6 +99,15 @@ import {
   type FilterableMethod,
   type StatusGroup,
 } from './utils/requestFilterPrefs';
+import {
+  FILTERABLE_CONSOLE_LEVELS,
+  getEnabledConsoleLevels,
+  matchesConsoleLevelFilter,
+  saveEnabledConsoleLevels,
+  type FilterableConsoleLevel,
+} from './utils/consoleLevelPrefs';
+import { countGroupedConsoleRows } from './utils/consoleGrouping';
+import { matchesIncludeExcludeFilters } from './utils/textFilters';
 import { getMockConsoleEntries, getMockRequests, shouldUseMockData } from './mocks/mockData';
 import { usePersistedState } from './hooks/usePersistedState';
 import { useSearchNavigation } from './hooks/useSearchNavigation';
@@ -126,6 +135,10 @@ export default function App() {
   const [enabledMethods, setEnabledMethods] = usePersistedState<FilterableMethod[]>(
     getEnabledMethods,
     saveEnabledMethods,
+  );
+  const [enabledConsoleLevels, setEnabledConsoleLevels] = usePersistedState<FilterableConsoleLevel[]>(
+    getEnabledConsoleLevels,
+    saveEnabledConsoleLevels,
   );
   const [networkIncludeText, setNetworkIncludeText] = usePersistedState(getNetworkIncludeText, saveNetworkIncludeText);
   const [networkExcludeText, setNetworkExcludeText] = usePersistedState(getNetworkExcludeText, saveNetworkExcludeText);
@@ -235,10 +248,26 @@ export default function App() {
   const activeConsoleEntryOrder = activeConsoleSearchOccurrence
     ? (consoleOccurrenceByEntry.get(activeConsoleSearchOccurrence.entryId)?.entryOrder ?? 0)
     : 0;
+  // 캡처 개수(= 툴바 "captured"). clear 표식만 제외한, 필터 이전의 전체 로그.
   const displayedConsoleEntries = useMemo(
     () => consoleEntries.filter((entry) => entry.level !== 'clear'),
     [consoleEntries],
   );
+  // 표시 개수(= 툴바 "shown"). 레벨 필터 + Include/Exclude를 적용하고, 콘솔 뷰가 그리는
+  // 실제 행 수(연속 중복을 접은 뒤)로 센다. ConsoleView.displayEntries와 같은 규칙이라야
+  // 칩이 표를 정직하게 반영한다.
+  const consoleShownCount = useMemo(() => {
+    const hasIncludeExclude = Boolean(consoleIncludeText.trim() || consoleExcludeText.trim());
+    const filtered = displayedConsoleEntries.filter((entry) => {
+      if (!matchesConsoleLevelFilter(entry, enabledConsoleLevels)) return false;
+      if (hasIncludeExclude) {
+        const haystack = `${entry.text} ${entry.source ?? ''} ${entry.stack ?? ''}`;
+        if (!matchesIncludeExcludeFilters(haystack, consoleIncludeText, consoleExcludeText)) return false;
+      }
+      return true;
+    });
+    return countGroupedConsoleRows(filtered);
+  }, [consoleExcludeText, consoleIncludeText, displayedConsoleEntries, enabledConsoleLevels]);
   const displayedRequests = filteredRequests;
   const selectedRequest = displayedRequests.find((request) => request.id === selectedRequestId) ?? null;
   const timelineItems = useMemo(() => toTimelineItems(displayedRequests), [displayedRequests]);
@@ -393,6 +422,18 @@ export default function App() {
 
   const handleSetAllStatusGroups = useCallback((enabled: boolean) => {
     setEnabledStatusGroups(enabled ? [...STATUS_GROUPS] : []);
+  }, []);
+
+  const handleToggleConsoleLevel = useCallback((level: FilterableConsoleLevel, enabled: boolean) => {
+    setEnabledConsoleLevels((current) => {
+      const next = enabled ? [...current, level] : current.filter((item) => item !== level);
+      // 저장 순서를 표준 순서로 정규화하고 중복을 제거한다.
+      return FILTERABLE_CONSOLE_LEVELS.filter((item) => next.includes(item));
+    });
+  }, []);
+
+  const handleSetAllConsoleLevels = useCallback((enabled: boolean) => {
+    setEnabledConsoleLevels(enabled ? [...FILTERABLE_CONSOLE_LEVELS] : []);
   }, []);
 
   const handleFlowLayoutChange = useCallback((layout: FlowLayout) => {
@@ -832,6 +873,9 @@ export default function App() {
     consoleIncludeText,
     consoleExcludeText,
     consoleSearchMatchIndex,
+    enabledConsoleLevels,
+    onToggleConsoleLevel: handleToggleConsoleLevel,
+    onSetAllConsoleLevels: handleSetAllConsoleLevels,
     onConsoleEntriesChange: setConsoleEntries,
     onConsoleSelectedEntryIdChange: setSelectedConsoleEntryId,
     onConsoleSearchOccurrencesChange: setConsoleSearchOccurrences,
@@ -842,7 +886,7 @@ export default function App() {
     <SearchOptionsProvider value={searchOptions}>
     <main className="grid h-screen grid-rows-[auto_1fr] overflow-hidden">
       <Toolbar
-        requestCount={isConsoleMode ? displayedConsoleEntries.length : displayedRequests.length}
+        requestCount={isConsoleMode ? consoleShownCount : displayedRequests.length}
         totalRequestCount={isConsoleMode ? displayedConsoleEntries.length : requests.length}
         workspaceMode={workspaceMode}
         openPanels={openPanels}

@@ -1,6 +1,7 @@
 import type { ApiRequest, HeaderMap, NetworkCookie, RequestKind } from '../types/network';
 import type { DevtoolsNetworkRequest, HarCookie, HarHeader, HarPostData } from '../types/chrome-har';
 import { getUrlParts } from './normalizeUrl';
+import { normalizeTimings } from './requestTimings';
 import { matchesIncludeExcludeFilters } from './textFilters';
 
 const INCLUDE_PATTERNS = ['/api', '/graphql', '/v1', '/v2'];
@@ -59,6 +60,7 @@ export function parseNetworkRequest(request: DevtoolsNetworkRequest): ApiRequest
     startedAt,
     endedAt,
     duration,
+    timings: normalizeTimings(request.timings, duration),
     type: getRequestKind(request),
     mimeType: request.response?.content?.mimeType,
     requestHeaders: headersToMap(request.request?.headers),

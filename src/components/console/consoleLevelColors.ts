@@ -7,4 +7,7 @@ export const CONSOLE_LEVEL_TEXT_COLOR: Record<string, string> = {
   debug: 'text-purple',
   table: 'text-teal',
   dir: 'text-teal',
+  // REPL: 입력은 눌러 두고(약한 회색), 결과는 강조색으로 구분한다.
+  input: 'text-ink-weak',
+  result: 'text-accent',
 };
