@@ -40,13 +40,19 @@ export function FilterMenu<T extends string>({
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const enabledSet = new Set(enabledValues);
   const totalCount = groups.reduce((sum, group) => sum + group.items.length, 0);
 
   useEffect(() => {
     if (!open) return;
     const handlePointerDown = (event: MouseEvent) => {
-      if (menuRef.current?.contains(event.target as Node)) return;
+      const target = event.target as Node;
+      if (menuRef.current?.contains(target)) return;
+      // 트리거 위 클릭은 아래 onClick(toggleOpen)이 닫는다. 여기서 먼저 닫으면
+      // mousedown에 사라졌다가 mouseup(click)에 다시 열려 깜빡인다.
+      // 다른 FilterMenu의 트리거는 여기 걸리지 않으므로 정상적으로 닫힌다.
+      if (triggerRef.current?.contains(target)) return;
       setOpen(false);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -72,7 +78,14 @@ export function FilterMenu<T extends string>({
 
   return (
     <>
-      <Button size="sm" active={open} onClick={toggleOpen} aria-expanded={open} aria-haspopup="menu">
+      <Button
+        ref={triggerRef}
+        size="sm"
+        active={open}
+        onClick={toggleOpen}
+        aria-expanded={open}
+        aria-haspopup="menu"
+      >
         {buttonLabel}
         <span
           className={`ml-[5px] rounded-full px-[5px] text-[10px] font-semibold tabular-nums ${

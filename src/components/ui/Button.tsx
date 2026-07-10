@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes } from 'react';
+import type { ComponentProps } from 'react';
 import { cn } from '../../utils/cn';
 
 export type ButtonTone = 'neutral' | 'accent' | 'danger';
@@ -49,7 +49,7 @@ const textSizes = {
   sm: 'h-6 rounded-lg px-[9px] text-[11px] leading-none',
 };
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
+type ButtonProps = ComponentProps<'button'> &
   SharedButtonProps & {
     /** md(기본, 높이 28px) | sm(높이 24px) */
     size?: 'md' | 'sm';
@@ -82,7 +82,7 @@ const iconSizes = {
   lg: 'h-9 w-9 rounded-[10px] leading-none',
 };
 
-type IconButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
+type IconButtonProps = ComponentProps<'button'> &
   SharedButtonProps & {
     /** xs(22px) | sm(기본, 24px) | md(32px) | lg(36px) 정사각형 */
     size?: 'xs' | 'sm' | 'md' | 'lg';
