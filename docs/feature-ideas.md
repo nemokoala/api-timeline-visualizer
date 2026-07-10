@@ -188,7 +188,9 @@ XML/SVG는 트리, `text/*`는 라이트 구문 강조. `JsonViewer`는 JSON 전
   우클릭으로 여는 설정 팝오버(MenuCheckItem 체크박스, 토글해도 안 닫힘)로 조절한다. 무지개색은
   가이드가 꺼지면 비활성. 기본은 둘 다 켜짐(기존 모습 유지). prefs는 모듈 스토어 +
   `useSyncExternalStore`로 반응형이라, 한 뷰어에서 바꾸면 인라인 `JsonTree`를 포함한 모든 인스턴스가
-  함께 갱신된다.
+  함께 갱신된다. 설정 팝오버는 `JsonViewSettingsMenu`로 뽑아, 콘솔·스토리지 행을 펼쳤을 때 나오는
+  인라인 `JsonTree`에서도 우클릭으로 열 수 있다. 인라인 트리는 행 안이라 우클릭이 행 복사 메뉴로
+  버블링되는데, `stopPropagation`으로 막고 JSON 설정 메뉴를 대신 띄운다.
 
 ### 경로의 ID를 접어 보이던 것을 기본은 실제 값으로
 
