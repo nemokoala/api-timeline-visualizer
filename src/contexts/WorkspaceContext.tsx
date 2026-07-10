@@ -1,8 +1,9 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, type Dispatch, type SetStateAction } from 'react';
 import type { NetworkViewMode, WorkspaceMode } from '../components/layout/Toolbar';
 import type { ConsoleEntry } from '../types/console';
 import type { ApiRequest, TimelineItem } from '../types/network';
 import type { ConsoleSearchOccurrence } from '../utils/consoleSearch';
+import type { FilterableConsoleLevel } from '../utils/consoleLevelPrefs';
 import type { FlowLayout } from '../utils/flowLayoutPrefs';
 import type { RequestSearchSummary, SearchOccurrence } from '../utils/requestSearch';
 import type { FilterableMethod, StatusGroup } from '../utils/requestFilterPrefs';
@@ -121,7 +122,11 @@ export type WorkspaceContextValue = {
   consoleIncludeText: string;
   consoleExcludeText: string;
   consoleSearchMatchIndex: number;
-  onConsoleEntriesChange: (entries: ConsoleEntry[]) => void;
+  enabledConsoleLevels: FilterableConsoleLevel[];
+  onToggleConsoleLevel: (level: FilterableConsoleLevel, enabled: boolean) => void;
+  onSetAllConsoleLevels: (enabled: boolean) => void;
+  // REPL 입력이 폴링 캡처와 경합하지 않도록 함수형 갱신을 받는다.
+  onConsoleEntriesChange: Dispatch<SetStateAction<ConsoleEntry[]>>;
   onConsoleSelectedEntryIdChange: (entryId: string | null) => void;
   onConsoleSearchOccurrencesChange: (occurrences: ConsoleSearchOccurrence[]) => void;
   onConsoleSearchMatchIndexChange: (index: number) => void;

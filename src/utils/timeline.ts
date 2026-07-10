@@ -21,6 +21,7 @@ export function toTimelineItems(requests: ApiRequest[]): TimelineItem[] {
       path: request.path,
       normalizedPath: request.normalizedPath,
       size: request.size,
+      timings: request.timings,
       isSlow: request.duration >= SLOW_THRESHOLD_MS,
       isError: request.status >= 400 || Boolean(request.error),
     }));

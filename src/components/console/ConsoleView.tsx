@@ -4,18 +4,22 @@ import {
   useMemo,
   useRef,
   useState,
+  type Dispatch,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
+  type SetStateAction,
 } from 'react';
 import type { ConsoleEntry } from '../../types/console';
 import { useSplitPanelLayout } from '../../hooks/useSplitPanelLayout';
-import { usePersistedState } from '../../hooks/usePersistedState';
-import { clearInspectedConsoleBuffer } from '../../utils/consoleInspector';
 import {
-  FILTERABLE_CONSOLE_LEVELS,
-  getEnabledConsoleLevels,
+  canInspectConsole,
+  clearInspectedConsoleBuffer,
+  evalConsoleExpression,
+} from '../../utils/consoleInspector';
+import { buildReplInputEntry, buildReplResultEntry } from '../../utils/consoleRepl';
+import { groupRepeatedEntries } from '../../utils/consoleGrouping';
+import {
   matchesConsoleLevelFilter,
-  saveEnabledConsoleLevels,
   type FilterableConsoleLevel,
 } from '../../utils/consoleLevelPrefs';
 import { scrollSearchHitIntoView } from '../../utils/searchScroll';
@@ -44,12 +48,15 @@ import { SplitPanelResizer } from '../shared/SplitPanelResizer';
 import { formatDateTime } from '../../utils/formatters';
 import { ColumnMenu } from '../shared/ColumnMenu';
 import { DataTable } from '../shared/DataTable';
+import { RowContextMenu, type RowContextMenuItem } from '../shared/RowContextMenu';
+import { copyText } from '../../utils/clipboard';
 import { getTablePrefs, saveTablePrefs, type TablePrefs } from '../../utils/tablePrefs';
 import type { ColumnDef, ColumnSizingState, OnChangeFn } from '@tanstack/react-table';
 import { Button } from '../ui/Button';
 import { ToggleControl } from '../ui/ToggleControl';
 import { cn } from '../../utils/cn';
 import { ConsoleLevelMenu } from './ConsoleLevelMenu';
+import { ConsoleReplInput } from './ConsoleReplInput';
 import { CONSOLE_LEVEL_TEXT_COLOR } from './consoleLevelColors';
 
 type ConsoleViewProps = {
@@ -59,7 +66,11 @@ type ConsoleViewProps = {
   includeText: string;
   excludeText: string;
   searchMatchIndex: number;
-  onEntriesChange: (entries: ConsoleEntry[]) => void;
+  enabledLevels: FilterableConsoleLevel[];
+  onToggleLevel: (level: FilterableConsoleLevel, enabled: boolean) => void;
+  onSetAllLevels: (enabled: boolean) => void;
+  // REPL 입력이 캡처 로그와 같은 스트림에 끼어들도록 함수형 갱신을 받는다(폴링과의 경합 방지).
+  onEntriesChange: Dispatch<SetStateAction<ConsoleEntry[]>>;
   onSelectedEntryIdChange: (entryId: string | null) => void;
   onSearchOccurrencesChange: (occurrences: ConsoleSearchOccurrence[]) => void;
   onSearchMatchIndexChange: (index: number) => void;
@@ -97,22 +108,22 @@ export function ConsoleView({
   includeText,
   excludeText,
   searchMatchIndex,
+  enabledLevels,
+  onToggleLevel,
+  onSetAllLevels,
   onEntriesChange,
   onSelectedEntryIdChange,
   onSearchOccurrencesChange,
   onSearchMatchIndexChange,
 }: ConsoleViewProps) {
   const searchOptions = useSearchOptions();
-  const [enabledLevels, setEnabledLevels] = usePersistedState<FilterableConsoleLevel[]>(
-    getEnabledConsoleLevels,
-    saveEnabledConsoleLevels,
-  );
   const [autoScroll, setAutoScroll] = useState(true);
   const [wrapLines, setWrapLines] = useState(loadWrapLines);
   const [tablePrefs, setTablePrefs] = useState<TablePrefs>(() =>
     getTablePrefs(CONSOLE_PREFS_KEY, CONSOLE_DEFAULT_PREFS),
   );
   const [columnMenu, setColumnMenu] = useState<{ x: number; y: number } | null>(null);
+  const [rowMenu, setRowMenu] = useState<{ x: number; y: number; entry: ConsoleEntry } | null>(null);
   const [expandedEntryIds, setExpandedEntryIds] = useState<ReadonlySet<string>>(() => new Set());
   const consoleWorkspaceRef = useRef<HTMLDivElement>(null);
   const logListRef = useRef<HTMLDivElement | null>(null);
@@ -125,18 +136,15 @@ export function ConsoleView({
     });
   }, []);
 
-  const handleToggleLevel = useCallback((level: FilterableConsoleLevel, enabled: boolean) => {
-    setEnabledLevels((current) => {
-      const next = enabled ? [...current, level] : current.filter((item) => item !== level);
-      return FILTERABLE_CONSOLE_LEVELS.filter((item) => next.includes(item));
-    });
-  }, [setEnabledLevels]);
-
-  const handleSetAllLevels = useCallback(
-    (enabled: boolean) => {
-      setEnabledLevels(enabled ? [...FILTERABLE_CONSOLE_LEVELS] : []);
+  const handleReplSubmit = useCallback(
+    async (expression: string) => {
+      // 입력을 먼저 스트림에 넣고(즉시 되비춤), 평가가 끝나면 결과를 잇는다. 그 사이
+      // 폴링이 캡처 로그를 넣으면 입력과 결과 사이에 자연스럽게 끼어든다(타임스탬프 순서 유지).
+      onEntriesChange((current) => [...current, buildReplInputEntry(expression)]);
+      const result = await evalConsoleExpression(expression);
+      onEntriesChange((current) => [...current, buildReplResultEntry(result)]);
     },
-    [setEnabledLevels],
+    [onEntriesChange],
   );
 
   const persistTablePrefs = (next: TablePrefs) => {
@@ -192,6 +200,11 @@ export function ConsoleView({
         cell: ({ row }) => {
           const entry = row.original;
           const isExpanded = expandedEntryIds.has(entry.id);
+          // 검색 중에는 요약하지 않고 원본을 그린다. consoleSearch는 히트 수를 원본 text에서
+          // 세는데, formatJsonTextPreview가 120자 넘는 JSON을 줄이면 요약본에 그려지는
+          // .search-highlight 마크 수가 모자라 활성 하이라이트가 엉뚱한 마크에 붙는다
+          // (StorageValueCell과 같은 처리).
+          const hasSearch = Boolean(searchText.trim());
           return (
             <div className="flex min-w-0 items-start gap-1">
               <JsonRowToggle
@@ -208,7 +221,7 @@ export function ConsoleView({
                 title={entry.text}
               >
                 <JsonInlinePreview
-                  preview={formatJsonTextPreview(entry.text)}
+                  preview={hasSearch ? entry.text : formatJsonTextPreview(entry.text)}
                   searchText={searchText}
                   wrapLines={wrapLines}
                 />
@@ -260,6 +273,37 @@ export function ConsoleView({
     event.preventDefault();
     setColumnMenu({ x: event.clientX, y: event.clientY });
   };
+
+  const handleRowContextMenu = (entry: ConsoleEntry, event: ReactMouseEvent) => {
+    event.preventDefault();
+    setRowMenu({ x: event.clientX, y: event.clientY, entry });
+  };
+
+  const rowMenuItems = (entry: ConsoleEntry): RowContextMenuItem[] => {
+    const items: RowContextMenuItem[] = [
+      { id: 'copy-message', label: 'Copy message', onSelect: () => void copyText(entry.text) },
+    ];
+    if (entry.args.length > 0) {
+      items.push({
+        id: 'copy-args',
+        label: 'Copy arguments as JSON',
+        onSelect: () => void copyText(JSON.stringify(entry.args, null, 2)),
+      });
+    }
+    if (entry.source) {
+      items.push({ id: 'copy-source', label: 'Copy source', onSelect: () => void copyText(entry.source!) });
+    }
+    if (entry.stack) {
+      items.push({
+        id: 'copy-stack',
+        label: 'Copy stack',
+        separatorBefore: true,
+        onSelect: () => void copyText(entry.stack!),
+      });
+    }
+    return items;
+  };
+
   const {
     isStacked: isSplitStacked,
     layoutStyle: splitLayoutStyle,
@@ -394,12 +438,12 @@ export function ConsoleView({
   };
 
   return (
-    <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-bg">
+    <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-bg">
       <div className="flex min-w-0 items-center justify-between gap-3 border-b border-line-weak bg-surface px-3.5 py-2.5">
         <ConsoleLevelMenu
           enabledLevels={enabledLevels}
-          onToggle={handleToggleLevel}
-          onSetAll={handleSetAllLevels}
+          onToggle={onToggleLevel}
+          onSetAll={onSetAllLevels}
         />
         <div className="flex flex-none items-center gap-2.5">
           <ToggleControl label="Auto-scroll" checked={autoScroll} onChange={setAutoScroll} />
@@ -456,6 +500,7 @@ export function ConsoleView({
             return '';
           }}
           onHeaderContextMenu={handleColumnContextMenu}
+          onRowContextMenu={handleRowContextMenu}
           emptyState="No console output yet. Logs appear after the panel opens."
         />
 
@@ -480,6 +525,8 @@ export function ConsoleView({
         ) : null}
       </div>
 
+      <ConsoleReplInput disabled={!canInspectConsole()} onSubmit={(expression) => void handleReplSubmit(expression)} />
+
       {columnMenu ? (
         <ColumnMenu
           columns={CONSOLE_COLUMNS}
@@ -488,6 +535,15 @@ export function ConsoleView({
           minVisible={0}
           onToggle={handleColumnToggle}
           onClose={() => setColumnMenu(null)}
+        />
+      ) : null}
+
+      {rowMenu ? (
+        <RowContextMenu
+          x={rowMenu.x}
+          y={rowMenu.y}
+          items={rowMenuItems(rowMenu.entry)}
+          onClose={() => setRowMenu(null)}
         />
       ) : null}
     </section>
@@ -730,27 +786,4 @@ function ConsoleRowJson({ entry, searchText }: { entry: ConsoleEntry; searchText
       ))}
     </JsonRowSubTree>
   );
-}
-
-function groupRepeatedEntries(entries: ConsoleEntry[]): ConsoleEntry[] {
-  const grouped: ConsoleEntry[] = [];
-
-  for (const entry of entries) {
-    const previous = grouped[grouped.length - 1];
-    if (
-      previous &&
-      previous.level === entry.level &&
-      previous.text === entry.text &&
-      previous.source === entry.source &&
-      !previous.stack &&
-      !entry.stack
-    ) {
-      previous.repeatCount = (previous.repeatCount ?? 1) + 1;
-      continue;
-    }
-
-    grouped.push({ ...entry, repeatCount: 1 });
-  }
-
-  return grouped;
 }

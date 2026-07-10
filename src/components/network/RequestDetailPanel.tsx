@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { ApiRequest, ReplayDraft } from '../../types/network';
+import type { ApiRequest, ReplayDraft, RequestTimings } from '../../types/network';
+import { TIMING_PHASE_META } from '../../utils/requestTimings';
 import { DetailSection } from '../shared/DetailSection';
 import { DefinitionList } from '../shared/DefinitionList';
 import { buildReplayDraft, generateCurl, generateFetch } from '../../utils/requestCodeSnippets';
@@ -288,6 +289,9 @@ export function RequestDetailPanel({
             ['Duration', `${request.duration}ms`],
           ]}
         />
+        {request.timings ? (
+          <TimingBreakdown timings={request.timings} duration={request.duration} />
+        ) : null}
       </DetailSection>
 
       <DetailSection
@@ -299,6 +303,45 @@ export function RequestDetailPanel({
         <CodeSnippetBlock request={request} searchText={searchText} />
       </DetailSection>
     </aside>
+  );
+}
+
+/** 타이밍 단계별 누적 막대 + `단계 — Xms (Y%)` 목록. duration을 분모로 삼는다. */
+function TimingBreakdown({ timings, duration }: { timings: RequestTimings; duration: number }) {
+  const total = Math.max(1, duration);
+
+  return (
+    <div className="mt-3 grid gap-2">
+      <div className="flex h-2 w-full overflow-hidden rounded-full bg-line-weak" aria-hidden="true">
+        {timings.segments.map((segment) => (
+          <span
+            key={segment.phase}
+            className={`h-full ${TIMING_PHASE_META[segment.phase].color}`}
+            style={{ width: `${(segment.duration / total) * 100}%` }}
+          />
+        ))}
+      </div>
+      <dl className="m-0 grid gap-1">
+        {timings.segments.map((segment) => {
+          const meta = TIMING_PHASE_META[segment.phase];
+          const percent = Math.round((segment.duration / total) * 100);
+          return (
+            <div
+              key={segment.phase}
+              className="grid grid-cols-[92px_minmax(0,1fr)] items-center gap-2.5"
+            >
+              <dt className="flex items-center gap-1.5 text-[12px] text-ink-weak">
+                <span className={`h-2 w-2 flex-none rounded-full ${meta.color}`} aria-hidden="true" />
+                {meta.label}
+              </dt>
+              <dd className="m-0 text-[12px] text-ink tabular-nums">
+                {segment.duration}ms <span className="text-ink-weak">({percent}%)</span>
+              </dd>
+            </div>
+          );
+        })}
+      </dl>
+    </div>
   );
 }
 

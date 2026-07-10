@@ -14,7 +14,9 @@ import { getTablePrefs, saveTablePrefs, type TablePrefs } from "../../utils/tabl
 import { formatBytes } from "../../utils/formatters";
 import { ColumnMenu } from "../shared/ColumnMenu";
 import { DataTable } from "../shared/DataTable";
+import { RowContextMenu, type RowContextMenuItem } from "../shared/RowContextMenu";
 import { Button } from "../ui/Button";
+import { copyText } from "../../utils/clipboard";
 import { CookieForm } from "./CookieForm";
 import { formatCookieExpires, formatSameSite } from "./cookieFormat";
 import { RowDeleteButton } from "./RowDeleteButton";
@@ -73,6 +75,9 @@ export function CookiePane({
   const [columnMenu, setColumnMenu] = useState<{ x: number; y: number } | null>(
     null,
   );
+  const [rowMenu, setRowMenu] = useState<
+    { x: number; y: number; cookie: CookieEntry } | null
+  >(null);
   const [adding, setAdding] = useState(false);
 
   const persistTablePrefs = (next: TablePrefs) => {
@@ -99,6 +104,34 @@ export function CookiePane({
   const handleColumnContextMenu = (event: ReactMouseEvent) => {
     event.preventDefault();
     setColumnMenu({ x: event.clientX, y: event.clientY });
+  };
+
+  const handleRowContextMenu = (cookie: CookieEntry, event: ReactMouseEvent) => {
+    event.preventDefault();
+    setRowMenu({ x: event.clientX, y: event.clientY, cookie });
+  };
+
+  const rowMenuItems = (cookie: CookieEntry): RowContextMenuItem[] => {
+    const items: RowContextMenuItem[] = [
+      { id: "copy-name", label: "Copy name", onSelect: () => void copyText(cookie.name) },
+      { id: "copy-value", label: "Copy value", onSelect: () => void copyText(cookie.value) },
+      { id: "copy-domain", label: "Copy domain", onSelect: () => void copyText(cookie.domain) },
+      {
+        id: "copy-json",
+        label: "Copy as JSON",
+        onSelect: () => void copyText(JSON.stringify({ [cookie.name]: cookie.value })),
+      },
+    ];
+    if (canEdit) {
+      items.push({
+        id: "delete",
+        label: "Delete",
+        separatorBefore: true,
+        disabled: isMutating,
+        onSelect: () => onDeleteCookie(cookie),
+      });
+    }
+    return items;
   };
 
   const handleAdd = async (cookie: CookieWriteInput) => {
@@ -259,6 +292,7 @@ export function CookiePane({
             ) : null
           }
           onHeaderContextMenu={handleColumnContextMenu}
+          onRowContextMenu={handleRowContextMenu}
           emptyState={isLoading ? "Loading…" : "No matching cookies."}
         />
       </div>
@@ -269,6 +303,14 @@ export function CookiePane({
           position={columnMenu}
           onToggle={handleColumnToggle}
           onClose={() => setColumnMenu(null)}
+        />
+      ) : null}
+      {rowMenu ? (
+        <RowContextMenu
+          x={rowMenu.x}
+          y={rowMenu.y}
+          items={rowMenuItems(rowMenu.cookie)}
+          onClose={() => setRowMenu(null)}
         />
       ) : null}
     </>

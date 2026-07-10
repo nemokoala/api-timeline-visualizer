@@ -11,6 +11,7 @@ import {
 } from '../../utils/timelinePrefs';
 import type { RequestSearchSummary } from '../../utils/requestSearch';
 import { formatBytes, formatDateTime, formatDuration, getRequestKindLabel, getStatusTone } from '../../utils/formatters';
+import { formatTimingTooltip, TIMING_PHASE_META } from '../../utils/requestTimings';
 import { getResponseImageThumbnail } from '../../utils/imageSource';
 import { SearchHitBadge } from './SearchHitBadge';
 import { MethodBadge } from './MethodBadge';
@@ -24,6 +25,9 @@ const STATUS_TONE_TEXT: Record<string, string> = {
 };
 import { ColumnMenu } from '../shared/ColumnMenu';
 import { DataTable } from '../shared/DataTable';
+import { RowContextMenu, type RowContextMenuItem } from '../shared/RowContextMenu';
+import { copyText } from '../../utils/clipboard';
+import { buildReplayDraft, generateCurl, generateFetch } from '../../utils/requestCodeSnippets';
 
 type TimelineViewProps = {
   items: TimelineItem[];
@@ -76,6 +80,7 @@ export function TimelineView({
 }: TimelineViewProps) {
   const [prefs, setPrefs] = useState<TimelinePrefs>(getTimelinePrefs);
   const [columnMenu, setColumnMenu] = useState<{ x: number; y: number } | null>(null);
+  const [rowMenu, setRowMenu] = useState<{ x: number; y: number; requestId: string } | null>(null);
   const requestById = useMemo(
     () => new Map(requests.map((request) => [request.id, request])),
     [requests],
@@ -135,6 +140,38 @@ export function TimelineView({
   const handleColumnContextMenu = (event: ReactMouseEvent) => {
     event.preventDefault();
     setColumnMenu({ x: event.clientX, y: event.clientY });
+  };
+
+  const handleRowContextMenu = (item: TimelineItem, event: ReactMouseEvent) => {
+    event.preventDefault();
+    setRowMenu({ x: event.clientX, y: event.clientY, requestId: item.requestId });
+  };
+
+  const rowMenuItems = (requestId: string): RowContextMenuItem[] => {
+    const request = requestById.get(requestId);
+    if (!request) return [];
+
+    const draft = buildReplayDraft(request);
+    // 응답 본문은 행을 선택할 때 비로소 지연 로드된다. 아직 없으면 복사할 게 없으므로 막는다.
+    const responseContent = request.responseContent;
+
+    return [
+      { id: 'copy-url', label: 'Copy URL', onSelect: () => void copyText(request.url) },
+      { id: 'copy-curl', label: 'Copy as cURL', onSelect: () => void copyText(generateCurl(draft)) },
+      { id: 'copy-fetch', label: 'Copy as fetch', onSelect: () => void copyText(generateFetch(draft)) },
+      {
+        id: 'copy-response',
+        label: 'Copy response',
+        disabled: responseContent === undefined,
+        onSelect: () => void copyText(responseContent ?? ''),
+      },
+      {
+        id: 'open-tab',
+        label: 'Open in new tab',
+        separatorBefore: true,
+        onSelect: () => window.open(request.url, '_blank', 'noopener,noreferrer'),
+      },
+    ];
   };
 
   const toggleColumnVisibility = (column: TimelineColumnId) => {
@@ -311,6 +348,7 @@ export function TimelineView({
           else rowRefs.current.delete(id);
         }}
         onHeaderContextMenu={handleColumnContextMenu}
+        onRowContextMenu={handleRowContextMenu}
         emptyState={
           <EmptyState title={hasSearch ? 'No matching API requests.' : 'No API requests captured.'}>
             {hasSearch
@@ -319,6 +357,15 @@ export function TimelineView({
           </EmptyState>
         }
       />
+
+      {rowMenu ? (
+        <RowContextMenu
+          x={rowMenu.x}
+          y={rowMenu.y}
+          items={rowMenuItems(rowMenu.requestId)}
+          onClose={() => setRowMenu(null)}
+        />
+      ) : null}
     </section>
   );
 }
@@ -379,12 +426,29 @@ function RequestCell({ item, ctx }: { item: TimelineItem; ctx: RenderContext }) 
           className="relative block h-1.5 min-w-0 flex-auto overflow-hidden rounded-full bg-line-weak"
           aria-hidden="true"
         >
-          <span
-            className={`absolute inset-y-0 min-w-[3px] rounded-full ${
-              item.isError ? 'bg-danger-bg' : item.isSlow ? 'bg-warn-bg' : 'bg-ok-bg'
-            }`}
-            style={{ left: `${startPercent}%`, width: `${widthPercent}%` }}
-          />
+          {item.timings ? (
+            // 단계별 타이밍이 있으면 전체 바를 색 구간으로 나눠 그린다(시작 위치·폭은 동일).
+            <span
+              className="absolute inset-y-0 flex min-w-[3px] overflow-hidden rounded-full"
+              style={{ left: `${startPercent}%`, width: `${widthPercent}%` }}
+              title={formatTimingTooltip(item.timings)}
+            >
+              {item.timings.segments.map((segment) => (
+                <span
+                  key={segment.phase}
+                  className={`h-full ${TIMING_PHASE_META[segment.phase].color}`}
+                  style={{ width: `${(segment.duration / Math.max(1, item.duration)) * 100}%` }}
+                />
+              ))}
+            </span>
+          ) : (
+            <span
+              className={`absolute inset-y-0 min-w-[3px] rounded-full ${
+                item.isError ? 'bg-danger-bg' : item.isSlow ? 'bg-warn-bg' : 'bg-ok-bg'
+              }`}
+              style={{ left: `${startPercent}%`, width: `${widthPercent}%` }}
+            />
+          )}
         </span>
       </span>
     </span>

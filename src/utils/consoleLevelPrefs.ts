@@ -6,9 +6,17 @@
  * 저장하며, 빈 배열은 "모두 끔"으로 존중한다.
  *
  * `clear`는 필터 항목이 아니다. console.clear() 표식일 뿐이라 목록에서 항상 제외된다.
+ * REPL의 `input`/`result`도 필터 항목이 아니다 — 사용자가 직접 만든 항목이라 레벨 필터와
+ * 무관하게 항상 표시한다(아래 matchesConsoleLevelFilter 참고).
  */
 import type { ConsoleEntry, ConsoleLevel } from '../types/console';
 import { readJson, writeJson } from './localStoragePrefs';
+
+/**
+ * 레벨 필터를 무시하고 항상 보이는 레벨. REPL 입력/결과는 사용자가 방금 실행한 것이라
+ * 어떤 필터가 켜져 있든 결과가 사라지면 안 된다. `clear`는 표식이라 뷰에서 따로 제외한다.
+ */
+const ALWAYS_VISIBLE_CONSOLE_LEVELS: readonly ConsoleLevel[] = ['input', 'result'];
 
 export const FILTERABLE_CONSOLE_LEVELS = [
   'log',
@@ -56,6 +64,8 @@ export function matchesConsoleLevelFilter(
   entry: ConsoleEntry,
   enabledLevels: FilterableConsoleLevel[],
 ): boolean {
+  // REPL 입력/결과는 필터 대상이 아니다. 필터가 걸려 있어도 항상 보인다.
+  if (ALWAYS_VISIBLE_CONSOLE_LEVELS.includes(entry.level)) return true;
   // 전체 활성이면 목록 밖 레벨도 통과시킨다(네트워크 상태 필터와 동일한 규칙).
   if (enabledLevels.length === FILTERABLE_CONSOLE_LEVELS.length) return true;
   const level = toFilterableConsoleLevel(entry.level);

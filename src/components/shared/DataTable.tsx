@@ -46,6 +46,11 @@ type DataTableProps<T> = {
   /** 행 DOM 등록(스크롤/검색 이동용). */
   registerRowRef?: (id: string, element: HTMLElement | null) => void;
   onHeaderContextMenu?: (event: ReactMouseEvent) => void;
+  /**
+   * 데이터 행 우클릭 컨텍스트 메뉴. 헤더 우클릭은 onHeaderContextMenu(열 표시 메뉴)가 처리한다.
+   * ContextMenu 키·Shift+F10도 브라우저가 contextmenu 이벤트로 바꿔 주므로 여기서 함께 잡힌다.
+   */
+  onRowContextMenu?: (row: T, event: ReactMouseEvent) => void;
   emptyState?: ReactNode;
   /** 스크롤 컨테이너 ref — 자동 스크롤·행 조회용. */
   rootRef?: (element: HTMLDivElement | null) => void;
@@ -76,6 +81,7 @@ export function DataTable<T>({
   renderSubRow,
   registerRowRef,
   onHeaderContextMenu,
+  onRowContextMenu,
   emptyState,
   rootRef,
   className,
@@ -186,6 +192,11 @@ export function DataTable<T>({
                   rowClassName?.(row.original),
                 )}
                 onClick={() => onRowClick?.(row.original)}
+                onContextMenu={
+                  onRowContextMenu
+                    ? (event) => onRowContextMenu(row.original, event)
+                    : undefined
+                }
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();

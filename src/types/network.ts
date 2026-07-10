@@ -12,6 +12,30 @@ export type RequestKind =
 
 export type HeaderMap = Record<string, string>;
 
+export type RequestTimingPhase =
+  | 'blocked'
+  | 'dns'
+  | 'connect'
+  | 'ssl'
+  | 'send'
+  | 'wait'
+  | 'receive';
+
+/** 실제로 발생한 타이밍 구간 하나. duration은 ms. */
+export type RequestTimingSegment = {
+  phase: RequestTimingPhase;
+  duration: number;
+};
+
+/**
+ * 정규화된 요청 타이밍. -1(해당 없음)·누락 구간은 빠져 있고,
+ * segments는 HAR 순서(blocked→receive)대로 담긴다.
+ * 총 소요는 ApiRequest.duration이 원본이며, 여기 합은 그 이하로 잘려 있다.
+ */
+export type RequestTimings = {
+  segments: RequestTimingSegment[];
+};
+
 export type NetworkCookie = {
   name: string;
   value: string;
@@ -36,6 +60,8 @@ export type ApiRequest = {
   startedAt: number;
   endedAt: number;
   duration: number;
+  /** 단계별 소요(연결 수립/대기/수신 등). 쓸 만한 HAR 타이밍이 없으면 없음. */
+  timings?: RequestTimings;
   type: RequestKind;
   mimeType?: string;
   requestHeaders?: HeaderMap;
@@ -82,6 +108,8 @@ export type TimelineItem = {
   normalizedPath: string;
   /** 응답 본문 크기(bytes). 알 수 없으면 없음. 정렬용으로 보관. */
   size?: number;
+  /** 단계별 소요. 있으면 타임라인 바를 색 구간으로 나눠 그린다. */
+  timings?: RequestTimings;
   isSlow: boolean;
   isError: boolean;
 };

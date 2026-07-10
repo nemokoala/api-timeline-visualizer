@@ -1,7 +1,9 @@
 import type { ConsoleEntry } from '../types/console';
 import type { ApiRequest } from '../types/network';
+import type { HarTimings } from '../types/chrome-har';
 import type { CookieSnapshot, PageStorageSnapshot } from '../types/storage';
 import { parseResponseContent } from '../utils/requestParser';
+import { normalizeTimings } from '../utils/requestTimings';
 
 /**
  * 목업 데이터는 로컬 UI 개발/테스트 전용이다.
@@ -28,6 +30,8 @@ type MockRequestSeed = {
   statusText?: string;
   offset: number; // BASE로부터의 시작 시각(ms)
   duration: number;
+  // 원시 HAR 타이밍. 있으면 정규화해 단계별 바를 그린다(-1은 해당 없음). 없으면 단일 바.
+  harTimings?: HarTimings;
   type: ApiRequest['type'];
   mimeType?: string;
   queryParams?: Record<string, string>;
@@ -44,6 +48,8 @@ const SEEDS: MockRequestSeed[] = [
     status: 200,
     offset: 0,
     duration: 142,
+    // 새 커넥션: 모든 단계가 잡힌다.
+    harTimings: { blocked: 2, dns: 5, connect: 12, ssl: 8, send: 1, wait: 100, receive: 14 },
     type: 'fetch',
     mimeType: 'application/json',
     response: {
@@ -80,6 +86,8 @@ const SEEDS: MockRequestSeed[] = [
     status: 200,
     offset: 220,
     duration: 318,
+    // 재사용된 커넥션: dns/connect/ssl은 -1이라 정규화에서 빠진다.
+    harTimings: { blocked: 1, dns: -1, connect: -1, ssl: -1, send: 1, wait: 300, receive: 15 },
     type: 'fetch',
     mimeType: 'application/json',
     queryParams: { page: '1', pageSize: '20', sort: 'updatedAt:desc' },
@@ -112,6 +120,8 @@ const SEEDS: MockRequestSeed[] = [
     status: 200,
     offset: 980,
     duration: 1240, // 느린 요청 (isSlow)
+    // 대부분이 서버 대기(wait)인 느린 요청.
+    harTimings: { blocked: 3, dns: 10, connect: 40, ssl: 25, send: 2, wait: 1100, receive: 60 },
     type: 'xhr',
     mimeType: 'application/json',
     queryParams: { range: '30d', granularity: 'day' },
@@ -168,6 +178,7 @@ const SEEDS: MockRequestSeed[] = [
     statusText: 'Internal Server Error',
     offset: 2600,
     duration: 410,
+    harTimings: { blocked: 1, dns: 6, connect: 18, ssl: 12, send: 2, wait: 360, receive: 11 },
     type: 'fetch',
     mimeType: 'application/json',
     response: { error: 'internal_error', requestId: 'req_a91f3c', message: 'Unexpected failure.' },
@@ -179,6 +190,8 @@ const SEEDS: MockRequestSeed[] = [
     status: 200,
     offset: 3200,
     duration: 660,
+    // 재사용된 커넥션(dns/connect/ssl 없음), 서버 대기 위주.
+    harTimings: { blocked: 2, dns: -1, connect: -1, ssl: -1, send: 3, wait: 600, receive: 55 },
     type: 'fetch',
     mimeType: 'application/json',
     requestBody: { query: 'query Me { viewer { id login } }' },
@@ -278,6 +291,7 @@ function toApiRequest(seed: MockRequestSeed): ApiRequest {
     startedAt,
     endedAt,
     duration: seed.duration,
+    timings: normalizeTimings(seed.harTimings, seed.duration),
     type: seed.type,
     mimeType: seed.mimeType,
     requestHeaders: {

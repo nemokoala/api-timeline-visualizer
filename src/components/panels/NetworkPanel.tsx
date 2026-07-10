@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useSplitPanelLayout } from '../../hooks/useSplitPanelLayout';
+import { usePersistedState } from '../../hooks/usePersistedState';
+import { summarizeNetwork } from '../../utils/networkStats';
+import { getNetworkSummaryOpen, saveNetworkSummaryOpen } from '../../utils/networkSummaryPrefs';
 import { FlowChartView } from '../network/FlowChartView';
+import { NetworkSummary } from '../network/NetworkSummary';
 import { RequestDetailPanel } from '../network/RequestDetailPanel';
 import { ResponseDiffModal } from '../network/ResponseDiffModal';
 import { SplitPanelResizer } from '../shared/SplitPanelResizer';
@@ -30,6 +34,16 @@ export function NetworkPanel() {
 
   const { selectedRequest } = ctx;
   const [isDiffOpen, setIsDiffOpen] = useState(false);
+  const [showSummary, setShowSummary] = usePersistedState(
+    getNetworkSummaryOpen,
+    saveNetworkSummaryOpen,
+  );
+
+  // 요약은 열려 있을 때만 집계한다. 요청/타임라인이 바뀔 때만 재계산.
+  const summary = useMemo(
+    () => (showSummary ? summarizeNetwork(ctx.displayedRequests, ctx.timelineItems) : null),
+    [showSummary, ctx.displayedRequests, ctx.timelineItems],
+  );
 
   // 같은 엔드포인트(메서드+호스트+정규화 경로)로 캡처된 다른 응답들 = 비교 후보.
   const diffCandidates = useMemo(() => {
@@ -95,6 +109,15 @@ export function NetworkPanel() {
           </p>
         ) : null}
         <div className="ml-auto flex shrink-0 items-center gap-1" aria-label="Session actions">
+          <Button
+            size="sm"
+            active={showSummary}
+            aria-pressed={showSummary}
+            title="요약 통계 보기/숨기기"
+            onClick={() => setShowSummary((current) => !current)}
+          >
+            Summary
+          </Button>
           <Button size="sm" onClick={ctx.onExportSession} disabled={!ctx.canExport}>
             Export
           </Button>
@@ -106,6 +129,9 @@ export function NetworkPanel() {
           </Button>
         </div>
       </div>
+      {showSummary && summary ? (
+        <NetworkSummary summary={summary} onSelectRequest={ctx.onSelectRequest} />
+      ) : null}
       <div
         ref={containerRef}
         className={`grid min-h-0 flex-auto items-stretch overflow-hidden ${selectedRequest && isStacked ? 'split-layout-stacked max-[820px]:grid-cols-[minmax(0,1fr)]!' : ''}`}

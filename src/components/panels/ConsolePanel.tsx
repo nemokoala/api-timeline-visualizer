@@ -17,6 +17,9 @@ export function ConsolePanel() {
           includeText={ctx.consoleIncludeText}
           excludeText={ctx.consoleExcludeText}
           searchMatchIndex={ctx.consoleSearchMatchIndex}
+          enabledLevels={ctx.enabledConsoleLevels}
+          onToggleLevel={ctx.onToggleConsoleLevel}
+          onSetAllLevels={ctx.onSetAllConsoleLevels}
           onEntriesChange={ctx.onConsoleEntriesChange}
           onSelectedEntryIdChange={ctx.onConsoleSelectedEntryIdChange}
           onSearchOccurrencesChange={ctx.onConsoleSearchOccurrencesChange}
