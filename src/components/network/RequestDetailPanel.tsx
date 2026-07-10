@@ -4,6 +4,7 @@ import { TIMING_PHASE_META } from '../../utils/requestTimings';
 import { DetailSection } from '../shared/DetailSection';
 import { DefinitionList } from '../shared/DefinitionList';
 import { buildReplayDraft, generateCurl, generateFetch } from '../../utils/requestCodeSnippets';
+import { copyText } from '../../utils/clipboard';
 import { canResendRequest, resendRequest } from '../../utils/requestResend';
 import { ReplayEditorModal } from './ReplayEditorModal';
 import { getMatchingDetailSections } from '../../utils/requestSearch';
@@ -429,7 +430,7 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
   }, [request.id]);
 
   const handleCopy = async () => {
-    const didCopy = await copyToClipboard(snippet);
+    const didCopy = await copyText(snippet);
     if (!didCopy) return;
 
     setCopied(true);
@@ -521,30 +522,4 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
       ) : null}
     </div>
   );
-}
-
-async function copyToClipboard(value: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(value);
-      return true;
-    }
-  } catch {
-    // Fall through to the legacy path.
-  }
-
-  try {
-    const textarea = document.createElement('textarea');
-    textarea.value = value;
-    textarea.setAttribute('readonly', 'true');
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    const result = document.execCommand('copy');
-    document.body.removeChild(textarea);
-    return result;
-  } catch {
-    return false;
-  }
 }

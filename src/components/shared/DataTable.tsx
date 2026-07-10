@@ -1,4 +1,10 @@
-import { type ReactNode, type MouseEvent as ReactMouseEvent } from 'react';
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type MouseEvent as ReactMouseEvent,
+} from 'react';
 import {
   flexRender,
   getCoreRowModel,
@@ -102,6 +108,23 @@ export function DataTable<T>({
     getSortedRowModel: enableSorting ? getSortedRowModel() : undefined,
   });
 
+  // 헤더는 sticky라 스크롤된 목록의 위쪽을 덮는다. 행을 scrollIntoView로 끌어올 때
+  // 헤더 뒤로 숨지 않도록, 실제 헤더 높이를 재서 행의 scroll-margin-top으로 준다.
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
+
+  useLayoutEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+
+    const measure = () => setHeaderHeight(header.offsetHeight);
+    measure();
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
+
   const visibleColumns = table.getVisibleLeafColumns();
   const gridTemplateColumns = visibleColumns
     .map((column) => {
@@ -120,6 +143,7 @@ export function DataTable<T>({
       ref={rootRef}
     >
       <div
+        ref={headerRef}
         className="sticky top-0 z-[2] grid border-b border-line-weak bg-surface"
         role="row"
         style={{ gridTemplateColumns }}
@@ -185,6 +209,7 @@ export function DataTable<T>({
                 role="row"
                 tabIndex={0}
                 data-row-id={id}
+                style={{ scrollMarginTop: headerHeight }}
                 className={cn(
                   'group/row cursor-pointer border-b border-line-weak text-ink hover:bg-row-hover',
                   isSelected &&

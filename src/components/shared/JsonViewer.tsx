@@ -8,6 +8,8 @@ import {
 } from 'react';
 import { useSearchOptions } from '../../contexts/SearchOptionsContext';
 import { useWorkspaceOptional } from '../../contexts/WorkspaceContext';
+// 이 파일엔 복사할 문자열을 담은 지역 변수 copyText가 이미 있어 별칭으로 받는다.
+import { copyText as copyToClipboard } from '../../utils/clipboard';
 import { highlightSearchText, textMatchesSearch, type SearchOptions } from '../../utils/searchHighlight';
 import { scrollSearchHitIntoView } from '../../utils/searchScroll';
 import { getImagePreviews, mergeBlobPreviewItems, type ImagePreviewItem } from '../../utils/imageSource';
@@ -664,28 +666,3 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-async function copyToClipboard(value: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(value);
-      return true;
-    }
-  } catch {
-    // Fall through to the legacy path.
-  }
-
-  try {
-    const textarea = document.createElement('textarea');
-    textarea.value = value;
-    textarea.setAttribute('readonly', 'true');
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    const result = document.execCommand('copy');
-    document.body.removeChild(textarea);
-    return result;
-  } catch {
-    return false;
-  }
-}

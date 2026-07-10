@@ -24,6 +24,19 @@ export const TIMING_PHASE_META: Record<RequestTimingPhase, { label: string; colo
 };
 
 /**
+ * HAR 스펙상 ssl 시간은 connect 안에 포함된다(HAR 1.1 호환을 위해 중첩으로 정의됐고,
+ * time 총합에도 ssl이 따로 더해지지 않는다). 두 구간을 나란히 그리려면 겹치는 만큼
+ * connect에서 빼야 connect 구간이 부풀지 않는다.
+ */
+function unnestSslFromConnect(timings: HarTimings): HarTimings {
+  const { connect, ssl } = timings;
+  if (typeof connect !== 'number' || typeof ssl !== 'number') return timings;
+  if (connect <= 0 || ssl <= 0 || ssl > connect) return timings;
+
+  return { ...timings, connect: connect - ssl };
+}
+
+/**
  * HAR request.timings를 화면용 구간 목록으로 정규화한다.
  * -1(해당 없음)·음수·0·누락 구간은 버리고, 남은 구간 합이 duration(총 소요)을
  * 넘지 않도록 자른다(HAR은 구간 합과 time이 어긋나는 경우가 흔하다).
@@ -35,11 +48,12 @@ export function normalizeTimings(
 ): RequestTimings | undefined {
   if (!timings) return undefined;
 
+  const unnested = unnestSslFromConnect(timings);
   let remaining = Math.max(0, Math.round(duration));
   const segments: RequestTimings['segments'] = [];
 
   for (const phase of PHASE_ORDER) {
-    const raw = timings[phase];
+    const raw = unnested[phase];
     if (typeof raw !== 'number' || !Number.isFinite(raw) || raw <= 0) continue;
     const value = Math.min(Math.round(raw), remaining);
     if (value <= 0) break; // 남은 예산이 없으면 이후 구간은 그리지 않는다.

@@ -33,6 +33,8 @@ import {
   parseResponseContent,
   shouldCollectRequest,
 } from './utils/requestParser';
+import { buildReplayDraft } from './utils/requestCodeSnippets';
+import { canResendRequest, resendRequest } from './utils/requestResend';
 import {
   buildSearchOccurrenceSummaryByRequest,
   buildSearchOccurrences,
@@ -707,6 +709,26 @@ export default function App() {
     [handleSelectRequest, selectedRequestId, startResponseBodyLoad],
   );
 
+  // 행 컨텍스트 메뉴의 즉시 재전송. 편집 흐름(ReplayEditorModal)은 상세 패널에 남는다.
+  // 결과는 세션 알림 줄로 알린다 — 재전송된 요청 자체는 새 항목으로 목록에 잡힌다.
+  const handleResendRequest = useCallback(
+    async (requestId: string) => {
+      const target = requests.find((request) => request.id === requestId);
+      if (!target) return;
+      if (!canResendRequest(target)) {
+        setSessionNotice('이 요청 유형은 재전송할 수 없습니다.');
+        return;
+      }
+
+      setSessionNotice(`Resending ${target.method} ${target.path}…`);
+      const outcome = await resendRequest(buildReplayDraft(target));
+      setSessionNotice(
+        outcome.ok ? `Resent ${target.method} ${target.path}.` : `재전송 실패: ${outcome.error}`,
+      );
+    },
+    [requests],
+  );
+
   useEffect(() => {
     if (!networkSearchText.trim()) {
       preloadQueueRef.current = [];
@@ -840,6 +862,9 @@ export default function App() {
     flowLayoutRevision,
     flowLayoutSnapshot: flowLayoutRef.current,
     onSelectRequest: handleSelectRequestWithBodyLoad,
+    onResendRequest: (requestId) => {
+      void handleResendRequest(requestId);
+    },
     onFlowLayoutChange: handleFlowLayoutChange,
     onNetworkViewModeChange: setNetworkViewMode,
     onGroupFlowByTimeChange: setGroupFlowByTime,

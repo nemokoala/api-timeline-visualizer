@@ -80,6 +80,8 @@ export type WorkspaceContextValue = {
   flowLayoutRevision: number;
   flowLayoutSnapshot: FlowLayout;
   onSelectRequest: (requestId: string) => void;
+  /** 행 컨텍스트 메뉴의 즉시 재전송. 편집이 필요하면 상세 패널의 Edit를 쓴다. */
+  onResendRequest: (requestId: string) => void;
   onFlowLayoutChange: (layout: FlowLayout) => void;
   // Network 세션 액션(Flow·Timeline / Group time / Export / Import / Clear)
   onNetworkViewModeChange: (networkViewMode: NetworkViewMode) => void;

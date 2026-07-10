@@ -1,31 +1,21 @@
 import type { ReactNode } from 'react';
-import type { RequestKind } from '../../types/network';
 import type {
   NetworkSummary as NetworkSummaryData,
   NetworkTopRequest,
   StatusGroupKey,
 } from '../../utils/networkStats';
-import { formatBytes, formatDuration, getRequestKindLabel } from '../../utils/formatters';
+import {
+  formatBytes,
+  formatDuration,
+  getRequestKindLabel,
+  REQUEST_KIND_TEXT_COLOR,
+} from '../../utils/formatters';
 import { cn } from '../../utils/cn';
 import { Button } from '../ui/Button';
 
 type NetworkSummaryProps = {
   summary: NetworkSummaryData;
   onSelectRequest: (requestId: string) => void;
-};
-
-/* 종류별 라벨 색(TimelineView와 동일 규칙): API 계열은 blue/purple, 정적 리소스는 각기 다른 색. */
-const KIND_TEXT_COLOR: Record<RequestKind, string> = {
-  fetch: 'text-accent',
-  document: 'text-accent',
-  xhr: 'text-purple',
-  websocket: 'text-purple',
-  stylesheet: 'text-teal',
-  script: 'text-warn',
-  image: 'text-ok',
-  font: 'text-pink',
-  media: 'text-danger',
-  other: 'text-ink-weak',
 };
 
 const STATUS_GROUP_LABEL: Record<StatusGroupKey, string> = {
@@ -157,8 +147,9 @@ export function NetworkSummary({ summary, onSelectRequest }: NetworkSummaryProps
   const { totalCount } = summary;
 
   return (
+    // 패널이 낮을 때 요약이 목록 높이를 0으로 만들지 않도록 절대 상한과 비율 상한을 함께 건다.
     <section
-      className="max-h-[280px] shrink-0 overflow-y-auto border-b border-line-weak bg-surface"
+      className="max-h-[min(280px,45%)] shrink-0 overflow-y-auto border-b border-line-weak bg-surface"
       aria-label="Network summary"
     >
       <div className="flex flex-col gap-3 p-3">
@@ -190,7 +181,7 @@ export function NetworkSummary({ summary, onSelectRequest }: NetworkSummaryProps
               <DistributionRow
                 key={kind}
                 label={getRequestKindLabel(kind)}
-                labelClassName={KIND_TEXT_COLOR[kind]}
+                labelClassName={REQUEST_KIND_TEXT_COLOR[kind]}
                 barClassName="bg-accent"
                 count={count}
                 total={totalCount}

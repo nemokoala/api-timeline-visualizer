@@ -10,7 +10,14 @@ import {
   type TimelinePrefs,
 } from '../../utils/timelinePrefs';
 import type { RequestSearchSummary } from '../../utils/requestSearch';
-import { formatBytes, formatDateTime, formatDuration, getRequestKindLabel, getStatusTone } from '../../utils/formatters';
+import {
+  formatBytes,
+  formatDateTime,
+  formatDuration,
+  getRequestKindLabel,
+  getStatusTone,
+  REQUEST_KIND_TEXT_COLOR,
+} from '../../utils/formatters';
 import { formatTimingTooltip, TIMING_PHASE_META } from '../../utils/requestTimings';
 import { getResponseImageThumbnail } from '../../utils/imageSource';
 import { SearchHitBadge } from './SearchHitBadge';
@@ -28,6 +35,7 @@ import { DataTable } from '../shared/DataTable';
 import { RowContextMenu, type RowContextMenuItem } from '../shared/RowContextMenu';
 import { copyText } from '../../utils/clipboard';
 import { buildReplayDraft, generateCurl, generateFetch } from '../../utils/requestCodeSnippets';
+import { canResendRequest } from '../../utils/requestResend';
 
 type TimelineViewProps = {
   items: TimelineItem[];
@@ -37,6 +45,8 @@ type TimelineViewProps = {
   searchOccurrenceByRequest: Map<string, RequestSearchSummary>;
   activeGlobalSearchIndex: number | null;
   onSelectRequest: (requestId: string) => void;
+  /** 행 컨텍스트 메뉴의 즉시 재전송. */
+  onResendRequest: (requestId: string) => void;
   /** 이미지 행이 화면에 들어오면 썸네일용 응답 본문을 지연 로드한다. */
   onEnsureThumbnailBody?: (requestId: string) => void;
 };
@@ -76,6 +86,7 @@ export function TimelineView({
   searchOccurrenceByRequest,
   activeGlobalSearchIndex,
   onSelectRequest,
+  onResendRequest,
   onEnsureThumbnailBody,
 }: TimelineViewProps) {
   const [prefs, setPrefs] = useState<TimelinePrefs>(getTimelinePrefs);
@@ -170,6 +181,12 @@ export function TimelineView({
         label: 'Open in new tab',
         separatorBefore: true,
         onSelect: () => window.open(request.url, '_blank', 'noopener,noreferrer'),
+      },
+      {
+        id: 'resend',
+        label: 'Resend',
+        disabled: !canResendRequest(request),
+        onSelect: () => onResendRequest(request.id),
       },
     ];
   };
@@ -416,7 +433,7 @@ function RequestCell({ item, ctx }: { item: TimelineItem; ctx: RenderContext }) 
         {request ? (
           <span
             className={`min-w-10 flex-none text-center text-[9px] font-bold uppercase leading-[1.1] tracking-[0.02em] ${
-              KIND_TEXT_COLOR[request.type] ?? 'text-ink-weak'
+              REQUEST_KIND_TEXT_COLOR[request.type]
             }`}
           >
             {getRequestKindLabel(request.type)}
@@ -455,15 +472,3 @@ function RequestCell({ item, ctx }: { item: TimelineItem; ctx: RenderContext }) 
   );
 }
 
-/* 종류별 라벨 색. API 계열은 blue/purple, 정적 리소스는 각기 다른 색으로 구분. */
-const KIND_TEXT_COLOR: Record<string, string> = {
-  fetch: 'text-accent',
-  document: 'text-accent',
-  xhr: 'text-purple',
-  websocket: 'text-purple',
-  stylesheet: 'text-teal',
-  script: 'text-warn',
-  image: 'text-ok',
-  font: 'text-pink',
-  media: 'text-danger',
-};

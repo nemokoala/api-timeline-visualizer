@@ -160,6 +160,7 @@ export function NetworkPanel() {
           searchOccurrenceByRequest={ctx.searchOccurrenceByRequest}
           activeGlobalSearchIndex={ctx.activeGlobalSearchIndex}
           onSelectRequest={ctx.onSelectRequest}
+          onResendRequest={ctx.onResendRequest}
           onEnsureThumbnailBody={ctx.onEnsureThumbnailBody}
         />
       )}
