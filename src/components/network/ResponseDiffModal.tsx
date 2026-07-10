@@ -5,6 +5,7 @@ import { formatDateTime, getStatusTone } from '../../utils/formatters';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Input';
 import { DetailPanelCloseButton } from '../shared/DetailPanelCloseButton';
+import { useBackdropDismiss } from '../../hooks/useBackdropDismiss';
 
 type ResponseDiffModalProps = {
   /** 비교 기준(현재 선택된) 요청. diff의 오른쪽(신규)에 놓인다. */
@@ -52,6 +53,8 @@ export function ResponseDiffModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
+  const backdropDismiss = useBackdropDismiss(onClose);
+
   const leftValue = compareRequest ? getComparableResponse(compareRequest) : undefined;
   const rightValue = getComparableResponse(baseRequest);
   const isLoading =
@@ -74,7 +77,7 @@ export function ResponseDiffModal({
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-backdrop p-7"
       role="presentation"
-      onClick={onClose}
+      {...backdropDismiss}
     >
       <section
         className="flex max-h-full w-[min(880px,100%)] flex-col overflow-hidden rounded-2xl border border-line-weak bg-surface shadow-float"

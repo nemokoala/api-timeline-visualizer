@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import type { ReplayDraft } from '../../types/network';
 import { createReplayHeader, draftHasBody } from '../../utils/requestCodeSnippets';
 import { validateReplayDraft } from '../../utils/requestResend';
+import { useBackdropDismiss } from '../../hooks/useBackdropDismiss';
 import { Button, IconButton } from '../ui/Button';
 import { Input, Select, TextArea } from '../ui/Input';
 import { DetailPanelCloseButton } from '../shared/DetailPanelCloseButton';
@@ -64,6 +65,8 @@ export function ReplayEditorModal({
   const method = draft.method.toUpperCase();
   const bodyIgnored = Boolean(draft.body) && !draftHasBody(draft);
 
+  const backdropDismiss = useBackdropDismiss(onClose);
+
   const patch = (changes: Partial<ReplayDraft>) => onChange({ ...draft, ...changes });
 
   const updateHeader = (id: string, changes: { name?: string; value?: string }) => {
@@ -83,7 +86,7 @@ export function ReplayEditorModal({
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-backdrop p-7"
       role="presentation"
-      onClick={onClose}
+      {...backdropDismiss}
     >
       <section
         className="flex max-h-full w-[min(760px,100%)] flex-col overflow-hidden rounded-2xl border border-line-weak bg-surface shadow-float"

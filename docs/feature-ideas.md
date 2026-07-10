@@ -173,6 +173,16 @@ XML/SVG는 트리, `text/*`는 라이트 구문 강조. `JsonViewer`는 JSON 전
 
 ## 완료됨
 
+### 모달에서 input을 드래그하다 밖에서 손을 떼면 닫히던 문제
+
+`ReplayEditorModal`·`ResponseDiffModal`의 배경은 `onClick={onClose}`였다. input 안에서
+텍스트를 드래그하다(mousedown 내부) 모달 밖에서 손을 떼면(mouseup 배경), `click`은 두 지점의
+공통 조상(=배경)에서 발생한다. 그래서 배경 `onClick`이 곧장 실행되어 실수로 닫혔다. 내부 요소의
+`stopPropagation`은 click이 애초에 배경에서 나므로 소용이 없었다.
+
+공용 훅 `useBackdropDismiss`로 고쳤다 — `onMouseDown`으로 "누르기가 배경 자신에서 시작했는지"를
+기억하고, 그 경우에만 배경 클릭으로 닫는다. 두 모달이 같은 훅을 쓴다.
+
 ### 자동 스크롤된 행이 sticky 헤더에 가려지던 문제
 
 `DataTable`의 헤더는 `sticky top-0`이라 스크롤된 목록의 위쪽을 덮는다. 그런데 `TimelineView`가
