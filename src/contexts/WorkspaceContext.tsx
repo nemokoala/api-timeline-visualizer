@@ -65,6 +65,9 @@ export type WorkspaceContextValue = {
   displayedRequests: ApiRequest[];
   selectedRequestId: string | null;
   groupFlowByTime: boolean;
+  /** 검사 중인 페이지가 새로고침·이동될 때 캡처 기록을 자동으로 지울지. 기본은 꺼짐. */
+  clearNetworkOnReload: boolean;
+  onClearNetworkOnReloadChange: (value: boolean) => void;
   /** 경로의 ID·날짜·해시를 `:id` 등으로 접어 표시할지. 기본은 실제 값 표시. */
   collapsePathIds: boolean;
   enabledResourceKinds: ToggleableResourceKind[];

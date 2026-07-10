@@ -19,8 +19,11 @@ import { DetailSection } from './DetailSection';
 import { ImagePreviewGallery } from './ImagePreviewGallery';
 import { Button, IconButton } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { MenuCheckItem, MenuSurface } from '../ui/Menu';
 import { SearchOptionToggles } from '../ui/SearchOptionToggles';
 import { cn } from '../../utils/cn';
+import { useJsonViewPrefs } from '../../hooks/useJsonViewPrefs';
+import type { JsonViewPrefs } from '../../utils/jsonViewPrefs';
 
 type ActiveFieldMenu = {
   id: string;
@@ -167,6 +170,8 @@ function JsonBlock({
 }) {
   const [copied, setCopied] = useState(false);
   const [fieldMenu, setFieldMenu] = useState<ActiveFieldMenu>(null);
+  const [settingsMenu, setSettingsMenu] = useState<{ top: number; left: number } | null>(null);
+  const [jsonViewPrefs, setJsonViewPrefs] = useJsonViewPrefs();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [localSearch, setLocalSearch] = useState('');
   const [localActiveIndex, setLocalActiveIndex] = useState(0);
@@ -176,6 +181,7 @@ function JsonBlock({
   const [customHeight, setCustomHeight] = useState<number | null>(null);
   const viewerBodyRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const settingsMenuRef = useRef<HTMLDivElement>(null);
   // Pop out(플로팅 dockview 패널로 열기)은 워크스페이스 컨텍스트가 있을 때만 노출한다.
   const onOpenPanel = useWorkspaceOptional()?.openJsonPanel ?? null;
   const copyText = fallback || '{}';
@@ -194,6 +200,7 @@ function JsonBlock({
 
   useEffect(() => {
     setFieldMenu(null);
+    setSettingsMenu(null);
     setIsFullscreen(false);
     setCopied(false);
     setLocalSearch('');
@@ -320,6 +327,27 @@ function JsonBlock({
     };
   }, [fieldMenu]);
 
+  // 설정 메뉴는 바깥 클릭·Escape로만 닫는다. 체크박스 토글은 메뉴 내부라 유지된다.
+  useEffect(() => {
+    if (!settingsMenu) return;
+
+    const handleMouseDown = (event: Event) => {
+      if (settingsMenuRef.current?.contains(event.target as Node)) return;
+      setSettingsMenu(null);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSettingsMenu(null);
+    };
+
+    window.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [settingsMenu]);
+
   const handleCopy = async () => {
     const didCopy = await copyToClipboard(copyText);
     if (!didCopy) return;
@@ -357,6 +385,12 @@ function JsonBlock({
     const top = buttonRect.top - bodyRect.top;
 
     setFieldMenu({ id, value: targetValue, left, top });
+  };
+
+  // 뷰어 본문 우클릭으로 표시 옵션(가이드선·무지개색) 설정 팝오버를 커서 위치에 연다.
+  const handleBodyContextMenu = (event: MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setSettingsMenu({ top: event.clientY, left: event.clientX });
   };
 
   return (
@@ -443,7 +477,7 @@ function JsonBlock({
             </Button>
           </div>
         </div>
-        <div className="json-viewer-body" ref={viewerBodyRef}>
+        <div className="json-viewer-body" ref={viewerBodyRef} onContextMenu={handleBodyContextMenu}>
           {fieldMenu ? (
             <div
               className="absolute z-[3] inline-flex gap-1 rounded-[9px] border border-line-weak bg-surface p-[3px] shadow-float [transform:translateY(calc(-100%-6px))]"
@@ -458,7 +492,7 @@ function JsonBlock({
           ) : null}
           {isObject ? (
             <div className="json-viewer text-ink">
-              {renderJsonValue(value, 0, 'root', handleFieldClick, effectiveSearch, effectiveOptions, markClassName)}
+              {renderJsonValue(value, 0, 'root', handleFieldClick, effectiveSearch, effectiveOptions, markClassName, jsonViewPrefs)}
             </div>
           ) : (
             <pre className="json-viewer">
@@ -466,6 +500,29 @@ function JsonBlock({
             </pre>
           )}
         </div>
+        {settingsMenu ? (
+          <MenuSurface
+            ref={settingsMenuRef}
+            style={{ top: settingsMenu.top, left: settingsMenu.left }}
+            role="menu"
+            aria-label="JSON 표시 설정"
+          >
+            <MenuCheckItem
+              checked={jsonViewPrefs.indentGuide}
+              onClick={() => setJsonViewPrefs((prev) => ({ ...prev, indentGuide: !prev.indentGuide }))}
+            >
+              들여쓰기 가이드
+            </MenuCheckItem>
+            {/* 무지개색은 가이드선이 꺼져 있으면 효과가 없어 비활성화한다. */}
+            <MenuCheckItem
+              checked={jsonViewPrefs.rainbow}
+              disabled={!jsonViewPrefs.indentGuide}
+              onClick={() => setJsonViewPrefs((prev) => ({ ...prev, rainbow: !prev.rainbow }))}
+            >
+              무지개색
+            </MenuCheckItem>
+          </MenuSurface>
+        ) : null}
         {!isFullscreen ? (
           <div
             className="flex h-[9px] shrink-0 cursor-ns-resize touch-none items-center justify-center rounded-b-[11px] border-t border-line-weak bg-surface-sub before:h-[2px] before:w-7 before:rounded-full before:bg-ink-sub before:opacity-35 before:content-[''] hover:before:opacity-70"
@@ -495,6 +552,13 @@ const GUIDE_BORDER = [
   'border-[color:var(--json-guide-5)]',
 ];
 
+// 중첩 블록의 들여쓰기 래퍼 클래스. 가이드선을 꺼도 pl은 남겨 중첩은 유지한다.
+function guideClassName(depth: number, prefs: JsonViewPrefs): string {
+  if (!prefs.indentGuide) return 'pl-[1.15em]';
+  const color = prefs.rainbow ? GUIDE_BORDER[depth % GUIDE_COLOR_COUNT] : 'border-line';
+  return `border-l pl-[1.15em] ${color}`;
+}
+
 /** 필드 복사 팝오버의 작은 버튼. */
 function FieldMenuButton(props: React.ComponentProps<'button'>) {
   return (
@@ -514,19 +578,20 @@ function renderJsonValue(
   searchText: string,
   searchOptions: Required<SearchOptions>,
   markClassName: string,
+  guideOptions: JsonViewPrefs,
 ): React.ReactNode {
   if (Array.isArray(value)) {
     if (value.length === 0) return <span className="text-ink-weak">[]</span>;
 
     // 각 중첩 레벨을 블록으로 감싸고 border-left로 들여쓰기 가이드선을 그린다.
-    // data-depth로 레벨마다 다른 색(무지개)을 입혀 어느 선인지 구분하기 쉽게 한다.
+    // 표시 옵션에 따라 가이드선 유무·무지개색 여부가 guideClassName에서 결정된다.
     return (
       <>
         <span className="text-ink-weak">[</span>
-        <div className={`border-l pl-[1.15em] ${GUIDE_BORDER[depth % GUIDE_COLOR_COUNT]}`}>
+        <div className={guideClassName(depth, guideOptions)}>
           {value.map((item, index) => (
             <div className="whitespace-pre-wrap [overflow-wrap:anywhere]" key={index}>
-              {renderJsonValue(item, depth + 1, `${path}.${index}`, onFieldClick, searchText, searchOptions, markClassName)}
+              {renderJsonValue(item, depth + 1, `${path}.${index}`, onFieldClick, searchText, searchOptions, markClassName, guideOptions)}
               {index < value.length - 1 ? <span className="text-ink-weak">,</span> : null}
             </div>
           ))}
@@ -543,7 +608,7 @@ function renderJsonValue(
     return (
       <>
         <span className="text-ink-weak">{'{'}</span>
-        <div className={`border-l pl-[1.15em] ${GUIDE_BORDER[depth % GUIDE_COLOR_COUNT]}`}>
+        <div className={guideClassName(depth, guideOptions)}>
           {entries.map(([key, item], index) => (
             <div className="whitespace-pre-wrap [overflow-wrap:anywhere]" key={key}>
               <button
@@ -555,7 +620,7 @@ function renderJsonValue(
                 "{highlightSearchText(key, searchText, searchOptions, markClassName)}"
               </button>
               <span className="text-ink-weak">: </span>
-              {renderJsonValue(item, depth + 1, `${path}.${key}`, onFieldClick, searchText, searchOptions, markClassName)}
+              {renderJsonValue(item, depth + 1, `${path}.${key}`, onFieldClick, searchText, searchOptions, markClassName, guideOptions)}
               {index < entries.length - 1 ? <span className="text-ink-weak">,</span> : null}
             </div>
           ))}
@@ -610,6 +675,8 @@ export function JsonTree({
   className?: string;
 }) {
   const searchOptions = useSearchOptions();
+  // 인라인 트리는 설정을 읽기만 한다(우클릭 메뉴는 전체 JsonViewer에만 있다).
+  const [jsonViewPrefs] = useJsonViewPrefs();
   const rendered = coerceJson(value);
 
   if (!rendered || typeof rendered !== 'object') {
@@ -622,7 +689,7 @@ export function JsonTree({
 
   return (
     <div className={cn('json-viewer text-ink', className)}>
-      {renderJsonValue(rendered, 0, 'root', noopFieldClick, searchText, searchOptions, 'search-highlight')}
+      {renderJsonValue(rendered, 0, 'root', noopFieldClick, searchText, searchOptions, 'search-highlight', jsonViewPrefs)}
     </div>
   );
 }
