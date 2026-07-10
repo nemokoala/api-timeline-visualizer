@@ -14,6 +14,7 @@ import {
   getStatusTone,
 } from "../../utils/formatters";
 import { getImageSource } from "../../utils/imageSource";
+import { displayPath } from "../../utils/normalizeUrl";
 import { ImagePreview } from "../shared/ImagePreview";
 import { SearchHitBadge } from "./SearchHitBadge";
 import { MethodBadge } from "./MethodBadge";
@@ -50,7 +51,8 @@ export function toFlowNodes(
   groups: TimelineItem[][],
   searchOccurrenceByRequest: Map<string, RequestSearchSummary>,
   activeGlobalSearchIndex: number | null,
-  showQuery: boolean
+  showQuery: boolean,
+  collapsePathIds: boolean
 ): Node[] {
   return items.map((item, index) => {
     const request = requestById.get(item.requestId);
@@ -113,7 +115,7 @@ export function toFlowNodes(
                 className="block text-left text-[14px] font-bold leading-[1.35] tracking-[-0.01em] text-ink-strong [overflow-wrap:anywhere]"
                 title={`${item.path}${query}`}
               >
-                {getNodeTitle(item)}
+                {getNodeTitle(item, collapsePathIds)}
                 {query ? (
                   <span className="font-medium text-ink-sub">{query}</span>
                 ) : null}
@@ -145,9 +147,10 @@ export function toFlowNodes(
   });
 }
 
-function getNodeTitle(item: TimelineItem): string {
-  if (item.normalizedPath === "/") return "Root document";
-  return item.normalizedPath;
+function getNodeTitle(item: TimelineItem, collapsePathIds: boolean): string {
+  const path = displayPath(item, collapsePathIds);
+  if (path === "/") return "Root document";
+  return path;
 }
 
 // 요청 URL에서 쿼리 문자열(선행 '?' 포함)을 추출한다. 없으면 빈 문자열.

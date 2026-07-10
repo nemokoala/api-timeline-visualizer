@@ -3,6 +3,7 @@ import type { ApiRequest } from '../types/network';
 import type { HarTimings } from '../types/chrome-har';
 import type { CookieSnapshot, PageStorageSnapshot } from '../types/storage';
 import { parseResponseContent } from '../utils/requestParser';
+import { normalizePath } from '../utils/normalizeUrl';
 import { normalizeTimings } from '../utils/requestTimings';
 
 /**
@@ -245,7 +246,7 @@ const SEEDS: MockRequestSeed[] = [
   {
     id: 'mock-14',
     method: 'GET',
-    path: '/private/development/:id/:id/analysis-output/:id/videos/74754257-8123-4abc-9def-intro.mp4',
+    path: '/private/development/48213/90577/analysis-output/12904/videos/74754257-8123-4abc-9def-intro.mp4',
     status: 206,
     statusText: 'Partial Content',
     offset: 4200,
@@ -283,8 +284,9 @@ function toApiRequest(seed: MockRequestSeed): ApiRequest {
     id: seed.id,
     url,
     host: HOST,
-    path: seed.path + query,
-    normalizedPath: seed.path,
+    // 실데이터와 맞춘다: path는 쿼리 없는 pathname, 쿼리는 url·queryParams로 따로 나른다.
+    path: seed.path,
+    normalizedPath: normalizePath(seed.path),
     method: seed.method,
     status: seed.status,
     statusText: seed.statusText,

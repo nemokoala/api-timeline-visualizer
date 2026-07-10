@@ -173,6 +173,22 @@ XML/SVG는 트리, `text/*`는 라이트 구문 강조. `JsonViewer`는 JSON 전
 
 ## 완료됨
 
+### 경로의 ID를 접어 보이던 것을 기본은 실제 값으로
+
+`/private/development/48213/90577/…` 같은 경로가 `:id`로 접혀 실제 값을 볼 수 없었다.
+경로 정규화(`normalizePath`: 숫자·UUID·날짜·긴 해시 → `:id`·`:date`·`:hash`)는 같은 엔드포인트
+묶음 판정(diff 후보, `NetworkPanel`의 `normalizedPath` 비교)에 필요하지만, 화면 표시까지
+정규화 값을 쓸 이유는 없었다.
+
+- 표시 기본값을 **실제 경로**로 바꿨다. 네트워크 툴바에 `Collapse IDs` 토글(기본 꺼짐,
+  localStorage 영속)을 두어 원하면 `:id` 형태로 접어 볼 수 있다.
+- 표시용 헬퍼 `displayPath(parts, collapseIds)`를 `normalizeUrl.ts`에 두고, 타임라인 행·플로우
+  노드·상세 패널 제목·응답 diff 제목·요약 Top N이 모두 이 헬퍼를 쓴다. 묶음·정렬·검색 등
+  로직은 종전대로 `normalizedPath`를 그대로 쓴다 — 표시 방식만 바뀐다.
+- 목업이 `:id`를 문자 그대로 넣고 있어(정규화를 흉내만 냄) 토글 효과가 안 보였다. 실제 숫자 ID를
+  넣고 `normalizePath`를 적용하도록 고쳤고, 겸사겸사 목업 `path`가 쿼리를 포함하던 실데이터와의
+  불일치도 바로잡았다.
+
 ### 모달에서 input을 드래그하다 밖에서 손을 떼면 닫히던 문제
 
 `ReplayEditorModal`·`ResponseDiffModal`의 배경은 `onClick={onClose}`였다. input 안에서

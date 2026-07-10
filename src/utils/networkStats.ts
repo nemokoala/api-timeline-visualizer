@@ -12,6 +12,7 @@ export type StatusGroupCount = { group: StatusGroupKey; count: number };
 export type NetworkTopRequest = {
   requestId: string;
   method: string;
+  path: string;
   normalizedPath: string;
   status: number;
   duration: number;
@@ -70,6 +71,7 @@ function toTop(
     .map((request) => ({
       requestId: request.id,
       method: request.method,
+      path: request.path,
       normalizedPath: request.normalizedPath,
       status: request.status,
       duration: request.duration,

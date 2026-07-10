@@ -11,10 +11,12 @@ import {
   REQUEST_KIND_TEXT_COLOR,
 } from '../../utils/formatters';
 import { cn } from '../../utils/cn';
+import { displayPath } from '../../utils/normalizeUrl';
 import { Button } from '../ui/Button';
 
 type NetworkSummaryProps = {
   summary: NetworkSummaryData;
+  collapsePathIds: boolean;
   onSelectRequest: (requestId: string) => void;
 };
 
@@ -109,25 +111,28 @@ function BlockTitle({ children }: { children: ReactNode }) {
 function TopRow({
   request,
   value,
+  collapsePathIds,
   onSelect,
 }: {
   request: NetworkTopRequest;
   value: string;
+  collapsePathIds: boolean;
   onSelect: (requestId: string) => void;
 }) {
+  const path = displayPath(request, collapsePathIds);
   return (
     <Button
       ghost
       size="sm"
       className="h-auto w-full justify-between gap-2 px-1.5 py-1 text-left font-normal"
-      title={`${request.method} ${request.normalizedPath}`}
+      title={`${request.method} ${path}`}
       onClick={() => onSelect(request.requestId)}
     >
       <span className="flex min-w-0 items-center gap-1.5">
         <span className="flex-none text-[9px] font-bold uppercase tracking-[0.02em] text-ink-faint">
           {request.method}
         </span>
-        <span className="min-w-0 truncate text-[11px] text-ink-strong">{request.normalizedPath}</span>
+        <span className="min-w-0 truncate text-[11px] text-ink-strong">{path}</span>
       </span>
       <span className="flex-none text-[11px] tabular-nums text-ink-weak">{value}</span>
     </Button>
@@ -135,7 +140,7 @@ function TopRow({
 }
 
 /** 네트워크 패널 상단의 집계 요약(통계 타일 + 분포 + Top N). */
-export function NetworkSummary({ summary, onSelectRequest }: NetworkSummaryProps) {
+export function NetworkSummary({ summary, collapsePathIds, onSelectRequest }: NetworkSummaryProps) {
   if (summary.totalCount === 0) {
     return (
       <section className="shrink-0 border-b border-line-weak bg-surface" aria-label="Network summary">
@@ -210,6 +215,7 @@ export function NetworkSummary({ summary, onSelectRequest }: NetworkSummaryProps
                 key={request.requestId}
                 request={request}
                 value={formatDuration(request.duration)}
+                collapsePathIds={collapsePathIds}
                 onSelect={onSelectRequest}
               />
             ))}
@@ -223,6 +229,7 @@ export function NetworkSummary({ summary, onSelectRequest }: NetworkSummaryProps
                   key={request.requestId}
                   request={request}
                   value={formatBytes(request.size)}
+                  collapsePathIds={collapsePathIds}
                   onSelect={onSelectRequest}
                 />
               ))

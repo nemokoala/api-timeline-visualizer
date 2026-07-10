@@ -4,16 +4,20 @@ export function ToggleControl({
   onChange,
   label,
   size = 'md',
+  title,
 }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: string;
   /** md = 툴바 기본(28px), sm = 네트워크 액션 행의 sm 버튼(24px)과 동일 높이. */
   size?: 'md' | 'sm';
+  /** 호버 툴팁. */
+  title?: string;
 }) {
   const isSm = size === 'sm';
   return (
     <label
+      title={title}
       className={`inline-flex select-none items-center gap-[7px] bg-fill font-medium text-ink-sub ${
         isSm ? 'h-6 rounded-lg px-[9px] text-[11px]' : 'h-7 rounded-[9px] px-[11px] text-xs'
       }`}

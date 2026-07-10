@@ -1,3 +1,15 @@
+/**
+ * 화면에 보여줄 경로. 기본은 실제 값(`path`)이고, collapseIds가 켜지면 정규화 값
+ * (`:id`·`:date`·`:hash`)을 쓴다. 그룹화·diff 후보 판정 등 로직은 이 함수와 무관하게
+ * 언제나 `normalizedPath`를 그대로 쓴다 — 표시 방식만 바꾼다.
+ */
+export function displayPath(
+  parts: { path: string; normalizedPath: string },
+  collapseIds: boolean,
+): string {
+  return collapseIds ? parts.normalizedPath : parts.path;
+}
+
 export function normalizePath(path: string): string {
   return path
     .split('/')

@@ -6,12 +6,15 @@ import { Button } from '../ui/Button';
 import { Select } from '../ui/Input';
 import { DetailPanelCloseButton } from '../shared/DetailPanelCloseButton';
 import { useBackdropDismiss } from '../../hooks/useBackdropDismiss';
+import { displayPath } from '../../utils/normalizeUrl';
 
 type ResponseDiffModalProps = {
   /** 비교 기준(현재 선택된) 요청. diff의 오른쪽(신규)에 놓인다. */
   baseRequest: ApiRequest;
   /** 같은 엔드포인트의 비교 후보들(기준 요청 제외). */
   candidates: ApiRequest[];
+  /** 경로의 ID·날짜·해시를 `:id` 등으로 접어 표시할지. */
+  collapsePathIds: boolean;
   /** 응답 본문 지연 로드(이미 로드됐으면 no-op). */
   onEnsureBody: (requestId: string) => void;
   onClose: () => void;
@@ -24,6 +27,7 @@ type ResponseDiffModalProps = {
 export function ResponseDiffModal({
   baseRequest,
   candidates,
+  collapsePathIds,
   onEnsureBody,
   onClose,
 }: ResponseDiffModalProps) {
@@ -95,7 +99,7 @@ export function ResponseDiffModal({
               <span className={`method method-${baseRequest.method.toLowerCase()}`}>
                 {baseRequest.method}
               </span>
-              {baseRequest.normalizedPath}
+              {displayPath(baseRequest, collapsePathIds)}
             </h2>
           </div>
           <DetailPanelCloseButton onClick={onClose} label="Close response diff" />

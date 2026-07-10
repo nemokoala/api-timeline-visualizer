@@ -33,6 +33,7 @@ const STATUS_TONE_TEXT: Record<string, string> = {
 import { ColumnMenu } from '../shared/ColumnMenu';
 import { DataTable } from '../shared/DataTable';
 import { RowContextMenu, type RowContextMenuItem } from '../shared/RowContextMenu';
+import { displayPath } from '../../utils/normalizeUrl';
 import { copyText } from '../../utils/clipboard';
 import { buildReplayDraft, generateCurl, generateFetch } from '../../utils/requestCodeSnippets';
 import { canResendRequest } from '../../utils/requestResend';
@@ -44,6 +45,8 @@ type TimelineViewProps = {
   searchText: string;
   searchOccurrenceByRequest: Map<string, RequestSearchSummary>;
   activeGlobalSearchIndex: number | null;
+  /** 경로의 ID·날짜·해시를 `:id` 등으로 접어 표시할지. */
+  collapsePathIds: boolean;
   onSelectRequest: (requestId: string) => void;
   /** 행 컨텍스트 메뉴의 즉시 재전송. */
   onResendRequest: (requestId: string) => void;
@@ -74,6 +77,7 @@ type RenderContext = {
   maxEnd: number;
   requestById: Map<string, ApiRequest>;
   showQuery: boolean;
+  collapsePathIds: boolean;
   searchOccurrenceByRequest: Map<string, RequestSearchSummary>;
   activeGlobalSearchIndex: number | null;
 };
@@ -85,6 +89,7 @@ export function TimelineView({
   searchText,
   searchOccurrenceByRequest,
   activeGlobalSearchIndex,
+  collapsePathIds,
   onSelectRequest,
   onResendRequest,
   onEnsureThumbnailBody,
@@ -112,6 +117,7 @@ export function TimelineView({
     maxEnd,
     requestById,
     showQuery: prefs.showQuery,
+    collapsePathIds,
     searchOccurrenceByRequest,
     activeGlobalSearchIndex,
   });
@@ -119,6 +125,7 @@ export function TimelineView({
     maxEnd,
     requestById,
     showQuery: prefs.showQuery,
+    collapsePathIds,
     searchOccurrenceByRequest,
     activeGlobalSearchIndex,
   };
@@ -418,7 +425,7 @@ function RequestCell({ item, ctx }: { item: TimelineItem; ctx: RenderContext }) 
         ) : null}
         {/* 긴 주소가 1줄에서 잘리지 않고 최대 2줄까지 표시되도록 줄바꿈 허용. */}
         <span className="min-w-0 text-[11px] font-semibold leading-[1.3] tracking-[-0.01em] text-ink-strong line-clamp-2 [overflow-wrap:anywhere]">
-          {item.normalizedPath}
+          {displayPath(item, ctx.collapsePathIds)}
           {queryString ? <span className="font-normal text-ink-weak">{queryString}</span> : null}
         </span>
         {searchSummary ? (

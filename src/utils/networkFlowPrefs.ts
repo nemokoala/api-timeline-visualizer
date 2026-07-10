@@ -7,6 +7,7 @@ import { readEnum, readFlag, writeFlag, writeString } from './localStoragePrefs'
 const GROUP_FLOW_BY_TIME_KEY = 'api-flow-group-flow-by-time';
 const NETWORK_VIEW_MODE_KEY = 'api-flow-network-view-mode';
 const FLOW_SHOW_QUERY_KEY = 'api-flow-show-query';
+const COLLAPSE_PATH_IDS_KEY = 'api-flow-collapse-path-ids';
 
 export type NetworkViewMode = 'flow' | 'timeline';
 
@@ -35,4 +36,16 @@ export function getFlowShowQuery(defaultValue = false): boolean {
 
 export function saveFlowShowQuery(value: boolean): void {
   writeFlag(FLOW_SHOW_QUERY_KEY, value);
+}
+
+/**
+ * 경로의 ID·날짜·해시를 `:id` 등으로 접어 보여줄지 여부. 기본은 꺼짐(실제 값 표시).
+ * 표시에만 영향을 주고, 같은 엔드포인트 묶음 판정 등 로직은 언제나 정규화 값을 쓴다.
+ */
+export function getCollapsePathIds(defaultValue = false): boolean {
+  return readFlag(COLLAPSE_PATH_IDS_KEY, defaultValue);
+}
+
+export function saveCollapsePathIds(value: boolean): void {
+  writeFlag(COLLAPSE_PATH_IDS_KEY, value);
 }

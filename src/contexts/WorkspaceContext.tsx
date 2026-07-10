@@ -65,6 +65,8 @@ export type WorkspaceContextValue = {
   displayedRequests: ApiRequest[];
   selectedRequestId: string | null;
   groupFlowByTime: boolean;
+  /** 경로의 ID·날짜·해시를 `:id` 등으로 접어 표시할지. 기본은 실제 값 표시. */
+  collapsePathIds: boolean;
   enabledResourceKinds: ToggleableResourceKind[];
   onToggleResourceKind: (kind: ToggleableResourceKind, enabled: boolean) => void;
   onSetAllResourceKinds: (enabled: boolean) => void;
@@ -86,6 +88,7 @@ export type WorkspaceContextValue = {
   // Network 세션 액션(Flow·Timeline / Group time / Export / Import / Clear)
   onNetworkViewModeChange: (networkViewMode: NetworkViewMode) => void;
   onGroupFlowByTimeChange: (groupFlowByTime: boolean) => void;
+  onCollapsePathIdsChange: (collapsePathIds: boolean) => void;
   onExportSession: () => void;
   onImportSession: () => void;
   onClear: () => void;

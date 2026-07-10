@@ -76,8 +76,10 @@ import {
 import { clearDockLayout } from './utils/dockLayoutPrefs';
 import { toTimelineItems } from './utils/timeline';
 import {
+  getCollapsePathIds,
   getGroupFlowByTime,
   getNetworkViewMode,
+  saveCollapsePathIds,
   saveGroupFlowByTime,
   saveNetworkViewMode,
 } from './utils/networkFlowPrefs';
@@ -126,6 +128,7 @@ export default function App() {
   const [workspaceMode, setWorkspaceMode] = usePersistedState<WorkspaceMode>(getWorkspaceMode, saveWorkspaceMode);
   const [networkViewMode, setNetworkViewMode] = usePersistedState<NetworkViewMode>(getNetworkViewMode, saveNetworkViewMode);
   const [groupFlowByTime, setGroupFlowByTime] = usePersistedState(getGroupFlowByTime, saveGroupFlowByTime);
+  const [collapsePathIds, setCollapsePathIds] = usePersistedState(getCollapsePathIds, saveCollapsePathIds);
   const [enabledResourceKinds, setEnabledResourceKinds] = usePersistedState<ToggleableResourceKind[]>(
     getEnabledResourceKinds,
     saveEnabledResourceKinds,
@@ -847,6 +850,7 @@ export default function App() {
     displayedRequests,
     selectedRequestId,
     groupFlowByTime,
+    collapsePathIds,
     enabledResourceKinds,
     onToggleResourceKind: handleToggleResourceKind,
     onSetAllResourceKinds: handleSetAllResourceKinds,
@@ -868,6 +872,7 @@ export default function App() {
     onFlowLayoutChange: handleFlowLayoutChange,
     onNetworkViewModeChange: setNetworkViewMode,
     onGroupFlowByTimeChange: setGroupFlowByTime,
+    onCollapsePathIdsChange: setCollapsePathIds,
     onExportSession: handleExportSession,
     onImportSession: () => {
       void handleImportSession();

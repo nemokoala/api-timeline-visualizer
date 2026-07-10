@@ -5,6 +5,7 @@ import { DetailSection } from '../shared/DetailSection';
 import { DefinitionList } from '../shared/DefinitionList';
 import { buildReplayDraft, generateCurl, generateFetch } from '../../utils/requestCodeSnippets';
 import { copyText } from '../../utils/clipboard';
+import { displayPath } from '../../utils/normalizeUrl';
 import { canResendRequest, resendRequest } from '../../utils/requestResend';
 import { ReplayEditorModal } from './ReplayEditorModal';
 import { getMatchingDetailSections } from '../../utils/requestSearch';
@@ -28,6 +29,8 @@ type RequestDetailPanelProps = {
   searchOccurrenceIndex: number;
   searchFocusKey: string;
   isStacked: boolean;
+  /** 경로의 ID·날짜·해시를 `:id` 등으로 접어 표시할지. */
+  collapsePathIds: boolean;
   /** 같은 엔드포인트의 다른 응답 수(비교 후보). 0이면 Compare 비활성. */
   compareCandidateCount: number;
   onCompareResponses: () => void;
@@ -43,6 +46,7 @@ export function RequestDetailPanel({
   searchOccurrenceIndex,
   searchFocusKey,
   isStacked,
+  collapsePathIds,
   compareCandidateCount,
   onCompareResponses,
   onLoadResponseBody,
@@ -83,7 +87,7 @@ export function RequestDetailPanel({
 
   const titleImageSource =
     getImageSource(request.normalizedPath) ?? getImageSource(request.path) ?? getImageSource(request.url);
-  const title = titleImageSource ? 'Image payload' : request.normalizedPath;
+  const title = titleImageSource ? 'Image payload' : displayPath(request, collapsePathIds);
   const displayUrl = titleImageSource ? summarizeImageUrl(request.url) : request.url;
   const canOpenInNewTab =
     request.type === 'media' || /^(video|audio)\//.test(request.mimeType ?? '');

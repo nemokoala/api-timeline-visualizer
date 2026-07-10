@@ -92,6 +92,14 @@ export function NetworkPanel() {
           onToggle={ctx.onToggleStatusGroup}
           onSetAll={ctx.onSetAllStatusGroups}
         />
+        <span className="h-[18px] w-px shrink-0 bg-line" aria-hidden="true" />
+        <ToggleControl
+          size="sm"
+          label="Collapse IDs"
+          title="경로의 ID·날짜·해시를 :id 등으로 접어서 표시합니다."
+          checked={ctx.collapsePathIds}
+          onChange={ctx.onCollapsePathIdsChange}
+        />
         {ctx.networkViewMode === 'flow' ? (
           <>
             <span className="h-[18px] w-px shrink-0 bg-line" aria-hidden="true" />
@@ -130,7 +138,11 @@ export function NetworkPanel() {
         </div>
       </div>
       {showSummary && summary ? (
-        <NetworkSummary summary={summary} onSelectRequest={ctx.onSelectRequest} />
+        <NetworkSummary
+          summary={summary}
+          collapsePathIds={ctx.collapsePathIds}
+          onSelectRequest={ctx.onSelectRequest}
+        />
       ) : null}
       <div
         ref={containerRef}
@@ -143,6 +155,7 @@ export function NetworkPanel() {
           requests={ctx.displayedRequests}
           selectedRequestId={ctx.selectedRequestId}
           groupByTime={ctx.groupFlowByTime}
+          collapsePathIds={ctx.collapsePathIds}
           searchText={ctx.networkSearchText}
           searchOccurrenceByRequest={ctx.searchOccurrenceByRequest}
           activeGlobalSearchIndex={ctx.activeGlobalSearchIndex}
@@ -159,6 +172,7 @@ export function NetworkPanel() {
           searchText={ctx.networkSearchText}
           searchOccurrenceByRequest={ctx.searchOccurrenceByRequest}
           activeGlobalSearchIndex={ctx.activeGlobalSearchIndex}
+          collapsePathIds={ctx.collapsePathIds}
           onSelectRequest={ctx.onSelectRequest}
           onResendRequest={ctx.onResendRequest}
           onEnsureThumbnailBody={ctx.onEnsureThumbnailBody}
@@ -179,6 +193,7 @@ export function NetworkPanel() {
             searchOccurrenceIndex={ctx.activeSearchOccurrence?.occurrenceIndex ?? 0}
             searchFocusKey={`${ctx.networkSearchMatchIndex}:${ctx.activeSearchOccurrence?.requestId ?? ''}:${ctx.activeSearchOccurrence?.occurrenceIndex ?? 0}`}
             isStacked={isStacked}
+            collapsePathIds={ctx.collapsePathIds}
             compareCandidateCount={diffCandidates.length}
             onCompareResponses={() => setIsDiffOpen(true)}
             onLoadResponseBody={ctx.onLoadResponseBody}
@@ -193,6 +208,7 @@ export function NetworkPanel() {
           key={selectedRequest.id}
           baseRequest={selectedRequest}
           candidates={diffCandidates}
+          collapsePathIds={ctx.collapsePathIds}
           onEnsureBody={ctx.onEnsureThumbnailBody}
           onClose={() => setIsDiffOpen(false)}
         />

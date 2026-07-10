@@ -68,6 +68,8 @@ type FlowChartViewProps = {
   requests: ApiRequest[];
   selectedRequestId: string | null;
   groupByTime: boolean;
+  /** 경로의 ID·날짜·해시를 `:id` 등으로 접어 표시할지. */
+  collapsePathIds: boolean;
   searchText: string;
   searchOccurrenceByRequest: Map<string, RequestSearchSummary>;
   activeGlobalSearchIndex: number | null;
@@ -83,6 +85,7 @@ export function FlowChartView({
   requests,
   selectedRequestId,
   groupByTime,
+  collapsePathIds,
   searchText,
   searchOccurrenceByRequest,
   activeGlobalSearchIndex,
@@ -355,7 +358,8 @@ export function FlowChartView({
         groups,
         searchOccurrenceByRequest,
         activeGlobalSearchIndex,
-        showQuery
+        showQuery,
+        collapsePathIds
       ),
     [
       items,
@@ -366,6 +370,7 @@ export function FlowChartView({
       searchOccurrenceByRequest,
       activeGlobalSearchIndex,
       showQuery,
+      collapsePathIds,
     ]
   );
   const baseEdges = useMemo(
