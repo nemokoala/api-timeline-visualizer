@@ -11,6 +11,7 @@ import type {
   IndexedDbStoreSnapshot,
 } from "../../types/storage";
 import { useSearchOptions } from "../../contexts/SearchOptionsContext";
+import { useExpandedRows } from "../../hooks/useExpandedRows";
 import {
   highlightSearchText,
   textMatchesSearch,
@@ -20,11 +21,14 @@ import {
   type StorageSearchTarget,
 } from "../../utils/storageSearch";
 import { getTablePrefs, saveTablePrefs, type TablePrefs } from "../../utils/tablePrefs";
-import { formatStorageValuePreview } from "../../utils/storageBlobValue";
-import { formatBytes } from "../../utils/formatters";
 import { ColumnMenu } from "../shared/ColumnMenu";
 import { DataTable } from "../shared/DataTable";
 import { RowDeleteButton } from "./RowDeleteButton";
+import {
+  isExpandableStorageValue,
+  StorageValueCell,
+  StorageValueSubTree,
+} from "./StorageValueCell";
 import {
   IDB_DEFAULT_PREFS,
   IDB_PREFS_KEY,
@@ -187,6 +191,7 @@ function IndexedDbStore({
 }) {
   const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
+  const { isExpanded, toggle: toggleExpanded } = useExpandedRows();
   const columns = useMemo<ColumnDef<{ record: IndexedDbRecord; index: number }, unknown>[]>(() => {
     const cols: ColumnDef<{ record: IndexedDbRecord; index: number }, unknown>[] = [
       {
@@ -204,12 +209,14 @@ function IndexedDbStore({
         header: "Value",
         enableResizing: false,
         meta: { flex: true, minWidth: 160 },
-        cell: ({ row }) => {
-          const preview = formatStorageValuePreview(row.original.record.value, formatBytes);
-          return searchText.trim()
-            ? highlightSearchText(preview, searchText, searchOptions)
-            : preview;
-        },
+        cell: ({ row }) => (
+          <StorageValueCell
+            value={row.original.record.value}
+            searchText={searchText}
+            expanded={isExpanded(row.original.record.key)}
+            onToggle={() => toggleExpanded(row.original.record.key)}
+          />
+        ),
       },
     ];
     if (canEdit) {
@@ -230,7 +237,17 @@ function IndexedDbStore({
       });
     }
     return cols;
-  }, [canEdit, databaseName, isMutating, onDeleteRecord, searchOptions, searchText, store.name]);
+  }, [
+    canEdit,
+    databaseName,
+    isExpanded,
+    isMutating,
+    onDeleteRecord,
+    searchOptions,
+    searchText,
+    store.name,
+    toggleExpanded,
+  ]);
   const containsActiveTarget =
     activeSearchTarget?.kind === "indexeddb" &&
     activeSearchTarget.databaseName === databaseName &&
@@ -310,6 +327,11 @@ function IndexedDbStore({
             storeName: store.name,
             recordIndex: row.index,
           })
+        }
+        renderSubRow={(row) =>
+          isExpanded(row.record.key) && isExpandableStorageValue(row.record.value) ? (
+            <StorageValueSubTree value={row.record.value} searchText={searchText} />
+          ) : null
         }
         onHeaderContextMenu={onColumnContextMenu}
         emptyState="No records."

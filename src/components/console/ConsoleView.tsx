@@ -1,5 +1,4 @@
 import {
-  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -8,17 +7,20 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react';
-import type { ConsoleEntry, ConsoleLevelFilter } from '../../types/console';
+import type { ConsoleEntry } from '../../types/console';
 import { useSplitPanelLayout } from '../../hooks/useSplitPanelLayout';
+import { usePersistedState } from '../../hooks/usePersistedState';
 import { clearInspectedConsoleBuffer } from '../../utils/consoleInspector';
+import {
+  FILTERABLE_CONSOLE_LEVELS,
+  getEnabledConsoleLevels,
+  matchesConsoleLevelFilter,
+  saveEnabledConsoleLevels,
+  type FilterableConsoleLevel,
+} from '../../utils/consoleLevelPrefs';
 import { scrollSearchHitIntoView } from '../../utils/searchScroll';
 import { useSearchOptions } from '../../contexts/SearchOptionsContext';
-import { highlightSearchText, textMatchesSearch, type SearchOptions } from '../../utils/searchHighlight';
-import {
-  groupConsoleMessageLines,
-  tokenizeConsoleMessage,
-  type ConsoleMessageTokenKind,
-} from '../../utils/consoleMessageTokens';
+import { highlightSearchText, textMatchesSearch } from '../../utils/searchHighlight';
 import { matchesIncludeExcludeFilters } from '../../utils/textFilters';
 import {
   buildConsoleSearchOccurrences,
@@ -26,7 +28,13 @@ import {
   getSearchMatchIndexForConsoleEntry,
   type ConsoleSearchOccurrence,
 } from '../../utils/consoleSearch';
-import { formatConsoleMessagePreview } from '../../utils/consoleMessagePreview';
+import { formatJsonTextPreview } from '../../utils/jsonTextPreview';
+import {
+  isJsonLikeValue,
+  JsonInlinePreview,
+  JsonRowSubTree,
+  JsonRowToggle,
+} from '../shared/JsonRowPreview';
 import { DetailPanelCloseButton, SplitLayoutToggleButton } from '../shared/DetailPanelCloseButton';
 import { DetailSection } from '../shared/DetailSection';
 import { DetailTitleBar } from '../shared/DetailTitleBar';
@@ -38,10 +46,11 @@ import { ColumnMenu } from '../shared/ColumnMenu';
 import { DataTable } from '../shared/DataTable';
 import { getTablePrefs, saveTablePrefs, type TablePrefs } from '../../utils/tablePrefs';
 import type { ColumnDef, ColumnSizingState, OnChangeFn } from '@tanstack/react-table';
-import { Button, IconButton } from '../ui/Button';
-import { PillTabs } from '../ui/PillTabs';
+import { Button } from '../ui/Button';
 import { ToggleControl } from '../ui/ToggleControl';
 import { cn } from '../../utils/cn';
+import { ConsoleLevelMenu } from './ConsoleLevelMenu';
+import { CONSOLE_LEVEL_TEXT_COLOR } from './consoleLevelColors';
 
 type ConsoleViewProps = {
   entries: ConsoleEntry[];
@@ -56,15 +65,6 @@ type ConsoleViewProps = {
   onSearchMatchIndexChange: (index: number) => void;
 };
 
-const LEVEL_FILTERS: Array<{ value: ConsoleLevelFilter; label: string }> = [
-  { value: 'all', label: 'All' },
-  { value: 'log', label: 'Log' },
-  { value: 'info', label: 'Info' },
-  { value: 'warn', label: 'Warn' },
-  { value: 'error', label: 'Error' },
-  { value: 'debug', label: 'Debug' },
-];
-
 type ConsoleColumnId = 'level' | 'timestamp' | 'source';
 
 const CONSOLE_COLUMNS: Array<{ id: ConsoleColumnId; label: string }> = [
@@ -75,14 +75,6 @@ const CONSOLE_COLUMNS: Array<{ id: ConsoleColumnId; label: string }> = [
 
 const WRAP_LINES_STORAGE_KEY = 'console-wrap-lines';
 
-/* 레벨별 글자색. error는 강조를 위해 진한 빨강 원색(--red). */
-const LEVEL_TEXT_COLOR: Record<string, string> = {
-  log: 'text-ink-sub',
-  info: 'text-accent',
-  warn: 'text-warn',
-  error: 'text-danger-bg',
-  debug: 'text-purple',
-};
 const CONSOLE_PREFS_KEY = 'console-table-prefs';
 
 const CONSOLE_DEFAULT_PREFS: TablePrefs = {
@@ -111,7 +103,10 @@ export function ConsoleView({
   onSearchMatchIndexChange,
 }: ConsoleViewProps) {
   const searchOptions = useSearchOptions();
-  const [levelFilter, setLevelFilter] = useState<ConsoleLevelFilter>('all');
+  const [enabledLevels, setEnabledLevels] = usePersistedState<FilterableConsoleLevel[]>(
+    getEnabledConsoleLevels,
+    saveEnabledConsoleLevels,
+  );
   const [autoScroll, setAutoScroll] = useState(true);
   const [wrapLines, setWrapLines] = useState(loadWrapLines);
   const [tablePrefs, setTablePrefs] = useState<TablePrefs>(() =>
@@ -129,6 +124,20 @@ export function ConsoleView({
       return next;
     });
   }, []);
+
+  const handleToggleLevel = useCallback((level: FilterableConsoleLevel, enabled: boolean) => {
+    setEnabledLevels((current) => {
+      const next = enabled ? [...current, level] : current.filter((item) => item !== level);
+      return FILTERABLE_CONSOLE_LEVELS.filter((item) => next.includes(item));
+    });
+  }, [setEnabledLevels]);
+
+  const handleSetAllLevels = useCallback(
+    (enabled: boolean) => {
+      setEnabledLevels(enabled ? [...FILTERABLE_CONSOLE_LEVELS] : []);
+    },
+    [setEnabledLevels],
+  );
 
   const persistTablePrefs = (next: TablePrefs) => {
     setTablePrefs(next);
@@ -157,7 +166,7 @@ export function ConsoleView({
         cell: ({ row }) => (
           <span
             className={`overflow-hidden text-ellipsis whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.04em] ${
-              LEVEL_TEXT_COLOR[row.original.level] ?? 'text-ink-weak'
+              CONSOLE_LEVEL_TEXT_COLOR[row.original.level] ?? 'text-ink-weak'
             }`}
           >
             {row.original.level}
@@ -182,30 +191,14 @@ export function ConsoleView({
         meta: { flex: true, minWidth: 160 },
         cell: ({ row }) => {
           const entry = row.original;
-          const preview = formatConsoleMessagePreview(entry.text);
-          const hasJson = getJsonArgs(entry).length > 0;
           const isExpanded = expandedEntryIds.has(entry.id);
           return (
             <div className="flex min-w-0 items-start gap-1">
-              {hasJson ? (
-                <IconButton
-                  size="xs"
-                  ghost
-                  aria-expanded={isExpanded}
-                  aria-label={isExpanded ? 'JSON 접기' : 'JSON 펼치기'}
-                  className="h-[17px] min-w-[17px] shrink-0 rounded px-0 text-[8px]"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    toggleExpandedEntry(entry.id);
-                  }}
-                >
-                  <span className={cn('transition-transform duration-[120ms]', isExpanded && 'rotate-90')}>
-                    ▶
-                  </span>
-                </IconButton>
-              ) : (
-                <span className="w-[17px] shrink-0" aria-hidden="true" />
-              )}
+              <JsonRowToggle
+                expandable={getJsonArgs(entry).length > 0}
+                expanded={isExpanded}
+                onToggle={() => toggleExpandedEntry(entry.id)}
+              />
               <span
                 className={cn(
                   'min-w-0',
@@ -214,10 +207,9 @@ export function ConsoleView({
                 )}
                 title={entry.text}
               >
-                <ConsoleMessagePreview
-                  preview={preview}
+                <JsonInlinePreview
+                  preview={formatJsonTextPreview(entry.text)}
                   searchText={searchText}
-                  searchOptions={searchOptions}
                   wrapLines={wrapLines}
                 />
               </span>
@@ -284,7 +276,7 @@ export function ConsoleView({
   const displayEntries = useMemo(() => {
     const filtered = entries.filter((entry) => {
       if (entry.level === 'clear') return false;
-      if (levelFilter !== 'all' && entry.level !== levelFilter) return false;
+      if (!matchesConsoleLevelFilter(entry, enabledLevels)) return false;
       if (hasIncludeExclude) {
         const haystack = `${entry.text} ${entry.source ?? ''} ${entry.stack ?? ''}`;
         if (!matchesIncludeExcludeFilters(haystack, includeText, excludeText)) return false;
@@ -293,7 +285,7 @@ export function ConsoleView({
     });
 
     return groupRepeatedEntries(filtered);
-  }, [entries, excludeText, hasIncludeExclude, includeText, levelFilter]);
+  }, [enabledLevels, entries, excludeText, hasIncludeExclude, includeText]);
 
   const searchOccurrences = useMemo(() => {
     if (!hasSearch) return [];
@@ -404,12 +396,10 @@ export function ConsoleView({
   return (
     <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-bg">
       <div className="flex min-w-0 items-center justify-between gap-3 border-b border-line-weak bg-surface px-3.5 py-2.5">
-        <PillTabs
-          className="min-w-0 overflow-x-auto"
-          ariaLabel="Console level filter"
-          value={levelFilter}
-          onChange={setLevelFilter}
-          options={LEVEL_FILTERS}
+        <ConsoleLevelMenu
+          enabledLevels={enabledLevels}
+          onToggle={handleToggleLevel}
+          onSetAll={handleSetAllLevels}
         />
         <div className="flex flex-none items-center gap-2.5">
           <ToggleControl label="Auto-scroll" checked={autoScroll} onChange={setAutoScroll} />
@@ -685,7 +675,7 @@ function ConsoleArgBlock({
   const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
 
-  if (shouldRenderArgInJsonViewer(value)) {
+  if (isJsonLikeValue(value)) {
     return (
       <div className="console-arg-block grid gap-1">
         <div className="text-[10px] font-bold uppercase tracking-[0.04em] text-ink-weak">arg[{index}]</div>
@@ -715,107 +705,30 @@ function ConsoleArgBlock({
 function getJsonArgs(entry: ConsoleEntry): { index: number; value: unknown }[] {
   const fromArgs = entry.args
     .map((value, index) => ({ index, value }))
-    .filter(({ value }) => shouldRenderArgInJsonViewer(value));
+    .filter(({ value }) => isJsonLikeValue(value));
 
   if (fromArgs.length > 0) return fromArgs;
-  if (entry.args.length === 0 && shouldRenderArgInJsonViewer(entry.text)) {
+  if (entry.args.length === 0 && isJsonLikeValue(entry.text)) {
     return [{ index: 0, value: entry.text }];
   }
   return [];
 }
 
-/* 접힌 상태 미리보기의 토큰 색. 펼친 트리(renderJsonValue)와 같은 팔레트를 쓴다. */
-const TOKEN_COLOR: Record<ConsoleMessageTokenKind, string> = {
-  plain: '',
-  key: 'text-accent',
-  string: 'text-json-string',
-  number: 'text-json-number',
-  boolean: 'text-purple',
-  null: 'text-danger-bg',
-  punct: 'text-ink-weak',
-};
-
-/**
- * 접힌 행의 한 줄 미리보기. JSON 구간만 키·값 색을 입힌다.
- *
- * 하이라이트는 토큰마다 따로 그리지만 토큰이 원본을 순서대로 덮으므로
- * `.search-highlight` 마크의 DOM 순서는 그대로다.
- */
-function ConsoleMessagePreview({
-  preview,
-  searchText,
-  searchOptions,
-  wrapLines,
-}: {
-  preview: string;
-  searchText: string;
-  searchOptions: Required<SearchOptions>;
-  wrapLines: boolean;
-}) {
-  const hasSearch = Boolean(searchText.trim());
-  const lines = groupConsoleMessageLines(tokenizeConsoleMessage(preview));
-
-  return (
-    <>
-      {lines.map((tokens, lineIndex) => (
-        <span
-          key={lineIndex}
-          className={cn(
-            'block',
-            // 접힌 미리보기는 한 줄씩 말줄임한다. wrap 모드에서는 그대로 흘린다.
-            !wrapLines && 'overflow-hidden text-ellipsis whitespace-nowrap',
-          )}
-        >
-          {tokens.map((token, index) => {
-            const content = hasSearch
-              ? highlightSearchText(token.text, searchText, searchOptions)
-              : token.text;
-            const color = TOKEN_COLOR[token.kind];
-            return color ? (
-              <span key={index} className={color}>
-                {content}
-              </span>
-            ) : (
-              <Fragment key={index}>{content}</Fragment>
-            );
-          })}
-        </span>
-      ))}
-    </>
-  );
-}
-
 /**
  * 행을 펼쳤을 때 메시지 아래로 이어지는 JSON 트리.
  * 상세 패널과 달리 툴바·테두리 없이 본문만 이어 붙여, 행의 텍스트가 그대로
- * 펼쳐진 것처럼 보이게 한다. 행 클릭(선택)과 키 입력은 여기서 막는다.
+ * 펼쳐진 것처럼 보이게 한다.
  */
 function ConsoleRowJson({ entry, searchText }: { entry: ConsoleEntry; searchText: string }) {
   const jsonArgs = getJsonArgs(entry);
   if (jsonArgs.length === 0) return null;
 
   return (
-    <div
-      className="grid gap-1 pb-1 pl-[34px]"
-      onClick={(event) => event.stopPropagation()}
-      onKeyDown={(event) => event.stopPropagation()}
-      role="presentation"
-    >
+    <JsonRowSubTree>
       {jsonArgs.map(({ index, value }) => (
         <JsonTree key={index} value={value} searchText={searchText} className="px-0 py-0" />
       ))}
-    </div>
-  );
-}
-
-function shouldRenderArgInJsonViewer(value: unknown): boolean {
-  if (value === null || value === undefined) return false;
-  if (typeof value === 'object') return true;
-  if (typeof value !== 'string') return false;
-
-  const trimmed = value.trim();
-  return (
-    (trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))
+    </JsonRowSubTree>
   );
 }
 

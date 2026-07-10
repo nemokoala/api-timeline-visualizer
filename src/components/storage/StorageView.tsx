@@ -285,7 +285,9 @@ export function StorageView({
       if (!hasDetail) {
         if (row) scrollSearchHitIntoView(row);
 
-        const rowMarks = row?.querySelectorAll(".search-highlight");
+        // 셀 영역으로 한정한다. 펼쳐진 JSON 서브행에도 .search-highlight가 생기는데,
+        // occurrenceIndex는 셀 기준 순번이라 함께 세면 활성 마크가 어긋난다.
+        const rowMarks = row?.querySelectorAll("[data-row-cells] .search-highlight");
         rowMarks?.forEach((mark, index) => {
           mark.classList.toggle(
             "is-active",

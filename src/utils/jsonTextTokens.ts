@@ -1,7 +1,7 @@
 /**
- * 콘솔 행의 한 줄 미리보기 문자열을 구문 색상용 토큰으로 쪼갠다.
+ * 접힌 행의 한 줄 미리보기 문자열을 구문 색상용 토큰으로 쪼갠다(콘솔·스토리지 공용).
  *
- * 미리보기는 진짜 JSON이 아니다. `formatConsoleMessagePreview`가 만드는 요약형
+ * 미리보기는 진짜 JSON이 아니다. `formatJsonTextPreview`가 만드는 요약형
  * (`{ env: "development", … +2 keys }`)과 원본 텍스트(`{"env":"development"}`)가
  * 섞여 들어오고, 앞뒤로 평문이 붙는다(`App booted { … }`). 그래서 파서가 아니라
  * 스캐너로 처리한다 — 중괄호/대괄호로 열리고 닫히는 구간만 JSON으로 보고,
@@ -9,9 +9,9 @@
  *
  * 토큰은 항상 원본 문자열을 왼쪽에서 오른쪽으로 빠짐없이 덮는다. 호출부가
  * 토큰마다 검색 하이라이트를 그려도 `.search-highlight` 마크의 DOM 순서가
- * 원본과 같아야 하기 때문이다(consoleSearch의 occurrenceIndex가 순번에 의존).
+ * 원본과 같아야 하기 때문이다(consoleSearch·storageSearch의 occurrenceIndex가 순번에 의존).
  */
-export type ConsoleMessageTokenKind =
+export type JsonTextTokenKind =
   | 'plain'
   | 'key'
   | 'string'
@@ -20,15 +20,15 @@ export type ConsoleMessageTokenKind =
   | 'null'
   | 'punct';
 
-export type ConsoleMessageToken = {
+export type JsonTextToken = {
   text: string;
-  kind: ConsoleMessageTokenKind;
+  kind: JsonTextTokenKind;
   /** 몇 번째 JSON 구간에 속하는지. 구간 밖의 평문은 null. */
   segmentIndex: number | null;
 };
 
-export function tokenizeConsoleMessage(text: string): ConsoleMessageToken[] {
-  const tokens: ConsoleMessageToken[] = [];
+export function tokenizeJsonText(text: string): JsonTextToken[] {
+  const tokens: JsonTextToken[] = [];
   let index = 0;
   let plain = '';
   let segmentIndex = 0;
@@ -70,8 +70,8 @@ export function tokenizeConsoleMessage(text: string): ConsoleMessageToken[] {
  * 토큰을 렌더 줄 단위로 묶는다. 평문 뒤에 JSON 구간이 오면 새 줄로 내린다
  * (`App booted` / `{ env: … }`). 메시지 전체가 JSON이면 줄을 나누지 않는다.
  */
-export function groupConsoleMessageLines(tokens: ConsoleMessageToken[]): ConsoleMessageToken[][] {
-  const lines: ConsoleMessageToken[][] = [];
+export function groupJsonTextLines(tokens: JsonTextToken[]): JsonTextToken[][] {
+  const lines: JsonTextToken[][] = [];
   let previousSegment: number | null = null;
 
   for (const token of tokens) {
@@ -123,8 +123,8 @@ const PUNCT = new Set(['{', '}', '[', ']', ',', ':']);
 const IDENT_START = /[A-Za-z_$]/;
 const IDENT_BODY = /[\w$]/;
 
-function tokenizeSegment(segment: string, segmentIndex: number): ConsoleMessageToken[] {
-  const tokens: ConsoleMessageToken[] = [];
+function tokenizeSegment(segment: string, segmentIndex: number): JsonTextToken[] {
+  const tokens: JsonTextToken[] = [];
   let index = 0;
 
   while (index < segment.length) {
@@ -165,7 +165,7 @@ function tokenizeSegment(segment: string, segmentIndex: number): ConsoleMessageT
   return tokens;
 }
 
-function identifierKind(text: string, next: string | null): ConsoleMessageTokenKind {
+function identifierKind(text: string, next: string | null): JsonTextTokenKind {
   // 요약형은 키를 따옴표 없이 쓴다: { env: "development" }
   if (next === ':') return 'key';
   if (text === 'true' || text === 'false') return 'boolean';
@@ -198,8 +198,8 @@ function nextNonSpace(segment: string, from: number): string | null {
 }
 
 /** 같은 종류가 연달아 나오면 합쳐 span 수를 줄인다. */
-function mergeAdjacent(tokens: ConsoleMessageToken[]): ConsoleMessageToken[] {
-  const merged: ConsoleMessageToken[] = [];
+function mergeAdjacent(tokens: JsonTextToken[]): JsonTextToken[] {
+  const merged: JsonTextToken[] = [];
   for (const token of tokens) {
     const previous = merged[merged.length - 1];
     if (previous && previous.kind === token.kind && previous.segmentIndex === token.segmentIndex) {

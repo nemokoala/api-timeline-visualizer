@@ -7,6 +7,7 @@ import type { ColumnDef, ColumnSizingState, OnChangeFn } from "@tanstack/react-t
 import type { CookieEntry } from "../../types/storage";
 import type { CookieWriteInput } from "../../utils/cookieInspector";
 import { useSearchOptions } from "../../contexts/SearchOptionsContext";
+import { useExpandedRows } from "../../hooks/useExpandedRows";
 import { highlightSearchText } from "../../utils/searchHighlight";
 import { storageTargetKey } from "../../utils/storageSearch";
 import { getTablePrefs, saveTablePrefs, type TablePrefs } from "../../utils/tablePrefs";
@@ -18,6 +19,11 @@ import { CookieForm } from "./CookieForm";
 import { formatCookieExpires, formatSameSite } from "./cookieFormat";
 import { RowDeleteButton } from "./RowDeleteButton";
 import {
+  isExpandableStorageValue,
+  StorageValueCell,
+  StorageValueSubTree,
+} from "./StorageValueCell";
+import {
   COOKIE_COLUMNS,
   COOKIE_DEFAULT_PREFS,
   COOKIE_PREFS_KEY,
@@ -25,6 +31,16 @@ import {
   type CookieColumnVisibility,
   type SelectedStorageItem,
 } from "./storageShared";
+
+/** 쿠키 한 개를 가리키는 안정적인 키(행 id·펼침 상태 공용). */
+function cookieRowKey(cookie: CookieEntry): string {
+  return storageTargetKey({
+    kind: "cookie",
+    name: cookie.name,
+    domain: cookie.domain,
+    path: cookie.path,
+  });
+}
 
 export function CookiePane({
   entries,
@@ -50,6 +66,7 @@ export function CookiePane({
   onAddCookie: (cookie: CookieWriteInput) => Promise<boolean>;
 }) {
   const searchOptions = useSearchOptions();
+  const { isExpanded, toggle: toggleExpanded } = useExpandedRows();
   const [tablePrefs, setTablePrefs] = useState<TablePrefs>(() =>
     getTablePrefs(COOKIE_PREFS_KEY, COOKIE_DEFAULT_PREFS),
   );
@@ -108,7 +125,14 @@ export function CookiePane({
         header: "Value",
         enableResizing: false,
         meta: { flex: true, minWidth: 160 },
-        cell: ({ row }) => highlight(row.original.value),
+        cell: ({ row }) => (
+          <StorageValueCell
+            value={row.original.value}
+            searchText={searchText}
+            expanded={isExpanded(cookieRowKey(row.original))}
+            onToggle={() => toggleExpanded(cookieRowKey(row.original))}
+          />
+        ),
       },
       {
         id: "domain",
@@ -180,7 +204,15 @@ export function CookiePane({
       });
     }
     return cols;
-  }, [canEdit, isMutating, onDeleteCookie, searchOptions, searchText]);
+  }, [
+    canEdit,
+    isExpanded,
+    isMutating,
+    onDeleteCookie,
+    searchOptions,
+    searchText,
+    toggleExpanded,
+  ]);
 
   return (
     <>
@@ -206,14 +238,7 @@ export function CookiePane({
           ariaLabel="Cookies"
           columns={columns}
           data={entries}
-          getRowId={(cookie) =>
-            `storage-row-${storageTargetKey({
-              kind: "cookie",
-              name: cookie.name,
-              domain: cookie.domain,
-              path: cookie.path,
-            })}`
-          }
+          getRowId={(cookie) => `storage-row-${cookieRowKey(cookie)}`}
           columnSizing={tablePrefs.columnWidths}
           onColumnSizingChange={handleColumnSizingChange}
           columnVisibility={tablePrefs.columnVisibility}
@@ -228,6 +253,11 @@ export function CookiePane({
               : null
           }
           onRowClick={(cookie) => onSelectCookie(cookie)}
+          renderSubRow={(cookie) =>
+            isExpanded(cookieRowKey(cookie)) && isExpandableStorageValue(cookie.value) ? (
+              <StorageValueSubTree value={cookie.value} searchText={searchText} />
+            ) : null
+          }
           onHeaderContextMenu={handleColumnContextMenu}
           emptyState={isLoading ? "Loading…" : "No matching cookies."}
         />
