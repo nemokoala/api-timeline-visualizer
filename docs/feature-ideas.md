@@ -38,6 +38,10 @@ Prettier를 설정하고, GitHub Actions로 PR마다 `tsc + lint + test + build`
 `data-row-id`로 DOM을 찾는 현재 흐름(`ConsoleView.tsx`, `StorageView.tsx`)을
 `scrollToIndex`와 연동하고, `renderSubRow`(타임라인 막대·JSON 트리)의 가변 높이를 measure한다.
 
+> 주의: 지금 행이 sticky 헤더 뒤로 숨지 않는 건 `DataTable`이 행에 실어 주는
+> `scroll-margin-top` 덕이고, `scrollIntoView`가 그 값을 알아서 존중한다.
+> `scrollToIndex`는 이를 존중하지 않으므로 헤더 높이를 직접 빼 줘야 한다.
+
 ---
 
 ## 3. 콘솔 엔트리 버퍼 상한 — Perf / S / 높음
@@ -168,6 +172,30 @@ XML/SVG는 트리, `text/*`는 라이트 구문 강조. `JsonViewer`는 JSON 전
 ---
 
 ## 완료됨
+
+### 자동 스크롤된 행이 sticky 헤더에 가려지던 문제
+
+`DataTable`의 헤더는 `sticky top-0`이라 스크롤된 목록의 위쪽을 덮는다. 그런데 `TimelineView`가
+선택된 행을 `scrollIntoView({ block: 'nearest' })`로 끌어올 때 행을 스크롤 컨테이너 상단에 맞추는데,
+그 지점이 곧 헤더 아래다. 목록을 아래로 스크롤한 상태에서 위쪽 행이 선택될 때만 나타나 "가끔 살짝
+가리는" 증상으로 보였지만, 재보면 정확히 헤더 높이(28px)만큼 가려진다.
+
+같은 뿌리의 두 번째 버그: `searchScroll.ts`의 `isVisibleInContainer`는 행이 컨테이너 top보다 4px만
+아래면 "보인다"고 판정했다. 헤더에 17.7px 가려진 행도 보임으로 처리되어 콘솔·스토리지의 검색 이동이
+아무 일도 하지 않았다.
+
+- `DataTable`이 `ResizeObserver`로 헤더 실제 높이를 재서 각 행의 `scroll-margin-top`으로 준다.
+  `scrollIntoView`가 이 값을 존중하므로 네트워크·콘솔·스토리지 세 테이블이 함께 고쳐진다.
+  하드코딩한 픽셀이 아니라 실측이라 폰트·줌이 바뀌어도 따라간다.
+- `searchScroll`은 대상의 `scroll-margin-top`을 그대로 읽어 가려짐 판정에 더한다.
+  두 곳이 같은 하나의 값을 근거로 삼는다.
+
+### 요약 배너가 요청 목록을 0px로 밀어내던 문제
+
+`NetworkSummary`가 `max-h-[280px] shrink-0`이라, 네트워크 패널이 280px보다 낮으면 요약이 가용
+높이를 다 먹고도 줄어들지 않아 요청 테이블 높이가 0이 됐다(패널이 짧으면 목록이 통째로 사라짐).
+상한을 `min(280px, 45%)`로 바꿔 패널 높이의 45%를 넘지 못하게 했다. 내부는 이미 `overflow-y-auto`라
+넘치는 내용은 스크롤된다.
 
 ### 후속 정리 (5건 중 4건)
 
