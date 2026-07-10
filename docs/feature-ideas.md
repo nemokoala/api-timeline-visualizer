@@ -159,28 +159,29 @@ XML/SVG는 트리, `text/*`는 라이트 구문 강조. `JsonViewer`는 JSON 전
 
 ## 후속 정리 대상
 
-아래 항목은 완료된 작업에서 파생된 작은 빚이다. 기능이 아니라 정리 작업이다.
-
-- **`copyToClipboard` 중복.** `RequestDetailPanel.tsx`와 `JsonViewer.tsx`에 같은 구현이 인라인으로
-  남아 있다. 새로 만든 `utils/clipboard.ts`의 `copyText()`로 두 호출부를 이관한다.
-
-- **`MenuActionItem`의 위치.** 체크 없는 일반 메뉴 항목이 `RowContextMenu.tsx` 안에 지역 정의돼 있다.
-  `MenuCheckItem`과 나란히 `ui/Menu.tsx`로 올려야 다른 메뉴에서도 쓸 수 있다.
-
-- **요청 종류별 색상 맵 중복.** `NetworkSummary.tsx`가 `TimelineView.tsx`의 색상 맵을 복제했다.
-  `utils/formatters.ts`로 끌어올려 한 곳에서만 정의한다.
-
-- **행 메뉴의 Resend 누락.** 네트워크 행 컨텍스트 메뉴에 Copy URL/cURL/fetch/response와
-  Open in new tab은 있으나 Resend가 없다. 재전송은 `ReplayEditorModal` 상태가 `RequestDetailPanel`에
-  묶여 있어, 모달 상태를 `NetworkPanel`로 끌어올려야 행에서 바로 열 수 있다.
-
-- **HAR `timings`의 `ssl` 중첩.** HAR 스펙상 `ssl` 시간은 `connect` 안에 포함되는데,
-  `requestTimings.ts`는 7단계를 순차 세그먼트로 그리고 총합 클램프에 의존한다.
-  실 트래픽에서 connect 구간이 부풀어 보이면 `connect -= ssl` 보정을 넣는다.
+- **행 메뉴에서 편집 후 재전송.** 행 컨텍스트 메뉴의 Resend는 즉시 전송이다(크롬 DevTools의
+  "Replay XHR"과 같다). 보내기 전에 URL·헤더·본문을 고치려면 상세 패널의 Edit을 거쳐야 한다.
+  행에서 바로 편집기를 열려면 `ReplayEditorModal`의 draft 상태를 `NetworkPanel`로 끌어올려야 하는데,
+  draft는 지금 `CodeSnippetBlock` 안에서 cURL/fetch 스니펫과 한 몸이다("미리보기가 곧 보낼 내용").
+  그 결합을 푸는 게 이 작업의 본체다.
 
 ---
 
 ## 완료됨
+
+### 후속 정리 (5건 중 4건)
+
+- `copyToClipboard` 인라인 중복 2개를 지우고 `utils/clipboard.ts`의 `copyText()`로 모았다.
+  `JsonViewer`에는 같은 이름의 지역 변수가 있어 별칭으로 import한다.
+- `MenuActionItem`을 `ui/Menu.tsx`로 올리고, `MenuCheckItem`과 공유하는 항목 클래스도 `itemBase`로 묶었다.
+- 요청 종류별 색상 맵을 `formatters.ts`의 `REQUEST_KIND_TEXT_COLOR` 하나로 합쳤다.
+  `Record<RequestKind, string>`으로 전수 정의해 `TimelineView`의 `?? 'text-ink-weak'` 폴백도 지웠다.
+- HAR `ssl`은 스펙상 `connect`에 포함되므로(HAR 1.1 호환용 중첩, `time` 총합에도 따로 더해지지 않는다)
+  `normalizeTimings`가 `connect -= ssl`로 겹침을 걷어낸 뒤 순차 세그먼트를 만든다. 목업도 스펙에 맞게
+  `connect`가 `ssl`을 포함하도록 고쳤다 — 화면에 찍히는 값은 그대로다.
+
+행 메뉴의 Resend는 즉시 재전송으로 구현했다. `App`이 `onResendRequest`를 소유하고 결과를 세션 알림에
+띄운다. `ReplayEditorModal`은 draft를 편집하는 상세 패널 쪽에 그대로 남겼다 — 위 [후속 정리 대상](#후속-정리-대상) 참고.
 
 ### 행 우클릭 컨텍스트 메뉴 — DX
 
@@ -188,8 +189,9 @@ XML/SVG는 트리, `text/*`는 라이트 구문 강조. `JsonViewer`는 JSON 전
 (바깥 클릭·Escape·항목 선택 시 닫힘, 뷰포트 밖으로 나가면 위치 클램프)를 만들었다.
 클립보드 헬퍼는 `utils/clipboard.ts`의 `copyText()`로 분리했다.
 
-- 네트워크 행: Copy URL / Copy as cURL / Copy as fetch / Copy response / Open in new tab.
+- 네트워크 행: Copy URL / Copy as cURL / Copy as fetch / Copy response / Open in new tab / Resend.
   응답 본문은 행을 선택해야 지연 로드되므로, 아직 없으면 Copy response는 비활성.
+  Resend는 `canResendRequest`가 false인 요청(websocket, 비-http URL)에서 비활성.
 - 콘솔 행: Copy message / Copy arguments as JSON / Copy source / Copy stack.
 - 스토리지 행: Copy key·value·JSON(+쿠키는 name·domain), 기존 삭제 핸들러를 재사용한 Delete.
 

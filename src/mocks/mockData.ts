@@ -48,8 +48,8 @@ const SEEDS: MockRequestSeed[] = [
     status: 200,
     offset: 0,
     duration: 142,
-    // 새 커넥션: 모든 단계가 잡힌다.
-    harTimings: { blocked: 2, dns: 5, connect: 12, ssl: 8, send: 1, wait: 100, receive: 14 },
+    // 새 커넥션: 모든 단계가 잡힌다. HAR 스펙대로 connect는 ssl을 포함한다(20 = TCP 12 + TLS 8).
+    harTimings: { blocked: 2, dns: 5, connect: 20, ssl: 8, send: 1, wait: 100, receive: 14 },
     type: 'fetch',
     mimeType: 'application/json',
     response: {
@@ -121,7 +121,7 @@ const SEEDS: MockRequestSeed[] = [
     offset: 980,
     duration: 1240, // 느린 요청 (isSlow)
     // 대부분이 서버 대기(wait)인 느린 요청.
-    harTimings: { blocked: 3, dns: 10, connect: 40, ssl: 25, send: 2, wait: 1100, receive: 60 },
+    harTimings: { blocked: 3, dns: 10, connect: 65, ssl: 25, send: 2, wait: 1100, receive: 60 },
     type: 'xhr',
     mimeType: 'application/json',
     queryParams: { range: '30d', granularity: 'day' },
@@ -178,7 +178,7 @@ const SEEDS: MockRequestSeed[] = [
     statusText: 'Internal Server Error',
     offset: 2600,
     duration: 410,
-    harTimings: { blocked: 1, dns: 6, connect: 18, ssl: 12, send: 2, wait: 360, receive: 11 },
+    harTimings: { blocked: 1, dns: 6, connect: 30, ssl: 12, send: 2, wait: 360, receive: 11 },
     type: 'fetch',
     mimeType: 'application/json',
     response: { error: 'internal_error', requestId: 'req_a91f3c', message: 'Unexpected failure.' },

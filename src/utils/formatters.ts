@@ -60,6 +60,20 @@ export function getRequestKindLabel(kind: RequestKind): string {
   return REQUEST_KIND_LABELS[kind] ?? 'Other';
 }
 
+/* 종류별 라벨 색. API 계열은 blue/purple, 정적 리소스는 각기 다른 색으로 구분. */
+export const REQUEST_KIND_TEXT_COLOR: Record<RequestKind, string> = {
+  fetch: 'text-accent',
+  document: 'text-accent',
+  xhr: 'text-purple',
+  websocket: 'text-purple',
+  stylesheet: 'text-teal',
+  script: 'text-warn',
+  image: 'text-ok',
+  font: 'text-pink',
+  media: 'text-danger',
+  other: 'text-ink-weak',
+};
+
 export function getStatusTone(status: number): 'neutral' | 'good' | 'warn' | 'bad' {
   if (!status) return 'neutral';
   if (status >= 500) return 'bad';

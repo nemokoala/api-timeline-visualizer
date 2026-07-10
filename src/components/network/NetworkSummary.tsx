@@ -1,31 +1,21 @@
 import type { ReactNode } from 'react';
-import type { RequestKind } from '../../types/network';
 import type {
   NetworkSummary as NetworkSummaryData,
   NetworkTopRequest,
   StatusGroupKey,
 } from '../../utils/networkStats';
-import { formatBytes, formatDuration, getRequestKindLabel } from '../../utils/formatters';
+import {
+  formatBytes,
+  formatDuration,
+  getRequestKindLabel,
+  REQUEST_KIND_TEXT_COLOR,
+} from '../../utils/formatters';
 import { cn } from '../../utils/cn';
 import { Button } from '../ui/Button';
 
 type NetworkSummaryProps = {
   summary: NetworkSummaryData;
   onSelectRequest: (requestId: string) => void;
-};
-
-/* 종류별 라벨 색(TimelineView와 동일 규칙): API 계열은 blue/purple, 정적 리소스는 각기 다른 색. */
-const KIND_TEXT_COLOR: Record<RequestKind, string> = {
-  fetch: 'text-accent',
-  document: 'text-accent',
-  xhr: 'text-purple',
-  websocket: 'text-purple',
-  stylesheet: 'text-teal',
-  script: 'text-warn',
-  image: 'text-ok',
-  font: 'text-pink',
-  media: 'text-danger',
-  other: 'text-ink-weak',
 };
 
 const STATUS_GROUP_LABEL: Record<StatusGroupKey, string> = {
@@ -190,7 +180,7 @@ export function NetworkSummary({ summary, onSelectRequest }: NetworkSummaryProps
               <DistributionRow
                 key={kind}
                 label={getRequestKindLabel(kind)}
-                labelClassName={KIND_TEXT_COLOR[kind]}
+                labelClassName={REQUEST_KIND_TEXT_COLOR[kind]}
                 barClassName="bg-accent"
                 count={count}
                 total={totalCount}

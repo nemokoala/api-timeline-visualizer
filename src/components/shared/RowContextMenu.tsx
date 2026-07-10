@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { cn } from '../../utils/cn';
-import { MenuSeparator, MenuSurface } from '../ui/Menu';
+import { MenuActionItem, MenuSeparator, MenuSurface } from '../ui/Menu';
 
 export type RowContextMenuItem = {
   id: string;
@@ -18,35 +17,6 @@ type RowContextMenuProps = {
   items: RowContextMenuItem[];
   onClose: () => void;
 };
-
-/**
- * Menu.tsx의 MenuCheckItem에서 체크 거터만 뺀 일반 동작 항목.
- * Menu.tsx에 아직 MenuActionItem이 없어 로컬에 둔다(추후 Menu.tsx로 이관 대상).
- */
-function MenuActionItem({
-  label,
-  disabled,
-  onSelect,
-}: {
-  label: string;
-  disabled?: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      disabled={disabled}
-      className={cn(
-        'flex w-full cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent px-[9px] py-[7px] text-left text-xs text-ink',
-        'hover:enabled:bg-fill disabled:cursor-not-allowed disabled:opacity-45',
-      )}
-      onClick={onSelect}
-    >
-      {label}
-    </button>
-  );
-}
 
 /**
  * 행 우클릭 컨텍스트 메뉴(복사·삭제 등 행 동작 공용).
@@ -106,11 +76,9 @@ export function RowContextMenu({ x, y, items, onClose }: RowContextMenuProps) {
       {items.map((item) => (
         <div key={item.id}>
           {item.separatorBefore ? <MenuSeparator /> : null}
-          <MenuActionItem
-            label={item.label}
-            disabled={item.disabled}
-            onSelect={() => handleSelect(item)}
-          />
+          <MenuActionItem disabled={item.disabled} onClick={() => handleSelect(item)}>
+            {item.label}
+          </MenuActionItem>
         </div>
       ))}
     </MenuSurface>
