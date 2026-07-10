@@ -171,7 +171,7 @@ function JsonBlock({
   const [copied, setCopied] = useState(false);
   const [fieldMenu, setFieldMenu] = useState<ActiveFieldMenu>(null);
   const [settingsMenu, setSettingsMenu] = useState<{ top: number; left: number } | null>(null);
-  const [jsonViewPrefs, setJsonViewPrefs] = useJsonViewPrefs();
+  const [jsonViewPrefs] = useJsonViewPrefs();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [localSearch, setLocalSearch] = useState('');
   const [localActiveIndex, setLocalActiveIndex] = useState(0);
@@ -181,7 +181,6 @@ function JsonBlock({
   const [customHeight, setCustomHeight] = useState<number | null>(null);
   const viewerBodyRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const settingsMenuRef = useRef<HTMLDivElement>(null);
   // Pop out(플로팅 dockview 패널로 열기)은 워크스페이스 컨텍스트가 있을 때만 노출한다.
   const onOpenPanel = useWorkspaceOptional()?.openJsonPanel ?? null;
   const copyText = fallback || '{}';
@@ -326,27 +325,6 @@ function JsonBlock({
       viewer?.removeEventListener('scroll', closeMenu);
     };
   }, [fieldMenu]);
-
-  // 설정 메뉴는 바깥 클릭·Escape로만 닫는다. 체크박스 토글은 메뉴 내부라 유지된다.
-  useEffect(() => {
-    if (!settingsMenu) return;
-
-    const handleMouseDown = (event: Event) => {
-      if (settingsMenuRef.current?.contains(event.target as Node)) return;
-      setSettingsMenu(null);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setSettingsMenu(null);
-    };
-
-    window.addEventListener('mousedown', handleMouseDown);
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('mousedown', handleMouseDown);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [settingsMenu]);
 
   const handleCopy = async () => {
     const didCopy = await copyToClipboard(copyText);
@@ -501,27 +479,11 @@ function JsonBlock({
           )}
         </div>
         {settingsMenu ? (
-          <MenuSurface
-            ref={settingsMenuRef}
-            style={{ top: settingsMenu.top, left: settingsMenu.left }}
-            role="menu"
-            aria-label="JSON 표시 설정"
-          >
-            <MenuCheckItem
-              checked={jsonViewPrefs.indentGuide}
-              onClick={() => setJsonViewPrefs((prev) => ({ ...prev, indentGuide: !prev.indentGuide }))}
-            >
-              들여쓰기 가이드
-            </MenuCheckItem>
-            {/* 무지개색은 가이드선이 꺼져 있으면 효과가 없어 비활성화한다. */}
-            <MenuCheckItem
-              checked={jsonViewPrefs.rainbow}
-              disabled={!jsonViewPrefs.indentGuide}
-              onClick={() => setJsonViewPrefs((prev) => ({ ...prev, rainbow: !prev.rainbow }))}
-            >
-              무지개색
-            </MenuCheckItem>
-          </MenuSurface>
+          <JsonViewSettingsMenu
+            top={settingsMenu.top}
+            left={settingsMenu.left}
+            onClose={() => setSettingsMenu(null)}
+          />
         ) : null}
         {!isFullscreen ? (
           <div
@@ -665,6 +627,58 @@ function renderJsonValue(
  * 툴바·리사이즈·전체화면 없이 구문 색상 트리만 그리는 최소 뷰어.
  * 콘솔 행처럼 인라인으로 펼쳐 보여줄 때 쓴다. 필드 복사 팝오버는 달지 않는다.
  */
+/**
+ * JSON 표시 옵션(가이드선·무지개색) 설정 팝오버. 전체 JsonViewer와 인라인 JsonTree가 공유한다.
+ * 바깥 클릭·Escape로만 닫히고, 체크박스 토글은 메뉴 내부라 유지된다.
+ */
+function JsonViewSettingsMenu({
+  top,
+  left,
+  onClose,
+}: {
+  top: number;
+  left: number;
+  onClose: () => void;
+}) {
+  const [prefs, setPrefs] = useJsonViewPrefs();
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleMouseDown = (event: Event) => {
+      if (menuRef.current?.contains(event.target as Node)) return;
+      onClose();
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
+  return (
+    <MenuSurface ref={menuRef} style={{ top, left }} role="menu" aria-label="JSON 표시 설정">
+      <MenuCheckItem
+        checked={prefs.indentGuide}
+        onClick={() => setPrefs((prev) => ({ ...prev, indentGuide: !prev.indentGuide }))}
+      >
+        들여쓰기 가이드
+      </MenuCheckItem>
+      {/* 무지개색은 가이드선이 꺼져 있으면 효과가 없어 비활성화한다. */}
+      <MenuCheckItem
+        checked={prefs.rainbow}
+        disabled={!prefs.indentGuide}
+        onClick={() => setPrefs((prev) => ({ ...prev, rainbow: !prev.rainbow }))}
+      >
+        무지개색
+      </MenuCheckItem>
+    </MenuSurface>
+  );
+}
+
 export function JsonTree({
   value,
   searchText = '',
@@ -675,8 +689,8 @@ export function JsonTree({
   className?: string;
 }) {
   const searchOptions = useSearchOptions();
-  // 인라인 트리는 설정을 읽기만 한다(우클릭 메뉴는 전체 JsonViewer에만 있다).
   const [jsonViewPrefs] = useJsonViewPrefs();
+  const [settingsMenu, setSettingsMenu] = useState<{ top: number; left: number } | null>(null);
   const rendered = coerceJson(value);
 
   if (!rendered || typeof rendered !== 'object') {
@@ -688,8 +702,24 @@ export function JsonTree({
   }
 
   return (
-    <div className={cn('json-viewer text-ink', className)}>
+    <div
+      className={cn('json-viewer text-ink', className)}
+      // 인라인 트리는 행 안에 있어 우클릭이 행 컨텍스트 메뉴로 버블링된다.
+      // stopPropagation으로 막고 JSON 표시 설정 메뉴를 대신 연다.
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setSettingsMenu({ top: event.clientY, left: event.clientX });
+      }}
+    >
       {renderJsonValue(rendered, 0, 'root', noopFieldClick, searchText, searchOptions, 'search-highlight', jsonViewPrefs)}
+      {settingsMenu ? (
+        <JsonViewSettingsMenu
+          top={settingsMenu.top}
+          left={settingsMenu.left}
+          onClose={() => setSettingsMenu(null)}
+        />
+      ) : null}
     </div>
   );
 }
