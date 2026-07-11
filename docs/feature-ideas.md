@@ -108,19 +108,7 @@ PWA·오프라인 캐시 디버깅을 못 한다.
 
 ---
 
-## 9. IndexedDB 레코드 추가·수정과 80건 초과 페이지네이션 — Storage / M / 보통
-
-**문제.** IndexedDB가 읽기 + 삭제만 지원하고 80건에서 잘린다. `MAX_INDEXED_DB_RECORDS = 80`
-(`storageInspector.ts:8`)이고 `truncated` 플래그로 안내만 뜰 뿐(`IndexedDbPane.tsx`) 더 불러오기가 없다.
-편집 함수는 `deleteIndexedDbRecord`뿐이라(`storageInspector.ts:127`) localStorage(`setWebStorageItem`)나
-쿠키(`setCookie`)와 달리 값을 고칠 수 없다.
-
-**제안.** 커서 오프셋 기반 "더 불러오기"로 상한을 넘기고, IDB 레코드 `put`/`add`를
-`storageInspector`에 구현한다. `StorageDetailPanel`의 저장 흐름을 IDB에도 연결한다.
-
----
-
-## 10. 응답 본문 타입별 렌더(HTML/XML) — Network / M / 낮음
+## 9. 응답 본문 타입별 렌더(HTML/XML) — Network / M / 낮음
 
 **문제.** JSON이 아닌 응답은 평문으로만 보인다. `parseResponseContent`는 JSON만 파싱하고 나머지는
 원문을 반환한다(`requestParser.ts`). 상세 패널은 응답을 `JsonViewer`로 보내므로
@@ -133,6 +121,11 @@ XML/SVG는 트리, `text/*`는 라이트 구문 강조. `JsonViewer`는 JSON 전
 ---
 
 ## 후속 정리 대상
+
+- **IndexedDB 새 레코드 추가(put/add).** 이번엔 기존 값 수정만 했다. 신규 추가는 키(out-of-line)
+  또는 키패스 값(in-line)·autoIncrement 여부에 따라 입력 UI가 달라져 미뤘다. `setIndexedDbRecord`의
+  스크립트 패턴을 재사용하되, 스토어의 `keyPath`/`autoIncrement`를 보고 키 입력 필드를 조건부로
+  띄우는 폼(`StorageDetailPanel` 또는 스토어 헤더의 "+ Add")이 이 작업의 본체다.
 
 - **행 메뉴에서 편집 후 재전송.** 행 컨텍스트 메뉴의 Resend는 즉시 전송이다(크롬 DevTools의
   "Replay XHR"과 같다). 보내기 전에 URL·헤더·본문을 고치려면 상세 패널의 Edit을 거쳐야 한다.
@@ -152,6 +145,28 @@ XML/SVG는 트리, `text/*`는 라이트 구문 강조. `JsonViewer`는 JSON 전
 ---
 
 ## 완료됨
+
+### IndexedDB 레코드 값 편집 + 80건 초과 페이지네이션
+
+읽기·삭제만 되던 IndexedDB에 값 수정과 "더 불러오기"를 붙였다. 둘 다 삭제와 같은
+"페이지 컨텍스트 eval 스크립트 → 폴링 → 정리" op 패턴을 따른다(`storageInspector`).
+
+- **값 수정(`setIndexedDbRecord`)**: 표시된 직렬화 키와 일치하는 레코드를 커서로 찾아
+  `cursor.update`한다. 편집 텍스트는 JSON 파싱을 시도하고, 안 되면 문자열 그대로 저장한다
+  (문자열 값 스토어 대응). `StorageDetail.editTarget`에 indexeddb 변형을 더해 `StorageDetailPanel`의
+  기존 Edit 흐름을 재사용하고, `StorageView`의 저장 라우팅에서 `setIndexedDbRecord`로 보낸다.
+  Blob 등 구조화 클론 전용 값은 JSON 왕복이 안 되니(`__apiFlowBlob` 마커로 판별) 편집 대상에서 뺐다.
+- **페이지네이션(`fetchMoreIndexedDbRecords`)**: 커서를 로드된 개수만큼 `advance`해 다음 구간을
+  읽는다. 추가분은 `StorageView`가 **스냅샷(단일 소스)** 에 append하므로 `filterIndexedDB`·선택
+  인덱스와 어긋나지 않는다(`filterIndexedDB`가 `...store`로 count·truncated를 보존). 오프셋은
+  필터와 무관하게 원본 스냅샷 기준으로 잡는다. IndexedDbPane은 `truncated`일 때 "Showing N of M +
+  Load more"를 보여준다.
+
+> 원 제안은 `put`/`add`(신규 레코드 추가)까지였으나 이번엔 **기존 값 수정**만 했다. 새 레코드 추가는
+> 키/키패스·autoIncrement 입력 UI가 필요해 분리했다(후속). 실제 쓰기/추가 로드는
+> `chrome.devtools.inspectedWindow.eval`이 있는 실제 확장에서만 동작한다 — dev 프리뷰(mock 스냅샷,
+> `canInspectPageStorage()`=false)에선 편집·페이지네이션 **UI 렌더**까지만 확인했고, 스크립트는
+> 검증된 삭제 스크립트 패턴을 그대로 따랐다.
 
 ### DataTable 행 가상화 — 콘솔·네트워크
 

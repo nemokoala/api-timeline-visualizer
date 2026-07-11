@@ -1,4 +1,4 @@
-import type { PageStorageSnapshot } from '../types/storage';
+import type { IndexedDbRecord, PageStorageSnapshot } from '../types/storage';
 import type { StorageBlobPreviewItem } from './storageBlobValue';
 import { MAX_IMAGE_BLOB_BYTES } from './storageLimits';
 
@@ -115,9 +115,9 @@ function assertMutationOk(raw: unknown): void {
   if (!parsed.ok) throw new Error(parsed.error || 'Storage update failed.');
 }
 
-type OpPendingResult =
+type OpPendingResult<T = { deleted: boolean }> =
   | { status: 'pending' }
-  | { status: 'done'; data: { deleted: boolean } }
+  | { status: 'done'; data: T }
   | { status: 'error'; error: string };
 
 /**
@@ -157,11 +157,88 @@ export async function deleteIndexedDbRecord(
   }
 }
 
-function parseOpResult(value: unknown): OpPendingResult | null {
+/**
+ * IndexedDB 레코드 값을 수정한다(cursor.update). 표시된 직렬화 키(record.key)와 일치하는
+ * 레코드를 커서로 찾아 값을 교체한다. 편집 텍스트는 JSON 파싱을 시도하고, 파싱되지 않으면
+ * 문자열 그대로 저장한다(문자열 값 스토어 대응). 값에 Blob 등 구조화 클론 전용 타입이 있으면
+ * JSON으로 왕복되지 않으니 이 경로로는 편집하지 않는 게 안전하다.
+ */
+export async function setIndexedDbRecord(
+  databaseName: string,
+  storeName: string,
+  recordKey: string,
+  valueText: string,
+): Promise<void> {
+  ensureInspectable();
+  const opId = `idbop_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  await evalInInspectedPage(
+    buildSetIndexedDbRecordScript(opId, databaseName, storeName, recordKey, valueText),
+  );
+
+  try {
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt < POLL_TIMEOUT_MS) {
+      const rawResult = await evalInInspectedPage(buildReadOpScript(opId));
+      const result = parseOpResult<{ updated: boolean }>(rawResult);
+
+      if (result?.status === 'done') {
+        if (!result.data.updated) {
+          throw new Error('Record not found — it may have been removed.');
+        }
+        return;
+      }
+      if (result?.status === 'error') throw new Error(result.error);
+
+      await delay(POLL_INTERVAL_MS);
+    }
+
+    throw new Error('Timed out while updating the IndexedDB record.');
+  } finally {
+    void evalInInspectedPage(buildCleanupOpScript(opId)).catch(() => undefined);
+  }
+}
+
+/**
+ * 상한(80건)을 넘긴 IndexedDB 레코드를 offset부터 limit개 추가로 읽는다. 커서를 offset만큼
+ * advance해 그다음 구간을 읽으므로, 이미 불러온 뒤에 이어 붙일 수 있다.
+ */
+export async function fetchMoreIndexedDbRecords(
+  databaseName: string,
+  storeName: string,
+  offset: number,
+  limit: number,
+): Promise<IndexedDbRecord[]> {
+  ensureInspectable();
+  const opId = `idbmore_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  await evalInInspectedPage(
+    buildFetchMoreIndexedDbRecordsScript(opId, databaseName, storeName, offset, limit),
+  );
+
+  try {
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt < POLL_TIMEOUT_MS) {
+      const rawResult = await evalInInspectedPage(buildReadOpScript(opId));
+      const result = parseOpResult<{ records: IndexedDbRecord[] }>(rawResult);
+
+      if (result?.status === 'done') return result.data.records;
+      if (result?.status === 'error') throw new Error(result.error);
+
+      await delay(POLL_INTERVAL_MS);
+    }
+
+    throw new Error('Timed out while loading more IndexedDB records.');
+  } finally {
+    void evalInInspectedPage(buildCleanupOpScript(opId)).catch(() => undefined);
+  }
+}
+
+function parseOpResult<T = { deleted: boolean }>(value: unknown): OpPendingResult<T> | null {
   if (typeof value !== 'string') return null;
 
   try {
-    const parsed = JSON.parse(value) as OpPendingResult;
+    const parsed = JSON.parse(value) as OpPendingResult<T>;
     if (!parsed || typeof parsed !== 'object' || !('status' in parsed)) return null;
     return parsed;
   } catch {
@@ -714,6 +791,173 @@ function buildDeleteIndexedDbRecordScript(
         });
 
         window[rootKey][opId] = { status: 'done', data: { deleted } };
+      } finally {
+        db.close();
+      }
+    })
+    .catch((error) => {
+      window[rootKey][opId] = {
+        status: 'error',
+        error: error instanceof Error ? error.message : String(error),
+      };
+    });
+
+  return true;
+})()
+`;
+}
+
+// 페이지 컨텍스트에서 IDB 값을 읽기 스크립트와 똑같이 직렬화하고 DB를 여는 공용 헬퍼.
+// (표시된 record.key/value와 매칭·표시가 어긋나지 않도록 normalizeValue/serialize를 동일하게 쓴다.)
+const IDB_MUTATION_HELPERS_JS = `
+  const normalizeValue = (value) => {
+    if (value instanceof Blob) {
+      const mimeType = value.type || 'application/octet-stream';
+      return { __apiFlowBlob: true, mimeType, size: value.size };
+    }
+    if (value === undefined) return 'undefined';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean' || value === null) return value;
+    if (typeof value === 'bigint') return value.toString();
+    if (typeof value === 'symbol') return value.toString();
+    if (typeof value === 'function') return '[Function]';
+    if (Array.isArray(value)) return value.map((item) => normalizeValue(item));
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, normalizeValue(item)]));
+    }
+    return String(value);
+  };
+
+  const serialize = (value) => {
+    const normalized = normalizeValue(value);
+    if (typeof normalized === 'string') return normalized;
+    try {
+      return JSON.stringify(normalized, null, 2);
+    } catch {
+      return Object.prototype.toString.call(value);
+    }
+  };
+
+  const openDatabase = (name) => new Promise((resolve, reject) => {
+    const request = indexedDB.open(name);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('Failed to open IndexedDB database.'));
+    request.onblocked = () => reject(new Error('IndexedDB database is blocked.'));
+  });
+`;
+
+function buildSetIndexedDbRecordScript(
+  opId: string,
+  databaseName: string,
+  storeName: string,
+  recordKey: string,
+  valueText: string,
+): string {
+  return `
+(() => {
+  const opId = ${JSON.stringify(opId)};
+  const databaseName = ${JSON.stringify(databaseName)};
+  const storeName = ${JSON.stringify(storeName)};
+  const targetKey = ${JSON.stringify(recordKey)};
+  const valueText = ${JSON.stringify(valueText)};
+  const rootKey = '__apiFlowStorageOps';
+
+  window[rootKey] = window[rootKey] || {};
+  window[rootKey][opId] = { status: 'pending' };
+${IDB_MUTATION_HELPERS_JS}
+  // 편집 텍스트를 JSON으로 해석하고, 안 되면 문자열 그대로 저장한다.
+  let newValue;
+  try { newValue = JSON.parse(valueText); } catch (_) { newValue = valueText; }
+
+  Promise.resolve()
+    .then(async () => {
+      const db = await openDatabase(databaseName);
+      try {
+        const transaction = db.transaction(storeName, 'readwrite');
+        const store = transaction.objectStore(storeName);
+        let updated = false;
+
+        await new Promise((resolve, reject) => {
+          const cursorRequest = store.openCursor();
+          cursorRequest.onerror = () => reject(cursorRequest.error || new Error('Failed to read IndexedDB cursor.'));
+          cursorRequest.onsuccess = () => {
+            const cursor = cursorRequest.result;
+            if (!cursor) { resolve(); return; }
+            if (serialize(cursor.primaryKey) === targetKey) {
+              const updateRequest = cursor.update(newValue);
+              updateRequest.onerror = () => reject(updateRequest.error || new Error('Failed to update record.'));
+              updateRequest.onsuccess = () => { updated = true; resolve(); };
+              return;
+            }
+            cursor.continue();
+          };
+        });
+
+        await new Promise((resolve, reject) => {
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => reject(transaction.error || new Error('IndexedDB transaction failed.'));
+          transaction.onabort = () => reject(transaction.error || new Error('IndexedDB transaction aborted.'));
+        });
+
+        window[rootKey][opId] = { status: 'done', data: { updated } };
+      } finally {
+        db.close();
+      }
+    })
+    .catch((error) => {
+      window[rootKey][opId] = {
+        status: 'error',
+        error: error instanceof Error ? error.message : String(error),
+      };
+    });
+
+  return true;
+})()
+`;
+}
+
+function buildFetchMoreIndexedDbRecordsScript(
+  opId: string,
+  databaseName: string,
+  storeName: string,
+  offset: number,
+  limit: number,
+): string {
+  return `
+(() => {
+  const opId = ${JSON.stringify(opId)};
+  const databaseName = ${JSON.stringify(databaseName)};
+  const storeName = ${JSON.stringify(storeName)};
+  const offset = ${JSON.stringify(offset)};
+  const limit = ${JSON.stringify(limit)};
+  const rootKey = '__apiFlowStorageOps';
+
+  window[rootKey] = window[rootKey] || {};
+  window[rootKey][opId] = { status: 'pending' };
+${IDB_MUTATION_HELPERS_JS}
+  Promise.resolve()
+    .then(async () => {
+      const db = await openDatabase(databaseName);
+      try {
+        const transaction = db.transaction(storeName, 'readonly');
+        const store = transaction.objectStore(storeName);
+        const records = [];
+        let advanced = false;
+
+        await new Promise((resolve, reject) => {
+          const cursorRequest = store.openCursor();
+          cursorRequest.onerror = () => reject(cursorRequest.error || new Error('Failed to read IndexedDB cursor.'));
+          cursorRequest.onsuccess = () => {
+            const cursor = cursorRequest.result;
+            if (!cursor) { resolve(); return; }
+            if (offset > 0 && !advanced) { advanced = true; cursor.advance(offset); return; }
+            records.push({ key: serialize(cursor.primaryKey), value: serialize(cursor.value) });
+            if (records.length >= limit) { resolve(); return; }
+            cursor.continue();
+          };
+        });
+
+        window[rootKey][opId] = { status: 'done', data: { records } };
       } finally {
         db.close();
       }
