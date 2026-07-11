@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.14.5",
     "@vitejs/plugin-react": "^4.5.2",
     "@xyflow/react": "^12.11.0",
     "dockview-react": "^7.0.2",

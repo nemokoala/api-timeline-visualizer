@@ -122,6 +122,10 @@ import { useSearchNavigation } from './hooks/useSearchNavigation';
 const PRELOAD_CONCURRENCY = 4;
 const PRELOAD_MAX = 100;
 
+// 콘솔 엔트리 상한. 네트워크(slice(-999))처럼 최근 것만 남기고 오래된 건 버려
+// 메모리·필터·렌더 비용을 묶는다. setInterval 로깅 페이지를 오래 열어둬도 안전하다.
+const CONSOLE_MAX = 10000;
+
 export default function App() {
   const t = useT();
   const [requests, setRequests] = useState<ApiRequest[]>([]);
@@ -350,7 +354,10 @@ export default function App() {
           return;
         }
         if (drained.length) {
-          setConsoleEntries((current) => [...current, ...drained]);
+          setConsoleEntries((current) => {
+            const combined = current.length ? [...current, ...drained] : drained;
+            return combined.length > CONSOLE_MAX ? combined.slice(-CONSOLE_MAX) : combined;
+          });
         }
       } catch {
         // Page reloading — reset flag so capture is reinstalled on next poll.

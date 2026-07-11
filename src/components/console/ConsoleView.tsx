@@ -470,6 +470,10 @@ export function ConsoleView({
           ariaLabel="Console logs"
           className="console-log-list min-h-0 min-w-0 bg-surface"
           rowAlign={wrapLines ? 'start' : 'center'}
+          virtualized
+          estimateRowHeight={30}
+          scrollToId={activeSearchOccurrence?.entryId ?? null}
+          scrollToAlign="center"
           rootRef={(element) => {
             logListRef.current = element;
           }}

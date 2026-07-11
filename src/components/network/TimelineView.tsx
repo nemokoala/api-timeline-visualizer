@@ -286,20 +286,8 @@ export function TimelineView({
     [],
   );
 
-  // 선택한 행을 화면에 보이게 스크롤하되, "선택이 바뀔 때"만 한 번 스크롤한다.
-  const scrolledSelectionRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!selectedRequestId) {
-      scrolledSelectionRef.current = null;
-      return;
-    }
-    if (scrolledSelectionRef.current === selectedRequestId) return;
-    const element = rowRefs.current.get(selectedRequestId);
-    if (element) {
-      element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      scrolledSelectionRef.current = selectedRequestId;
-    }
-  }, [items, selectedRequestId]);
+  // 선택한 행 스크롤은 DataTable의 scrollToId(가상화)로 처리한다 — off-screen 선택도
+  // 행을 마운트하며 보이게 한다. selectedRequestId가 바뀔 때만, 안 보일 때만 스크롤된다.
 
   // 이미지 썸네일: 화면(근처)에 들어온 이미지 행의 응답 본문을 지연 로드한다.
   useEffect(() => {
@@ -317,18 +305,8 @@ export function TimelineView({
     return () => observer.disconnect();
   }, []);
 
-  // 본문이 아직 없는 이미지 행만 관찰(로드되면 다음 렌더에서 관찰 대상에서 빠진다).
-  useEffect(() => {
-    const observer = thumbObserverRef.current;
-    if (!observer) return;
-    observer.disconnect();
-    for (const item of items) {
-      const request = requestById.get(item.requestId);
-      if (request?.type !== 'image' || request.responseContent !== undefined) continue;
-      const element = rowRefs.current.get(item.requestId);
-      if (element) observer.observe(element);
-    }
-  }, [items, requestById]);
+  // 관찰 대상 등록은 registerRowRef에서 행이 마운트될 때 건다(가상화로 행이 스크롤에
+  // 따라 붙었다 떨어지므로, "지금 DOM에 있는 이미지 행"을 그 시점에 관찰해야 한다).
 
   return (
     <section
@@ -351,6 +329,9 @@ export function TimelineView({
 
       <DataTable
         ariaLabel="API requests"
+        virtualized
+        estimateRowHeight={44}
+        scrollToId={selectedRequestId}
         columns={columns}
         data={items}
         getRowId={(item) => item.requestId}
@@ -368,8 +349,19 @@ export function TimelineView({
             : ''
         }
         registerRowRef={(id, element) => {
-          if (element) rowRefs.current.set(id, element);
-          else rowRefs.current.delete(id);
+          const observer = thumbObserverRef.current;
+          if (element) {
+            rowRefs.current.set(id, element);
+            // 마운트된 이미지 행(본문 미로드)만 관찰해 지연 로드한다.
+            const request = requestById.get(id);
+            if (observer && request?.type === 'image' && request.responseContent === undefined) {
+              observer.observe(element);
+            }
+          } else {
+            const prev = rowRefs.current.get(id);
+            if (observer && prev) observer.unobserve(prev);
+            rowRefs.current.delete(id);
+          }
         }}
         onHeaderContextMenu={handleColumnContextMenu}
         onRowContextMenu={handleRowContextMenu}

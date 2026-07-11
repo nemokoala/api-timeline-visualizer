@@ -1,8 +1,12 @@
 import {
+  useCallback,
+  useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import {
@@ -17,6 +21,7 @@ import {
   type SortingState,
   type VisibilityState,
 } from '@tanstack/react-table';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { cn } from '../../utils/cn';
 
 /** 컬럼별 추가 메타. flex 컬럼은 잔여 폭(1fr)을 차지하고 리사이즈되지 않는다. */
@@ -65,6 +70,17 @@ type DataTableProps<T> = {
   /** 행 셀 세로 정렬. wrap 모드(콘솔 줄바꿈)에서는 start. */
   rowAlign?: 'center' | 'start';
   ariaLabel?: string;
+  /**
+   * 행 가상화(보이는 행만 렌더). 콘솔·네트워크처럼 많이 쌓이는 목록에서 켠다.
+   * 켜면 off-screen 행은 DOM에 없으므로, 특정 행으로 스크롤할 땐 scrollToId를 쓴다.
+   */
+  virtualized?: boolean;
+  /** 가상화 시 초기 행 높이 추정치(px). 실제 높이는 마운트 후 measureElement로 잰다. */
+  estimateRowHeight?: number;
+  /** 이 id의 행을 화면에 보이도록 스크롤한다(가상화 시 off-screen 행도 마운트). 값이 바뀔 때 동작. */
+  scrollToId?: string | null;
+  /** scrollToId 정렬. 'auto'=안 보일 때만 최소 이동, 'center'=항상 중앙. 기본 'auto'. */
+  scrollToAlign?: 'auto' | 'center' | 'start';
 };
 
 function columnMeta(meta: unknown): DataTableColumnMeta {
@@ -93,6 +109,10 @@ export function DataTable<T>({
   className,
   rowAlign = 'center',
   ariaLabel,
+  virtualized = false,
+  estimateRowHeight = 30,
+  scrollToId,
+  scrollToAlign = 'auto',
 }: DataTableProps<T>) {
   const table = useReactTable({
     data,
@@ -135,12 +155,91 @@ export function DataTable<T>({
 
   const rows = table.getRowModel().rows;
 
+  // 스크롤 컨테이너 = 루트. virtualizer가 여기에 붙는다. rootRef 콜백이 매 렌더 새
+  // 함수여도 스크롤 요소가 흔들리지 않게, 최신 rootRef를 ref에 담아 두고 호출한다.
+  const scrollElementRef = useRef<HTMLDivElement | null>(null);
+  const rootRefLatest = useRef(rootRef);
+  rootRefLatest.current = rootRef;
+  const setScrollElement = useCallback((element: HTMLDivElement | null) => {
+    scrollElementRef.current = element;
+    rootRefLatest.current?.(element);
+  }, []);
+
+  const rowIndexById = useMemo(() => {
+    const map = new Map<string, number>();
+    rows.forEach((row, index) => map.set(row.id, index));
+    return map;
+  }, [rows]);
+  // scrollToId 효과가 "행 목록이 바뀔 때"가 아니라 "scrollToId가 바뀔 때"만 돌도록,
+  // 인덱스 맵은 ref로 읽는다(새 요청이 스트리밍돼도 선택 행으로 튀지 않게).
+  const rowIndexByIdRef = useRef(rowIndexById);
+  rowIndexByIdRef.current = rowIndexById;
+
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    // virtualized=false면 스크롤 요소를 주지 않아 리스너도 안 붙고 아무 일도 안 한다.
+    getScrollElement: () => (virtualized ? scrollElementRef.current : null),
+    estimateSize: () => estimateRowHeight,
+    overscan: 12,
+    getItemKey: (index) => rows[index]?.id ?? index,
+  });
+
+  // 활성 행(검색 히트/선택)을 화면에 보이도록 스크롤한다. 가상화에서 off-screen 행을
+  // DOM에 올리는 유일한 경로 — 이후 각 뷰가 마운트된 행에 하이라이트/미세 스크롤을 이어간다.
+  useEffect(() => {
+    if (!virtualized || scrollToId == null) return;
+    const index = rowIndexByIdRef.current.get(scrollToId);
+    if (index == null) return;
+    virtualizer.scrollToIndex(index, { align: scrollToAlign });
+  }, [virtualized, scrollToId, scrollToAlign, virtualizer]);
+
+  const computeRowClass = (row: Row<T>, isSelected: boolean) =>
+    cn(
+      'group/row cursor-pointer border-b border-line-weak text-ink hover:bg-row-hover',
+      isSelected && 'bg-accent-soft shadow-[inset_3px_0_0_var(--blue)] hover:bg-accent-soft',
+      rowClassName?.(row.original),
+    );
+
+  const rowKeyDown = (row: Row<T>) => (event: ReactKeyboardEvent) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onRowClick?.(row.original);
+    }
+  };
+
+  const renderRowInner = (row: Row<T>) => (
+    <>
+      <div
+        data-row-cells=""
+        className={cn('grid', rowAlign === 'start' ? 'items-start' : 'items-center')}
+        style={{ gridTemplateColumns }}
+      >
+        {row.getVisibleCells().map((cell) => {
+          const meta = columnMeta(cell.column.columnDef.meta);
+          return (
+            <div
+              key={cell.id}
+              role="cell"
+              className={cn(
+                'min-w-0 overflow-hidden px-2.5 py-[7px] text-[12px]',
+                meta.cellClassName,
+              )}
+            >
+              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            </div>
+          );
+        })}
+      </div>
+      {renderSubRow ? <div>{renderSubRow(row.original)}</div> : null}
+    </>
+  );
+
   return (
     <div
       className={cn('flex h-full min-h-0 flex-col overflow-auto', className)}
       role="table"
       aria-label={ariaLabel}
-      ref={rootRef}
+      ref={setScrollElement}
     >
       <div
         ref={headerRef}
@@ -195,67 +294,73 @@ export function DataTable<T>({
         })}
       </div>
 
-      <div className="flex-none">
-        {rows.length === 0 ? (
-          <div className="px-3 py-4 text-[12px] text-ink-weak">{emptyState}</div>
-        ) : (
-          rows.map((row: Row<T>) => {
-            const id = row.id;
-            const isSelected = selectedRowId === id;
+      {rows.length === 0 ? (
+        <div className="px-3 py-4 text-[12px] text-ink-weak">{emptyState}</div>
+      ) : virtualized ? (
+        <div
+          className="relative flex-none"
+          style={{ height: virtualizer.getTotalSize() }}
+        >
+          {virtualizer.getVirtualItems().map((virtualItem) => {
+            const row = rows[virtualItem.index];
+            const isSelected = selectedRowId === row.id;
             return (
               <div
-                key={id}
-                ref={registerRowRef ? (element) => registerRowRef(id, element) : undefined}
+                key={row.id}
+                data-index={virtualItem.index}
+                ref={(element) => {
+                  // 가변 높이 실측 + 뷰의 행 조회용 등록을 한 콜백에서 처리한다.
+                  virtualizer.measureElement(element);
+                  registerRowRef?.(row.id, element);
+                }}
                 role="row"
                 tabIndex={0}
-                data-row-id={id}
-                style={{ scrollMarginTop: headerHeight }}
-                className={cn(
-                  'group/row cursor-pointer border-b border-line-weak text-ink hover:bg-row-hover',
-                  isSelected &&
-                    'bg-accent-soft shadow-[inset_3px_0_0_var(--blue)] hover:bg-accent-soft',
-                  rowClassName?.(row.original),
-                )}
+                data-row-id={row.id}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  transform: `translateY(${virtualItem.start}px)`,
+                  scrollMarginTop: headerHeight,
+                }}
+                className={computeRowClass(row, isSelected)}
                 onClick={() => onRowClick?.(row.original)}
                 onContextMenu={
-                  onRowContextMenu
-                    ? (event) => onRowContextMenu(row.original, event)
-                    : undefined
+                  onRowContextMenu ? (event) => onRowContextMenu(row.original, event) : undefined
                 }
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    onRowClick?.(row.original);
-                  }
-                }}
+                onKeyDown={rowKeyDown(row)}
               >
-                <div
-                  data-row-cells=""
-                  className={cn('grid', rowAlign === 'start' ? 'items-start' : 'items-center')}
-                  style={{ gridTemplateColumns }}
-                >
-                  {row.getVisibleCells().map((cell) => {
-                    const meta = columnMeta(cell.column.columnDef.meta);
-                    return (
-                      <div
-                        key={cell.id}
-                        role="cell"
-                        className={cn(
-                          'min-w-0 overflow-hidden px-2.5 py-[7px] text-[12px]',
-                          meta.cellClassName,
-                        )}
-                      >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </div>
-                    );
-                  })}
-                </div>
-                {renderSubRow ? <div>{renderSubRow(row.original)}</div> : null}
+                {renderRowInner(row)}
               </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      ) : (
+        <div className="flex-none">
+          {rows.map((row: Row<T>) => {
+            const isSelected = selectedRowId === row.id;
+            return (
+              <div
+                key={row.id}
+                ref={registerRowRef ? (element) => registerRowRef(row.id, element) : undefined}
+                role="row"
+                tabIndex={0}
+                data-row-id={row.id}
+                style={{ scrollMarginTop: headerHeight }}
+                className={computeRowClass(row, isSelected)}
+                onClick={() => onRowClick?.(row.original)}
+                onContextMenu={
+                  onRowContextMenu ? (event) => onRowContextMenu(row.original, event) : undefined
+                }
+                onKeyDown={rowKeyDown(row)}
+              >
+                {renderRowInner(row)}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
