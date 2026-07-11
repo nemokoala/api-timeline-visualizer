@@ -147,4 +147,16 @@ export const en: Record<MessageKey, string> = {
   'responseDiff.selectRequest': 'Select request to compare',
   'responseDiff.currentRequest': '+ Current request',
   'responseDiff.changeSummary': 'Change summary',
+
+  // 설정 창(전역 설정)
+  'settings.open': 'Open settings',
+  'settings.title': 'Settings',
+  'settings.appearance': 'Appearance',
+  'settings.theme': 'Theme',
+  'settings.themeLight': 'Light',
+  'settings.themeDark': 'Dark',
+  'settings.language': 'Language',
+  'settings.jsonDisplay': 'JSON display',
+  'settings.capture': 'Capture',
+  'settings.close': 'Close',
 };

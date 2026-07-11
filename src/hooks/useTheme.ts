@@ -5,11 +5,15 @@ function readAppliedTheme(): ThemeName {
   return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
 }
 
-export function useTheme(): { theme: ThemeName; toggleTheme: () => void } {
-  const [theme, setTheme] = useState<ThemeName>(readAppliedTheme);
+export function useTheme(): {
+  theme: ThemeName;
+  toggleTheme: () => void;
+  setTheme: (next: ThemeName) => void;
+} {
+  const [theme, setThemeState] = useState<ThemeName>(readAppliedTheme);
 
   useEffect(() => {
-    const observer = new MutationObserver(() => setTheme(readAppliedTheme()));
+    const observer = new MutationObserver(() => setThemeState(readAppliedTheme()));
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['data-theme'],
@@ -17,11 +21,14 @@ export function useTheme(): { theme: ThemeName; toggleTheme: () => void } {
     return () => observer.disconnect();
   }, []);
 
-  const toggleTheme = useCallback(() => {
-    const next: ThemeName = readAppliedTheme() === 'dark' ? 'light' : 'dark';
+  const setTheme = useCallback((next: ThemeName) => {
     setStoredTheme(next);
     applyTheme(next);
   }, []);
 
-  return { theme, toggleTheme };
+  const toggleTheme = useCallback(() => {
+    setTheme(readAppliedTheme() === 'dark' ? 'light' : 'dark');
+  }, [setTheme]);
+
+  return { theme, toggleTheme, setTheme };
 }

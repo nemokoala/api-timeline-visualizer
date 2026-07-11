@@ -146,6 +146,18 @@ export const ko = {
   'responseDiff.selectRequest': '비교할 요청 선택',
   'responseDiff.currentRequest': '+ 현재 요청',
   'responseDiff.changeSummary': '변경 요약',
+
+  // 설정 창(전역 설정)
+  'settings.open': '설정 열기',
+  'settings.title': '설정',
+  'settings.appearance': '모양',
+  'settings.theme': '테마',
+  'settings.themeLight': '라이트',
+  'settings.themeDark': '다크',
+  'settings.language': '언어',
+  'settings.jsonDisplay': 'JSON 표시',
+  'settings.capture': '캡처',
+  'settings.close': '닫기',
 };
 
 export type MessageKey = keyof typeof ko;

@@ -962,6 +962,8 @@ export default function App() {
         openPanels={openPanels}
         onWorkspaceModeChange={handleWorkspaceModeChange}
         onResetLayout={handleResetLayout}
+        clearNetworkOnReload={clearNetworkOnReload}
+        onClearNetworkOnReloadChange={setClearNetworkOnReload}
       />
       <WorkspaceProvider value={workspaceValue}>
         <WorkspaceDock
