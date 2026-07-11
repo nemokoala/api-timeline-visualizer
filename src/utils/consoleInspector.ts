@@ -209,6 +209,10 @@ function buildInstallScript(preserveLog: boolean): string {
     const text = serializedArgs.map((arg) => formatArgText(arg)).join(' ');
     entryCounter += 1;
 
+    // 패널이 drain하기 전이라도 페이지 쪽 버퍼가 무한히 커지지 않게 상한을 둔다.
+    // (drain은 splice로 통째로 비우므로 평소엔 작지만, 폭주 로깅 대비 방어책.)
+    if (buffer.length >= 10000) buffer.shift();
+
     buffer.push({
       id: 'console_' + Date.now() + '_' + entryCounter,
       level,

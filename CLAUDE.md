@@ -11,6 +11,12 @@
 반환하고 UI 경계에서 번역한다(예: `requestResend.ts`). 한국어 **주석**은 번역 대상이 아니다.
 고유명사(`Network`/`Storage`/`Console`/`JSON`/HTTP 메서드 등)는 키로 만들지 않는다.
 
+### 많이 쌓이는 목록은 DataTable 가상화로
+
+행이 수천 개까지 늘 수 있는 목록(콘솔·네트워크)은 `DataTable`에 `virtualized`를 켜서 보이는 행만
+그린다. 활성 행(검색 히트·선택)으로 스크롤할 땐 `data-row-id`로 DOM을 찾지 말고 `scrollToId` prop을
+쓴다(가상화에선 화면 밖 행이 DOM에 없다). 데이터가 유계인 목록(스토리지)은 켜지 않는다 — 기본 off다.
+
 ## 작업 규칙
 
 ### 작업 완료 후 항상 빌드
