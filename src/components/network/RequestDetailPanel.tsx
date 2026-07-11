@@ -7,6 +7,7 @@ import { buildReplayDraft, generateCurl, generateFetch } from '../../utils/reque
 import { copyText } from '../../utils/clipboard';
 import { displayPath } from '../../utils/normalizeUrl';
 import { canResendRequest, resendRequest } from '../../utils/requestResend';
+import { useT } from '../../i18n';
 import { ReplayEditorModal } from './ReplayEditorModal';
 import { getMatchingDetailSections } from '../../utils/requestSearch';
 import { requestCookieValue, responseCookieValue } from '../../utils/requestCookies';
@@ -53,6 +54,7 @@ export function RequestDetailPanel({
   onToggleLayout,
   onClose,
 }: RequestDetailPanelProps) {
+  const t = useT();
   const searchOptions = useSearchOptions();
   const panelRef = useRef<HTMLElement>(null);
 
@@ -136,8 +138,8 @@ export function RequestDetailPanel({
           {canOpenInNewTab ? (
             <IconButton
               size="md"
-              aria-label="새 탭에서 열기"
-              title="새 탭에서 열기"
+              aria-label={t('requestDetail.openNewTab')}
+              title={t('requestDetail.openNewTab')}
               onClick={() => window.open(request.url, '_blank', 'noopener,noreferrer')}
             >
               <svg
@@ -249,8 +251,8 @@ export function RequestDetailPanel({
             disabled={compareCandidateCount === 0}
             title={
               compareCandidateCount > 0
-                ? `같은 엔드포인트의 다른 응답 ${compareCandidateCount}개와 비교`
-                : '같은 엔드포인트로 캡처된 다른 응답이 없습니다.'
+                ? t('requestDetail.compareWith', { count: compareCandidateCount })
+                : t('requestDetail.noCompare')
             }
           >
             Compare{compareCandidateCount > 0 ? ` (${compareCandidateCount})` : ''}
@@ -410,6 +412,7 @@ function draftSignature(draft: ReplayDraft): string {
 }
 
 function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; searchText: string }) {
+  const t = useT();
   const searchOptions = useSearchOptions();
   const [mode, setMode] = useState<SnippetMode>('curl');
   const [copied, setCopied] = useState(false);
@@ -452,7 +455,7 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
       window.setTimeout(() => setResendState('idle'), 2000);
     } else {
       setResendState('failed');
-      setResendError(outcome.error);
+      setResendError(outcome.errorKey ? t(outcome.errorKey) : outcome.error ?? null);
     }
   };
 
@@ -473,7 +476,7 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
           {isDirty ? (
             <span
               className="rounded-md bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent"
-              title="원 요청에서 수정된 내용이 있습니다"
+              title={t('requestDetail.modifiedFromOriginal')}
             >
               Edited
             </span>
@@ -484,8 +487,8 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
             disabled={!resendable}
             title={
               resendable
-                ? 'URL·메서드·헤더·본문을 고쳐서 보냅니다.'
-                : '이 요청 유형은 재전송할 수 없습니다.'
+                ? t('requestDetail.editResendTitle')
+                : t('common.resendUnsupported')
             }
           >
             Edit
@@ -496,8 +499,8 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
             disabled={!resendable || resendState === 'sending'}
             title={
               resendable
-                ? '검사 대상 페이지에서 이 요청을 다시 보냅니다. 재전송된 요청은 목록에 새 항목으로 잡힙니다.'
-                : '이 요청 유형은 재전송할 수 없습니다.'
+                ? t('requestDetail.resendTitle')
+                : t('common.resendUnsupported')
             }
           >
             {resendState === 'sending' ? 'Sending…' : resendState === 'sent' ? 'Sent ✓' : 'Resend'}
@@ -506,7 +509,7 @@ function CodeSnippetBlock({ request, searchText }: { request: ApiRequest; search
       </div>
       {resendState === 'failed' && resendError && !isEditorOpen ? (
         <p className="mt-1.5 mb-0 rounded-[10px] bg-danger-soft px-2.5 py-[5px] text-[11px] text-danger" role="alert">
-          재전송 실패: {resendError}
+          {t('resend.failed', { error: resendError })}
         </p>
       ) : null}
       <pre className="m-0 max-h-[220px] overflow-auto whitespace-pre-wrap rounded-xl border border-line-weak bg-surface-sub px-3 py-2.5 text-[11px] leading-[1.55] text-ink [font-family:SFMono-Regular,Consolas,'Liberation_Mono',monospace] [overflow-wrap:anywhere]">

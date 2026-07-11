@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useT } from '../../i18n';
 import { MenuActionItem, MenuSeparator, MenuSurface } from '../ui/Menu';
 
 export type RowContextMenuItem = {
@@ -23,6 +24,7 @@ type RowContextMenuProps = {
  * 바깥 클릭·Escape·항목 선택 시 닫힌다. ColumnMenu의 닫힘 처리와 동일하게 맞춘다.
  */
 export function RowContextMenu({ x, y, items, onClose }: RowContextMenuProps) {
+  const t = useT();
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x, y });
 
@@ -71,7 +73,7 @@ export function RowContextMenu({ x, y, items, onClose }: RowContextMenuProps) {
       ref={menuRef}
       style={{ top: position.y, left: position.x }}
       role="menu"
-      aria-label="행 작업"
+      aria-label={t('rowMenu.aria')}
     >
       {items.map((item) => (
         <div key={item.id}>

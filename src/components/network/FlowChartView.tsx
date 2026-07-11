@@ -34,6 +34,7 @@ import {
 } from "../../utils/flowLayoutPrefs";
 import { getFlowShowQuery, saveFlowShowQuery } from "../../utils/networkFlowPrefs";
 import type { RequestSearchSummary } from "../../utils/requestSearch";
+import { useT } from "../../i18n";
 import { Button, IconButton } from "../ui/Button";
 import { ResetIcon, SquareIcon, TextIcon } from "./FlowChartIcons";
 import { NODE_TYPES } from "./FlowChartNodes";
@@ -94,6 +95,7 @@ export function FlowChartView({
   onSelectRequest,
   onLayoutChange,
 }: FlowChartViewProps) {
+  const t = useT();
   const flowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const flowPanelRef = useRef<HTMLElement | null>(null);
   // dockview가 저장된 레이아웃을 복원하는 동안 패널이 0×0으로 마운트될 수 있다.
@@ -962,7 +964,7 @@ export function FlowChartView({
                     float
                     active={showQuery}
                     aria-pressed={showQuery}
-                    title="카드 타이틀에 쿼리 문자열 표시"
+                    title={t('flowView.showQueryInTitle')}
                     onPointerDown={(event) => event.stopPropagation()}
                     onClick={(event) => {
                       event.stopPropagation();
@@ -997,8 +999,8 @@ export function FlowChartView({
                   size="lg"
                   ghost
                   tone="accent"
-                  title="텍스트 메모 추가"
-                  aria-label="텍스트 메모 추가"
+                  title={t('flowView.addTextNote')}
+                  aria-label={t('flowView.addTextNote')}
                   onPointerDown={(event) => event.stopPropagation()}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -1011,8 +1013,8 @@ export function FlowChartView({
                   size="lg"
                   ghost
                   tone="accent"
-                  title="사각형 도형 추가"
-                  aria-label="사각형 도형 추가"
+                  title={t('flowView.addRectangle')}
+                  aria-label={t('flowView.addRectangle')}
                   onPointerDown={(event) => event.stopPropagation()}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -1028,8 +1030,8 @@ export function FlowChartView({
                       size="lg"
                       ghost
                       tone="danger"
-                      title="편집 초기화"
-                      aria-label="편집 초기화"
+                      title={t('flowView.resetEdits')}
+                      aria-label={t('flowView.resetEdits')}
                       onPointerDown={(event) => event.stopPropagation()}
                       onClick={(event) => {
                         event.stopPropagation();

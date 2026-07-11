@@ -26,6 +26,7 @@ import { CookieForm } from "./CookieForm";
 import { isExpandableStorageValue } from "./StorageValueCell";
 import { formatCookieExpires, formatSameSite } from "./cookieFormat";
 import type { SelectedStorageItem } from "./storageShared";
+import { useT } from '../../i18n';
 
 export type StorageDetail = {
   title: string;
@@ -69,6 +70,7 @@ export function StorageDetailPanel({
   onToggleLayout: () => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const searchOptions = useSearchOptions();
   const panelRef = useRef<HTMLElement>(null);
   const hasSearch = Boolean(searchText.trim());
@@ -213,8 +215,8 @@ export function StorageDetailPanel({
           </div>
         ) : valueInlineExpandable ? (
           <p className="m-0 px-1 py-2 text-[11px] leading-[1.5] text-ink-weak">
-            값은 목록에서 행을 펼쳐(▶) 보세요.
-            {editable ? " 편집은 상단 Edit 버튼." : ""}
+            {t('storageDetail.expandRowHint')}
+            {editable ? ` ${t('storageDetail.editHint')}` : ''}
           </p>
         ) : (
           <JsonViewer

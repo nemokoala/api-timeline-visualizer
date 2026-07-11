@@ -3,6 +3,7 @@ import { useSearchOptions } from '../../contexts/SearchOptionsContext';
 import { highlightSearchText } from '../../utils/searchHighlight';
 import { groupJsonTextLines, tokenizeJsonText, type JsonTextTokenKind } from '../../utils/jsonTextTokens';
 import { cn } from '../../utils/cn';
+import { useT } from '../../i18n';
 import { IconButton } from '../ui/Button';
 
 /** 값이 JSON 객체·배열이거나 그렇게 보이는 문자열인지. 펼치기 가능 여부를 가른다. */
@@ -84,6 +85,7 @@ export function JsonRowToggle({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const t = useT();
   if (!expandable) return <span className="w-[17px] shrink-0" aria-hidden="true" />;
 
   return (
@@ -91,7 +93,7 @@ export function JsonRowToggle({
       size="xs"
       ghost
       aria-expanded={expanded}
-      aria-label={expanded ? 'JSON 접기' : 'JSON 펼치기'}
+      aria-label={expanded ? t('jsonRowPreview.collapse') : t('jsonRowPreview.expand')}
       className="h-[17px] min-w-[17px] shrink-0 rounded px-0 text-[8px]"
       onClick={(event) => {
         event.stopPropagation();

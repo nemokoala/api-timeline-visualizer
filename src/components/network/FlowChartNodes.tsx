@@ -11,6 +11,7 @@ import {
   type NodeTypes,
 } from "@xyflow/react";
 import type { FlowShape, FlowTextNote } from "../../utils/flowLayoutPrefs";
+import { useT } from "../../i18n";
 import { IconButton } from "../ui/Button";
 import { BringToFrontIcon, CopyIcon, SendToBackIcon } from "./FlowChartIcons";
 import {
@@ -66,13 +67,14 @@ function ZOrderButtons({
   id: string;
   onZOrder: (id: string, toFront: boolean) => void;
 }) {
+  const t = useT();
   return (
     <>
       <IconButton
         size="xs"
         tone="accent"
-        title="맨 앞으로"
-        aria-label="맨 앞으로"
+        title={t('flowNode.bringToFront')}
+        aria-label={t('flowNode.bringToFront')}
         onClick={() => onZOrder(id, true)}
       >
         <BringToFrontIcon />
@@ -80,8 +82,8 @@ function ZOrderButtons({
       <IconButton
         size="xs"
         tone="accent"
-        title="맨 뒤로"
-        aria-label="맨 뒤로"
+        title={t('flowNode.sendToBack')}
+        aria-label={t('flowNode.sendToBack')}
         onClick={() => onZOrder(id, false)}
       >
         <SendToBackIcon />
@@ -110,6 +112,7 @@ function RequestNodeView({ data }: NodeProps) {
 
 // 사용자가 자유롭게 메모를 적을 수 있는 커스텀 텍스트 노드.
 function TextNoteNodeView({ id, data, selected }: NodeProps) {
+  const t = useT();
   const noteData = data as TextNoteData;
   // textarea를 로컬 상태로 제어한다. 부모 리렌더가 입력값을 되돌려 적용하지
   // 않으므로 한글 IME 조합 중 자모가 분리되지 않는다.
@@ -135,7 +138,7 @@ function TextNoteNodeView({ id, data, selected }: NodeProps) {
       <textarea
         className="nodrag h-full w-full resize-none border-0 bg-transparent px-1 py-[2px] text-[12px] leading-[1.4] text-ink outline-none [font-family:inherit] placeholder:text-ink-faint"
         value={value}
-        placeholder="메모 입력..."
+        placeholder={t('flowNode.notePlaceholder')}
         autoFocus={isInitialEmpty.current}
         style={{ fontSize, ...(noteData.color ? { color: noteData.color } : {}) }}
         onChange={(event) => {
@@ -159,8 +162,8 @@ function TextNoteNodeView({ id, data, selected }: NodeProps) {
                 noteData.color === color ? "border-ink" : "border-transparent"
               }`}
               style={{ background: color }}
-              title="글자 색 변경"
-              aria-label={`글자 색 ${color}`}
+              title={t('flowNode.changeTextColor')}
+              aria-label={t('flowNode.textColorAria', { color })}
               onClick={() => noteData.onStyleChange(id, { color })}
             />
           ))}
@@ -169,8 +172,8 @@ function TextNoteNodeView({ id, data, selected }: NodeProps) {
             size="xs"
             tone="accent"
             className="text-[11px] leading-none"
-            title="글자 작게"
-            aria-label="글자 작게"
+            title={t('flowNode.smallerText')}
+            aria-label={t('flowNode.smallerText')}
             disabled={fontSize <= TEXT_NOTE_MIN_FONT_SIZE}
             onClick={() =>
               noteData.onStyleChange(id, {
@@ -187,8 +190,8 @@ function TextNoteNodeView({ id, data, selected }: NodeProps) {
             size="xs"
             tone="accent"
             className="text-[11px] leading-none"
-            title="글자 크게"
-            aria-label="글자 크게"
+            title={t('flowNode.largerText')}
+            aria-label={t('flowNode.largerText')}
             disabled={fontSize >= TEXT_NOTE_MAX_FONT_SIZE}
             onClick={() =>
               noteData.onStyleChange(id, {
@@ -206,7 +209,7 @@ function TextNoteNodeView({ id, data, selected }: NodeProps) {
             size="xs"
             active={noteData.background}
             className="px-2 text-[11px] leading-none"
-            title={noteData.background ? "배경 없애기" : "배경 표시"}
+            title={noteData.background ? t('flowNode.hideBackground') : t('flowNode.showBackground')}
             onClick={() =>
               noteData.onStyleChange(id, { background: !noteData.background })
             }
@@ -218,8 +221,8 @@ function TextNoteNodeView({ id, data, selected }: NodeProps) {
           <IconButton
             size="xs"
             tone="accent"
-            title="복사"
-            aria-label="복사"
+            title={t('common.copy')}
+            aria-label={t('common.copy')}
             onClick={() => noteData.onDuplicate(id)}
           >
             <CopyIcon />
@@ -232,6 +235,7 @@ function TextNoteNodeView({ id, data, selected }: NodeProps) {
 
 // 사각형 도형 노드. 색 채움/테두리만 토글과 색상 선택을 지원한다.
 function ShapeNodeView({ id, data, selected }: NodeProps) {
+  const t = useT();
   const shapeData = data as ShapeData;
   return (
     <>
@@ -264,8 +268,8 @@ function ShapeNodeView({ id, data, selected }: NodeProps) {
                 shapeData.color === color ? "border-ink" : "border-transparent"
               }`}
               style={{ background: color }}
-              title="색상 변경"
-              aria-label={`색상 ${color}`}
+              title={t('flowNode.changeColor')}
+              aria-label={t('flowNode.colorAria', { color })}
               onClick={() => shapeData.onChange(id, { color })}
             />
           ))}
@@ -274,7 +278,7 @@ function ShapeNodeView({ id, data, selected }: NodeProps) {
             size="xs"
             active={shapeData.filled}
             className="px-2 text-[11px] leading-none"
-            title={shapeData.filled ? "테두리만 표시" : "색 채우기"}
+            title={shapeData.filled ? t('flowNode.outlineOnly') : t('flowNode.fillColor')}
             onClick={() => shapeData.onChange(id, { filled: !shapeData.filled })}
           >
             {shapeData.filled ? "Fill" : "Line"}
@@ -284,8 +288,8 @@ function ShapeNodeView({ id, data, selected }: NodeProps) {
           <IconButton
             size="xs"
             tone="accent"
-            title="복사"
-            aria-label="복사"
+            title={t('common.copy')}
+            aria-label={t('common.copy')}
             onClick={() => shapeData.onDuplicate(id)}
           >
             <CopyIcon />

@@ -35,6 +35,7 @@ import {
 } from './utils/requestParser';
 import { buildReplayDraft } from './utils/requestCodeSnippets';
 import { canResendRequest, resendRequest } from './utils/requestResend';
+import { useT } from './i18n';
 import {
   buildSearchOccurrenceSummaryByRequest,
   buildSearchOccurrences,
@@ -122,6 +123,7 @@ const PRELOAD_CONCURRENCY = 4;
 const PRELOAD_MAX = 100;
 
 export default function App() {
+  const t = useT();
   const [requests, setRequests] = useState<ApiRequest[]>([]);
   // 세션 import 후 FlowChartView가 저장된 레이아웃을 다시 읽도록 알리는 신호값.
   const [flowLayoutRevision, setFlowLayoutRevision] = useState(0);
@@ -745,17 +747,20 @@ export default function App() {
       const target = requests.find((request) => request.id === requestId);
       if (!target) return;
       if (!canResendRequest(target)) {
-        setSessionNotice('이 요청 유형은 재전송할 수 없습니다.');
+        setSessionNotice(t('common.resendUnsupported'));
         return;
       }
 
-      setSessionNotice(`Resending ${target.method} ${target.path}…`);
+      setSessionNotice(t('resend.sending', { method: target.method, path: target.path }));
       const outcome = await resendRequest(buildReplayDraft(target));
-      setSessionNotice(
-        outcome.ok ? `Resent ${target.method} ${target.path}.` : `재전송 실패: ${outcome.error}`,
-      );
+      if (outcome.ok) {
+        setSessionNotice(t('resend.sent', { method: target.method, path: target.path }));
+      } else {
+        const error = outcome.errorKey ? t(outcome.errorKey) : outcome.error ?? '';
+        setSessionNotice(t('resend.failed', { error }));
+      }
     },
-    [requests],
+    [requests, t],
   );
 
   useEffect(() => {

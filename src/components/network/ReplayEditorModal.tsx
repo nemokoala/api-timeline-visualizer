@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import type { ReplayDraft } from '../../types/network';
 import { createReplayHeader, draftHasBody } from '../../utils/requestCodeSnippets';
 import { validateReplayDraft } from '../../utils/requestResend';
+import { useT } from '../../i18n';
 import { useBackdropDismiss } from '../../hooks/useBackdropDismiss';
 import { Button, IconButton } from '../ui/Button';
 import { Input, Select, TextArea } from '../ui/Input';
@@ -52,6 +53,7 @@ export function ReplayEditorModal({
   onSend,
   onClose,
 }: ReplayEditorModalProps) {
+  const t = useT();
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
@@ -98,7 +100,7 @@ export function ReplayEditorModal({
         <div className="flex items-start justify-between gap-3 px-4 pt-3.5 pb-2.5">
           <div className="min-w-0">
             <span className="block text-[10px] leading-[1.2] text-ink-weak">Edit &amp; resend</span>
-            <h2 className="m-0 mt-1 text-sm">요청을 고쳐서 다시 보내기</h2>
+            <h2 className="m-0 mt-1 text-sm">{t('replay.title')}</h2>
           </div>
           <DetailPanelCloseButton onClick={onClose} label="Close replay editor" />
         </div>
@@ -108,7 +110,7 @@ export function ReplayEditorModal({
             <Select
               value={method}
               onChange={(event) => patch({ method: event.currentTarget.value })}
-              aria-label="HTTP 메서드"
+              aria-label={t('replay.method')}
               className="w-[104px] flex-none"
             >
               {/* PROPFIND 같은 비표준 메서드도 그대로 유지할 수 있게 목록에 끼워 넣는다. */}
@@ -122,7 +124,7 @@ export function ReplayEditorModal({
             <Input
               value={draft.url}
               onChange={(event) => patch({ url: event.currentTarget.value })}
-              aria-label="요청 URL"
+              aria-label={t('replay.url')}
               spellCheck={false}
               className="flex-1"
             />
@@ -149,7 +151,7 @@ export function ReplayEditorModal({
                       value={header.name}
                       placeholder="name"
                       spellCheck={false}
-                      aria-label="헤더 이름"
+                      aria-label={t('replay.headerName')}
                       onChange={(event) => updateHeader(header.id, { name: event.currentTarget.value })}
                       className="w-[36%] flex-none"
                     />
@@ -158,15 +160,17 @@ export function ReplayEditorModal({
                       value={header.value}
                       placeholder="value"
                       spellCheck={false}
-                      aria-label="헤더 값"
+                      aria-label={t('replay.headerValue')}
                       onChange={(event) => updateHeader(header.id, { value: event.currentTarget.value })}
                       className="flex-1"
                     />
                     <IconButton
                       size="xs"
                       tone="danger"
-                      aria-label={`${header.name || '빈'} 헤더 삭제`}
-                      title="헤더 삭제"
+                      aria-label={t('replay.deleteHeaderAria', {
+                        name: header.name || t('replay.emptyHeaderName'),
+                      })}
+                      title={t('replay.deleteHeader')}
                       onClick={() =>
                         patch({ headers: draft.headers.filter((item) => item.id !== header.id) })
                       }
@@ -177,7 +181,7 @@ export function ReplayEditorModal({
                 ))}
               </div>
             ) : (
-              <p className="m-0 text-[11px] text-ink-faint">헤더 없음</p>
+              <p className="m-0 text-[11px] text-ink-faint">{t('replay.noHeaders')}</p>
             )}
           </div>
 
@@ -194,17 +198,19 @@ export function ReplayEditorModal({
               value={draft.body ?? ''}
               onChange={(event) => patch({ body: event.currentTarget.value || null })}
               spellCheck={false}
-              aria-label="요청 본문"
+              aria-label={t('replay.body')}
               rows={8}
-              placeholder="본문 없음"
+              placeholder={t('replay.bodyPlaceholder')}
               className="min-h-[120px] resize-y px-2.5 py-2 text-[11px] leading-[1.55] [font-family:SFMono-Regular,Consolas,'Liberation_Mono',monospace]"
             />
             {json && !json.valid ? (
-              <p className="m-0 text-[11px] text-danger">JSON 파싱 실패: {json.error}</p>
+              <p className="m-0 text-[11px] text-danger">
+                {t('replay.jsonParseFail', { error: json.error ?? '' })}
+              </p>
             ) : null}
             {bodyIgnored ? (
               <p className="m-0 text-[11px] text-ink-weak">
-                {method} 요청은 본문을 보내지 않습니다.
+                {t('replay.noBodyForMethod', { method })}
               </p>
             ) : null}
           </div>
@@ -215,12 +221,12 @@ export function ReplayEditorModal({
             className="mx-4 mb-2 rounded-[10px] bg-danger-soft px-2.5 py-[5px] text-[11px] text-danger"
             role="alert"
           >
-            {error ?? validationError}
+            {error ?? (validationError ? t(validationError) : '')}
           </p>
         ) : null}
 
         <div className="flex items-center justify-between gap-2 border-t border-line-weak px-4 py-2.5">
-          <Button onClick={onReset} disabled={!isDirty} title="원래 캡처된 요청으로 되돌립니다">
+          <Button onClick={onReset} disabled={!isDirty} title={t('replay.resetTitle')}>
             Reset
           </Button>
           <div className="flex items-center gap-1.5">
@@ -229,7 +235,7 @@ export function ReplayEditorModal({
               tone="accent"
               onClick={onSend}
               disabled={isSending || Boolean(validationError)}
-              title="검사 대상 페이지에서 이 요청을 보냅니다"
+              title={t('replay.sendTitle')}
             >
               {isSending ? 'Sending…' : 'Send'}
             </Button>

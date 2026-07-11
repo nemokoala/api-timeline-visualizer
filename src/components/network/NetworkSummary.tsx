@@ -13,6 +13,7 @@ import {
 import { cn } from '../../utils/cn';
 import { displayPath } from '../../utils/normalizeUrl';
 import { Button } from '../ui/Button';
+import { useT } from '../../i18n';
 
 type NetworkSummaryProps = {
   summary: NetworkSummaryData;
@@ -141,10 +142,11 @@ function TopRow({
 
 /** 네트워크 패널 상단의 집계 요약(통계 타일 + 분포 + Top N). */
 export function NetworkSummary({ summary, collapsePathIds, onSelectRequest }: NetworkSummaryProps) {
+  const t = useT();
   if (summary.totalCount === 0) {
     return (
       <section className="shrink-0 border-b border-line-weak bg-surface" aria-label="Network summary">
-        <p className="m-0 px-3 py-3 text-[12px] text-ink-weak">표시할 요청이 없습니다.</p>
+        <p className="m-0 px-3 py-3 text-[12px] text-ink-weak">{t('networkSummary.noRequests')}</p>
       </section>
     );
   }
@@ -234,7 +236,7 @@ export function NetworkSummary({ summary, collapsePathIds, onSelectRequest }: Ne
                 />
               ))
             ) : (
-              <p className="m-0 px-1.5 py-1 text-[11px] text-ink-weak">크기 정보 없음</p>
+              <p className="m-0 px-1.5 py-1 text-[11px] text-ink-weak">{t('networkSummary.noSizeInfo')}</p>
             )}
           </div>
         </div>

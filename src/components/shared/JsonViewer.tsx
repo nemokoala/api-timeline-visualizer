@@ -22,6 +22,7 @@ import { Input } from '../ui/Input';
 import { MenuCheckItem, MenuSurface } from '../ui/Menu';
 import { SearchOptionToggles } from '../ui/SearchOptionToggles';
 import { cn } from '../../utils/cn';
+import { useT } from '../../i18n';
 import { useJsonViewPrefs } from '../../hooks/useJsonViewPrefs';
 import type { JsonViewPrefs } from '../../utils/jsonViewPrefs';
 
@@ -168,6 +169,7 @@ function JsonBlock({
   searchOptions: Required<SearchOptions>;
   instanceId?: string;
 }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const [fieldMenu, setFieldMenu] = useState<ActiveFieldMenu>(null);
   const [settingsMenu, setSettingsMenu] = useState<{ top: number; left: number } | null>(null);
@@ -420,8 +422,8 @@ function JsonBlock({
                   tone="accent"
                   onClick={() => goToLocalHit(-1)}
                   disabled={localHitCount === 0}
-                  aria-label="이전 검색 결과"
-                  title="이전 (Shift+Enter)"
+                  aria-label={t('jsonViewer.prevMatch')}
+                  title={t('jsonViewer.prevMatchTitle')}
                 >
                   ↑
                 </IconButton>
@@ -429,8 +431,8 @@ function JsonBlock({
                   tone="accent"
                   onClick={() => goToLocalHit(1)}
                   disabled={localHitCount === 0}
-                  aria-label="다음 검색 결과"
-                  title="다음 (Enter)"
+                  aria-label={t('jsonViewer.nextMatch')}
+                  title={t('jsonViewer.nextMatchTitle')}
                 >
                   ↓
                 </IconButton>
@@ -446,7 +448,7 @@ function JsonBlock({
               onClick={() =>
                 onOpenPanel ? onOpenPanel(value, { fullscreen: true }) : setIsFullscreen((current) => !current)
               }
-              title={onOpenPanel ? '화면을 가득 채우는 창으로 열기' : undefined}
+              title={onOpenPanel ? t('jsonViewer.openFullscreen') : undefined}
             >
               {isFullscreen ? 'Close' : 'Fullscreen'}
             </Button>
@@ -461,8 +463,8 @@ function JsonBlock({
               className="absolute z-[3] inline-flex gap-1 rounded-[9px] border border-line-weak bg-surface p-[3px] shadow-float [transform:translateY(calc(-100%-6px))]"
               style={{ left: fieldMenu.left, top: fieldMenu.top }}
             >
-              <FieldMenuButton onClick={() => handleFieldCopy('value')}>값 복사</FieldMenuButton>
-              <FieldMenuButton onClick={() => handleFieldCopy('string')}>문자열 복사</FieldMenuButton>
+              <FieldMenuButton onClick={() => handleFieldCopy('value')}>{t('jsonViewer.copyValue')}</FieldMenuButton>
+              <FieldMenuButton onClick={() => handleFieldCopy('string')}>{t('jsonViewer.copyString')}</FieldMenuButton>
               <FieldMenuButton onClick={() => setFieldMenu(null)} aria-label="Close field copy menu">
                 ×
               </FieldMenuButton>
@@ -492,8 +494,8 @@ function JsonBlock({
             onDoubleClick={() => setCustomHeight(null)}
             role="separator"
             aria-orientation="horizontal"
-            aria-label="뷰어 높이 조절 (더블클릭 시 기본값)"
-            title="드래그로 높이 조절 · 더블클릭으로 기본값"
+            aria-label={t('jsonViewer.resizeAria')}
+            title={t('jsonViewer.resizeTitle')}
           />
         ) : null}
       </div>
@@ -640,6 +642,7 @@ function JsonViewSettingsMenu({
   left: number;
   onClose: () => void;
 }) {
+  const t = useT();
   const [prefs, setPrefs] = useJsonViewPrefs();
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -660,12 +663,12 @@ function JsonViewSettingsMenu({
   }, [onClose]);
 
   return (
-    <MenuSurface ref={menuRef} style={{ top, left }} role="menu" aria-label="JSON 표시 설정">
+    <MenuSurface ref={menuRef} style={{ top, left }} role="menu" aria-label={t('jsonViewer.displaySettings')}>
       <MenuCheckItem
         checked={prefs.indentGuide}
         onClick={() => setPrefs((prev) => ({ ...prev, indentGuide: !prev.indentGuide }))}
       >
-        들여쓰기 가이드
+        {t('jsonViewer.indentGuide')}
       </MenuCheckItem>
       {/* 무지개색은 가이드선이 꺼져 있으면 효과가 없어 비활성화한다. */}
       <MenuCheckItem
@@ -673,7 +676,7 @@ function JsonViewSettingsMenu({
         disabled={!prefs.indentGuide}
         onClick={() => setPrefs((prev) => ({ ...prev, rainbow: !prev.rainbow }))}
       >
-        무지개색
+        {t('jsonViewer.rainbow')}
       </MenuCheckItem>
     </MenuSurface>
   );

@@ -1,3 +1,4 @@
+import type { MessageKey } from '../i18n/ko';
 import type { ApiRequest, ReplayDraft } from '../types/network';
 import { draftHasBody, draftHeaderEntries } from './requestCodeSnippets';
 
@@ -16,23 +17,27 @@ import { draftHasBody, draftHeaderEntries } from './requestCodeSnippets';
  * 못하고, 결과는 어차피 네트워크 스트림에 잡히기 때문이다.
  */
 
-export type ResendOutcome = { ok: true } | { ok: false; error: string };
+// 검증 실패는 번역 키(errorKey)로, 런타임 fetch/eval 오류는 브라우저가 준 원문(error)으로
+// 구분해 전달한다. UI에서 errorKey는 t()로 번역하고 error는 그대로 보여준다.
+export type ResendOutcome =
+  | { ok: true }
+  | { ok: false; error?: string; errorKey?: MessageKey };
 
 /** http(s) 요청만 재전송 대상. data:/blob:/웹소켓 등은 제외. */
 export function canResendRequest(request: ApiRequest): boolean {
   return /^https?:\/\//i.test(request.url) && request.type !== 'websocket';
 }
 
-/** 전송 전 draft 검증. 문제가 없으면 null, 있으면 사용자에게 보여줄 메시지. */
-export function validateReplayDraft(draft: ReplayDraft): string | null {
-  if (!draft.method.trim()) return '메서드를 입력해 주세요.';
+/** 전송 전 draft 검증. 문제가 없으면 null, 있으면 사용자에게 보여줄 메시지의 번역 키. */
+export function validateReplayDraft(draft: ReplayDraft): MessageKey | null {
+  if (!draft.method.trim()) return 'replay.error.methodRequired';
   if (!/^https?:\/\//i.test(draft.url.trim())) {
-    return 'URL은 http:// 또는 https:// 로 시작해야 합니다.';
+    return 'replay.error.urlScheme';
   }
   try {
     new URL(draft.url.trim());
   } catch {
-    return '올바른 URL이 아닙니다.';
+    return 'replay.error.urlInvalid';
   }
   return null;
 }
@@ -62,8 +67,8 @@ function canUseInspectedWindow(): boolean {
 }
 
 export function resendRequest(draft: ReplayDraft): Promise<ResendOutcome> {
-  const invalid = validateReplayDraft(draft);
-  if (invalid) return Promise.resolve({ ok: false, error: invalid });
+  const invalidKey = validateReplayDraft(draft);
+  if (invalidKey) return Promise.resolve({ ok: false, errorKey: invalidKey });
 
   const url = draft.url.trim();
   const init = buildFetchInit(draft);

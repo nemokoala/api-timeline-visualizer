@@ -12,6 +12,7 @@ import type { WorkspaceMode } from './Toolbar';
 import { useTheme } from '../../hooks/useTheme';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { getDockLayout, saveDockLayout } from '../../utils/dockLayoutPrefs';
+import { useT } from '../../i18n';
 import { ConsolePanel } from '../panels/ConsolePanel';
 import { NetworkPanel } from '../panels/NetworkPanel';
 import { StoragePanel } from '../panels/StoragePanel';
@@ -38,6 +39,7 @@ function isWorkspaceMode(value: string): value is WorkspaceMode {
 /** Pop out으로 연 JSON을 표시하는 동적 패널. 값은 컨텍스트에서 패널 id로 조회한다. */
 function JsonDockPanel({ params }: IDockviewPanelProps) {
   const { getJsonPanelData } = useWorkspace();
+  const t = useT();
   const dataId = typeof params?.dataId === 'string' ? params.dataId : '';
   const data = getJsonPanelData(dataId);
 
@@ -46,7 +48,7 @@ function JsonDockPanel({ params }: IDockviewPanelProps) {
       {data ? (
         <JsonViewer value={data.value} />
       ) : (
-        <DockWatermark message="JSON 데이터가 없습니다." hint="패널을 닫고 다시 Pop out 해 주세요." />
+        <DockWatermark message={t('workspaceDock.noJsonData')} hint={t('workspaceDock.reopenHint')} />
       )}
     </div>
   );
@@ -63,17 +65,12 @@ function DockviewWatermark(_props: IWatermarkPanelProps) {
   return <DockWatermark />;
 }
 
-function DockWatermark({
-  message = '표시할 패널이 없습니다.',
-  hint = '상단에서 Network · Storage · Console을 선택해 다시 여세요.',
-}: {
-  message?: string;
-  hint?: string;
-}) {
+function DockWatermark({ message, hint }: { message?: string; hint?: string }) {
+  const t = useT();
   return (
     <div className="grid h-full place-content-center gap-1.5 p-6 text-center text-ink-sub">
-      <p>{message}</p>
-      <p className="text-[12px] text-ink-weak">{hint}</p>
+      <p>{message ?? t('workspaceDock.noPanels')}</p>
+      <p className="text-[12px] text-ink-weak">{hint ?? t('workspaceDock.reopenTopHint')}</p>
     </div>
   );
 }

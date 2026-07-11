@@ -1,4 +1,5 @@
 import { useTheme } from '../../hooks/useTheme';
+import { useLocale, useT, type Locale } from '../../i18n';
 import { IconButton } from '../ui/Button';
 import { SegmentedControl } from '../ui/SegmentedControl';
 
@@ -28,6 +29,7 @@ export function Toolbar({
   onWorkspaceModeChange,
   onResetLayout,
 }: ToolbarProps) {
+  const t = useT();
   const isStorageMode = workspaceMode === 'storage';
 
   return (
@@ -39,17 +41,17 @@ export function Toolbar({
           </h1>
           <div
             className="flex flex-wrap items-center gap-1.5 max-[720px]:hidden"
-            aria-label="Capture summary"
+            aria-label={t('toolbar.captureSummary')}
           >
             {isStorageMode ? (
-              <ToolbarChip>Storage viewer</ToolbarChip>
+              <ToolbarChip>{t('toolbar.storageViewer')}</ToolbarChip>
             ) : (
               // Network·Console 모두 "N shown / M captured". 콘솔의 shown은 레벨·Include/Exclude
               // 필터와 연속 중복 접기를 반영한 실제 행 수다(App에서 계산).
               <>
-                <ToolbarChip>{requestCount} shown</ToolbarChip>
+                <ToolbarChip>{t('toolbar.shown', { count: requestCount })}</ToolbarChip>
                 {totalRequestCount !== requestCount ? (
-                  <ToolbarChip>{totalRequestCount} captured</ToolbarChip>
+                  <ToolbarChip>{t('toolbar.captured', { count: totalRequestCount })}</ToolbarChip>
                 ) : null}
               </>
             )}
@@ -61,7 +63,7 @@ export function Toolbar({
         <div className="flex flex-none items-center gap-2 max-[980px]:ml-auto">
           <SegmentedControl
             size="sm"
-            ariaLabel="Workspace panels"
+            ariaLabel={t('toolbar.workspacePanels')}
             value={workspaceMode}
             onChange={onWorkspaceModeChange}
             options={WORKSPACE_PANEL_BUTTONS.map(({ mode, label }) => {
@@ -70,7 +72,9 @@ export function Toolbar({
               return {
                 value: mode,
                 label,
-                title: isOpen ? `${label} 패널로 이동` : `${label} 패널 열기`,
+                title: isOpen
+                  ? t('toolbar.moveToPanel', { label })
+                  : t('toolbar.openPanel', { label }),
                 // 열려 있지만 포커스되지 않은 패널은 하단에 작은 점으로 표시.
                 className:
                   isOpen && !isActive
@@ -81,8 +85,8 @@ export function Toolbar({
           />
           <IconButton
             size="md"
-            aria-label="레이아웃 초기화"
-            title="레이아웃 초기화 (기본 배치로)"
+            aria-label={t('toolbar.resetLayout')}
+            title={t('toolbar.resetLayoutTitle')}
             onClick={onResetLayout}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -90,6 +94,7 @@ export function Toolbar({
               <path d="M14 3v18M14 12h7" />
             </svg>
           </IconButton>
+          <LanguageToggleButton />
           <ThemeToggleButton />
         </div>
       </div>
@@ -105,15 +110,30 @@ function ToolbarChip({ children }: { children: React.ReactNode }) {
   );
 }
 
+function LanguageToggleButton() {
+  const { locale, setLocale } = useLocale();
+  const t = useT();
+  const next: Locale = locale === 'ko' ? 'en' : 'ko';
+  const title = next === 'ko' ? t('toolbar.switchToKorean') : t('toolbar.switchToEnglish');
+
+  return (
+    <IconButton size="md" aria-label={title} title={title} onClick={() => setLocale(next)}>
+      <span className="text-[11px] font-bold tracking-wide">{locale.toUpperCase()}</span>
+    </IconButton>
+  );
+}
+
 function ThemeToggleButton() {
   const { theme, toggleTheme } = useTheme();
+  const t = useT();
   const isDark = theme === 'dark';
+  const title = isDark ? t('toolbar.themeToLight') : t('toolbar.themeToDark');
 
   return (
     <IconButton
       size="md"
-      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      aria-label={title}
+      title={title}
       onClick={toggleTheme}
     >
       {isDark ? (

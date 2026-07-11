@@ -2,6 +2,7 @@ import { useState, type KeyboardEvent } from 'react';
 import type { WorkspaceMode } from '../layout/Toolbar';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { getPanelFiltersOpen, savePanelFiltersOpen } from '../../utils/panelFilterPrefs';
+import { useT } from '../../i18n';
 import { IconButton } from '../ui/Button';
 import { SearchOptionToggles } from '../ui/SearchOptionToggles';
 
@@ -34,6 +35,7 @@ function FilterField({ label, value, placeholder, onChange }: FilterFieldProps) 
 
 /** 각 도킹 패널 헤더: 슬림 검색바 + 접을 수 있는 Include/Exclude 필터. 뷰마다 독립적으로 동작한다. */
 export function PanelHeader({ scope }: PanelHeaderProps) {
+  const t = useT();
   const { searchModels, filterModels, searchOptions, floatPanel } = useWorkspace();
   const model = searchModels[scope];
   const filter = filterModels[scope];
@@ -146,8 +148,8 @@ export function PanelHeader({ scope }: PanelHeaderProps) {
         <IconButton
           size="xs"
           ghost
-          aria-label="패널을 창으로 분리"
-          title="창으로 분리 (플로팅)"
+          aria-label={t('panelHeader.popOutAria')}
+          title={t('panelHeader.popOutTitle')}
           onClick={() => floatPanel(scope)}
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -166,8 +168,8 @@ export function PanelHeader({ scope }: PanelHeaderProps) {
               : ''
           }`}
           aria-expanded={filtersOpen}
-          aria-label={filtersOpen ? '필터 접기' : '필터 펼치기'}
-          title={filtersOpen ? '필터 접기' : hasFilterText ? '필터 펼치기 (필터 적용 중)' : '필터 펼치기'}
+          aria-label={filtersOpen ? t('panelHeader.collapseFilters') : t('panelHeader.expandFilters')}
+          title={filtersOpen ? t('panelHeader.collapseFilters') : hasFilterText ? t('panelHeader.expandFiltersActive') : t('panelHeader.expandFilters')}
           onClick={toggleFilters}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

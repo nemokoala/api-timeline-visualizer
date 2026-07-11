@@ -7,6 +7,7 @@ import { Select } from '../ui/Input';
 import { DetailPanelCloseButton } from '../shared/DetailPanelCloseButton';
 import { useBackdropDismiss } from '../../hooks/useBackdropDismiss';
 import { displayPath } from '../../utils/normalizeUrl';
+import { useT } from '../../i18n';
 
 type ResponseDiffModalProps = {
   /** 비교 기준(현재 선택된) 요청. diff의 오른쪽(신규)에 놓인다. */
@@ -31,6 +32,7 @@ export function ResponseDiffModal({
   onEnsureBody,
   onClose,
 }: ResponseDiffModalProps) {
+  const t = useT();
   // 기본 비교 대상: 기준 요청보다 먼저 시작한 것 중 가장 최근. 없으면 첫 후보.
   const defaultCandidateId = useMemo(() => {
     const earlier = candidates.filter((item) => item.startedAt <= baseRequest.startedAt);
@@ -70,11 +72,11 @@ export function ResponseDiffModal({
   }, [compareRequest, isLoading, leftValue, rightValue]);
 
   const statusMessage = isLoading
-    ? '응답 본문을 불러오는 중…'
+    ? t('responseDiff.loading')
     : !diff
-      ? '비교할 요청이 없습니다.'
+      ? t('responseDiff.noRequest')
       : diff.addedCount === 0 && diff.removedCount === 0
-        ? '두 응답이 동일합니다.'
+        ? t('responseDiff.identical')
         : null;
 
   return (
@@ -107,11 +109,11 @@ export function ResponseDiffModal({
 
         <div className="flex flex-wrap items-center gap-2.5 px-4 pb-3">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="flex-none text-[11px] font-bold text-danger">− 비교 대상</span>
+            <span className="flex-none text-[11px] font-bold text-danger">{t('responseDiff.compareTarget')}</span>
             <Select
               value={compareId ?? ''}
               onChange={(event) => setCompareId(event.currentTarget.value)}
-              aria-label="비교할 요청 선택"
+              aria-label={t('responseDiff.selectRequest')}
             >
               {candidates.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -124,7 +126,7 @@ export function ResponseDiffModal({
             →
           </span>
           <div className="flex min-w-0 items-center gap-2">
-            <span className="flex-none text-[11px] font-bold text-ok">+ 현재 요청</span>
+            <span className="flex-none text-[11px] font-bold text-ok">{t('responseDiff.currentRequest')}</span>
             <span className="text-xs text-ink-sub">
               {formatDateTime(baseRequest.startedAt)} ·{' '}
               <span className={`flow-status ${getStatusTone(baseRequest.status)}`}>
@@ -133,7 +135,7 @@ export function ResponseDiffModal({
             </span>
           </div>
           {diff ? (
-            <span className="ml-auto flex gap-2 text-xs font-bold" aria-label="변경 요약">
+            <span className="ml-auto flex gap-2 text-xs font-bold" aria-label={t('responseDiff.changeSummary')}>
               <span className="text-ok">+{diff.addedCount}</span>
               <span className="text-danger">−{diff.removedCount}</span>
             </span>
