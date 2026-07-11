@@ -8,6 +8,8 @@ import { useSplitPanelLayout } from "../../hooks/useSplitPanelLayout";
 import {
   canInspectPageStorage,
   deleteIndexedDbRecord,
+  fetchMoreIndexedDbRecords,
+  setIndexedDbRecord,
   inspectPageStorage,
   removeWebStorageItem,
   setWebStorageItem,
@@ -56,6 +58,9 @@ type StorageViewProps = {
   onSearchMatchIndexChange: (index: number) => void;
 };
 
+// "더 불러오기" 한 번에 추가로 읽는 IndexedDB 레코드 수(초기 상한과 동일).
+const MORE_RECORDS_BATCH = 80;
+
 export function StorageView({
   searchText,
   searchMatchIndex,
@@ -87,6 +92,8 @@ export function StorageView({
   const [error, setError] = useState<string | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [isMutating, setIsMutating] = useState(false);
+  // 현재 "더 불러오기" 진행 중인 스토어 키(`db:store`). 버튼 중복 클릭·표시용.
+  const [loadingMoreKey, setLoadingMoreKey] = useState<string | null>(null);
   const canEdit = canInspectPageStorage();
   const canEditCookies = canInspectCookies();
   const hasSearch = Boolean(searchText.trim());
@@ -357,6 +364,62 @@ export function StorageView({
     value: string,
   ) => runMutation(() => setWebStorageItem(kind, key, value));
 
+  const handleSaveIdbRecord = (
+    databaseName: string,
+    storeName: string,
+    recordKey: string,
+    value: string,
+  ) => runMutation(() => setIndexedDbRecord(databaseName, storeName, recordKey, value));
+
+  // 상한을 넘긴 레코드를 이어 읽어 스냅샷(단일 소스)에 붙인다. 오프셋은 필터와 무관하게
+  // 원본 스냅샷의 로드된 개수로 잡는다.
+  const handleLoadMoreRecords = async (databaseName: string, storeName: string) => {
+    if (loadingMoreKey) return;
+    const store = snapshot?.indexedDB
+      .find((database) => database.name === databaseName)
+      ?.stores.find((item) => item.name === storeName);
+    if (!store) return;
+
+    const key = `${databaseName}:${storeName}`;
+    setLoadingMoreKey(key);
+    try {
+      const more = await fetchMoreIndexedDbRecords(
+        databaseName,
+        storeName,
+        store.records.length,
+        MORE_RECORDS_BATCH,
+      );
+      setSnapshot((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          indexedDB: prev.indexedDB.map((database) =>
+            database.name !== databaseName
+              ? database
+              : {
+                  ...database,
+                  stores: database.stores.map((item) => {
+                    if (item.name !== storeName) return item;
+                    const records = [...item.records, ...more];
+                    return {
+                      ...item,
+                      records,
+                      truncated: (item.count ?? records.length) > records.length,
+                    };
+                  }),
+                },
+          ),
+        };
+      });
+    } catch (loadFailure) {
+      setMutationError(
+        loadFailure instanceof Error ? loadFailure.message : "Failed to load more records.",
+      );
+    } finally {
+      setLoadingMoreKey(null);
+    }
+  };
+
   const handleDeleteWebEntry = (kind: "local" | "session", key: string) => {
     const label = kind === "local" ? "localStorage" : "sessionStorage";
     if (!window.confirm(`Delete "${key}" from ${label}?`)) return;
@@ -468,6 +531,8 @@ export function StorageView({
             canEdit={canEdit}
             isMutating={isMutating}
             onDeleteRecord={handleDeleteIdbRecord}
+            onLoadMore={handleLoadMoreRecords}
+            loadingMoreKey={loadingMoreKey}
           />
         ) : activeTab === "cookies" ? (
           <CookiePane
@@ -528,15 +593,18 @@ export function StorageView({
               isStacked={isSplitStacked}
               canEdit={selectedDetail?.cookie ? canEditCookies : canEdit}
               isMutating={isMutating}
-              onSaveValue={(value) =>
-                selectedDetail?.editTarget
-                  ? handleSaveWebEntry(
-                      selectedDetail.editTarget.kind,
-                      selectedDetail.editTarget.key,
+              onSaveValue={(value) => {
+                const target = selectedDetail?.editTarget;
+                if (!target) return Promise.resolve(false);
+                return target.kind === "indexeddb"
+                  ? handleSaveIdbRecord(
+                      target.databaseName,
+                      target.storeName,
+                      target.recordKey,
                       value,
                     )
-                  : Promise.resolve(false)
-              }
+                  : handleSaveWebEntry(target.kind, target.key, value);
+              }}
               onSaveCookie={handleSaveCookie}
               onToggleLayout={toggleSplitLayout}
               onClose={() => setSelectedItem(null)}

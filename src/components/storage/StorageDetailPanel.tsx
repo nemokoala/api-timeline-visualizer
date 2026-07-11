@@ -34,8 +34,15 @@ export type StorageDetail = {
   metaRows: Array<[string, string]>;
   value: unknown;
   instanceId: string;
-  /** 값 편집이 가능한 웹 스토리지 항목이면 대상 정보. IndexedDB는 없음. */
-  editTarget?: { kind: "local" | "session"; key: string };
+  /** 값 편집 대상. 웹 스토리지는 키로, IndexedDB는 (DB·스토어·직렬화 키)로 특정한다. */
+  editTarget?:
+    | { kind: "local" | "session"; key: string }
+    | {
+        kind: "indexeddb";
+        databaseName: string;
+        storeName: string;
+        recordKey: string;
+      };
   /** 쿠키 항목이면 전체 쿠키 정보. 상세 패널에서 속성까지 편집한다. */
   cookie?: CookieEntry;
   blobPreviewRequest?: {
@@ -301,6 +308,10 @@ export function resolveSelectedDetail(
   const record = store?.records[selectedItem.recordIndex];
   if (!database || !store || !record) return null;
 
+  // Blob 등 구조화 클론 전용 값은 JSON으로 왕복되지 않으니 편집 대상에서 제외한다
+  // (직렬화 시 __apiFlowBlob 마커가 박힌다).
+  const isEditableIdbValue = !record.value.includes('"__apiFlowBlob"');
+
   return {
     title: record.key,
     subtitle: `${database.name} / ${store.name}`,
@@ -312,6 +323,14 @@ export function resolveSelectedDetail(
     ],
     value: record.value,
     instanceId: `indexeddb:${database.name}:${store.name}:${selectedItem.recordIndex}`,
+    editTarget: isEditableIdbValue
+      ? {
+          kind: "indexeddb",
+          databaseName: database.name,
+          storeName: store.name,
+          recordKey: record.key,
+        }
+      : undefined,
     blobPreviewRequest: {
       databaseName: database.name,
       storeName: store.name,

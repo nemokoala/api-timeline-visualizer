@@ -23,6 +23,7 @@ import {
 import { getTablePrefs, saveTablePrefs, type TablePrefs } from "../../utils/tablePrefs";
 import { ColumnMenu } from "../shared/ColumnMenu";
 import { DataTable } from "../shared/DataTable";
+import { Button } from "../ui/Button";
 import { RowContextMenu, type RowContextMenuItem } from "../shared/RowContextMenu";
 import { copyText } from "../../utils/clipboard";
 import { RowDeleteButton } from "./RowDeleteButton";
@@ -50,6 +51,8 @@ export function IndexedDbPane({
   canEdit,
   isMutating,
   onDeleteRecord,
+  onLoadMore,
+  loadingMoreKey,
 }: {
   databases: IndexedDbDatabaseSnapshot[];
   selectedItem: SelectedStorageItem | null;
@@ -64,6 +67,8 @@ export function IndexedDbPane({
     storeName: string,
     recordKey: string,
   ) => void;
+  onLoadMore: (databaseName: string, storeName: string) => void;
+  loadingMoreKey: string | null;
 }) {
   const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
@@ -140,6 +145,8 @@ export function IndexedDbPane({
                 canEdit={canEdit}
                 isMutating={isMutating}
                 onDeleteRecord={onDeleteRecord}
+                onLoadMore={onLoadMore}
+                loadingMoreKey={loadingMoreKey}
               />
             ))}
           </section>
@@ -172,6 +179,8 @@ function IndexedDbStore({
   canEdit,
   isMutating,
   onDeleteRecord,
+  onLoadMore,
+  loadingMoreKey,
 }: {
   databaseName: string;
   store: IndexedDbStoreSnapshot;
@@ -190,6 +199,8 @@ function IndexedDbStore({
     storeName: string,
     recordKey: string,
   ) => void;
+  onLoadMore: (databaseName: string, storeName: string) => void;
+  loadingMoreKey: string | null;
 }) {
   const searchOptions = useSearchOptions();
   const hasSearch = Boolean(searchText.trim());
@@ -323,11 +334,6 @@ function IndexedDbStore({
       {store.error ? (
         <p className="mx-3 my-2 rounded-[10px] bg-danger-soft px-3 py-[7px] text-[11px] leading-[1.4] text-danger">{store.error}</p>
       ) : null}
-      {store.truncated ? (
-        <p className="mx-3 my-2 rounded-[10px] bg-warn-soft px-3 py-[7px] text-[11px] leading-[1.4] text-warn">
-          Showing the first {store.records.length} records.
-        </p>
-      ) : null}
       <DataTable
         ariaLabel={`${store.name} records`}
         columns={columns}
@@ -372,6 +378,20 @@ function IndexedDbStore({
         onRowContextMenu={(row, event) => handleRowContextMenu(row.record, event)}
         emptyState="No records."
       />
+      {store.truncated ? (
+        <div className="flex items-center justify-between gap-2 border-t border-line-weak px-3 py-2">
+          <span className="text-[11px] text-ink-weak">
+            Showing {store.records.length} of {store.count ?? store.records.length}
+          </span>
+          <Button
+            size="sm"
+            onClick={() => onLoadMore(databaseName, store.name)}
+            disabled={loadingMoreKey === `${databaseName}:${store.name}`}
+          >
+            {loadingMoreKey === `${databaseName}:${store.name}` ? "Loading…" : "Load more"}
+          </Button>
+        </div>
+      ) : null}
       {rowMenu ? (
         <RowContextMenu
           x={rowMenu.x}
