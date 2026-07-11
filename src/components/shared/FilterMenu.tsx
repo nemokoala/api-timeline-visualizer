@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import { useT } from '../../i18n';
 import { Button } from '../ui/Button';
 import { MenuCheckItem, MenuGroupLabel, MenuSeparator, MenuSurface } from '../ui/Menu';
 
@@ -37,6 +38,7 @@ export function FilterMenu<T extends string>({
   onToggle,
   onSetAll,
 }: FilterMenuProps<T>) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
@@ -110,7 +112,7 @@ export function FilterMenu<T extends string>({
               onClick={() => onSetAll(true)}
               disabled={enabledValues.length === totalCount}
             >
-              모두 선택
+              {t('filterMenu.selectAll')}
             </button>
             <button
               type="button"
@@ -118,7 +120,7 @@ export function FilterMenu<T extends string>({
               onClick={() => onSetAll(false)}
               disabled={enabledValues.length === 0}
             >
-              모두 해제
+              {t('filterMenu.clearAll')}
             </button>
           </div>
           {groups.map((group, groupIndex) => (

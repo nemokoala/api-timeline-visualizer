@@ -1,5 +1,16 @@
 # CLAUDE.md
 
+## 컨벤션
+
+### 사용자에게 보이는 문자열은 i18n 키로 (한국어/영어)
+
+새 UI 문자열(JSX 텍스트, `title`·`aria-label`·`placeholder` 등)은 하드코딩하지 말고
+`src/i18n/ko.ts`와 `en.ts`에 `namespace.key` 형태로 넣고 컴포넌트에서 `useT()`의 `t('key')`로
+쓴다. 보간은 값 안에 `{var}`를 넣고 `t('key', { var })`로 넘긴다. `ko`가 원본이라 `en`에 키를
+빠뜨리면 빌드가 깨진다 — 두 파일을 함께 채운다. 훅을 못 쓰는 유틸에서는 문장 대신 `MessageKey`를
+반환하고 UI 경계에서 번역한다(예: `requestResend.ts`). 한국어 **주석**은 번역 대상이 아니다.
+고유명사(`Network`/`Storage`/`Console`/`JSON`/HTTP 메서드 등)는 키로 만들지 않는다.
+
 ## 작업 규칙
 
 ### 작업 완료 후 항상 빌드

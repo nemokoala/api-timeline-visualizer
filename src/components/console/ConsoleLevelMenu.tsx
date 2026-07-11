@@ -4,6 +4,7 @@ import {
 } from '../../utils/consoleLevelPrefs';
 import { FilterMenu, type FilterMenuItem } from '../shared/FilterMenu';
 import { CONSOLE_LEVEL_TEXT_COLOR } from './consoleLevelColors';
+import { useT } from '../../i18n';
 
 type ConsoleLevelMenuProps = {
   enabledLevels: FilterableConsoleLevel[];
@@ -29,13 +30,14 @@ function toItem(level: FilterableConsoleLevel): FilterMenuItem<FilterableConsole
 
 /** 콘솔 로그 레벨(Log/Info/…/Dir) 표시 토글 드롭다운. */
 export function ConsoleLevelMenu({ enabledLevels, onToggle, onSetAll }: ConsoleLevelMenuProps) {
+  const t = useT();
   return (
     <FilterMenu
       buttonLabel="Level"
-      menuAriaLabel="콘솔 로그 레벨 표시"
+      menuAriaLabel={t('consoleLevelMenu.aria')}
       groups={[
         { items: (['log', 'info', 'warn', 'error', 'debug'] as const).map(toItem) },
-        { label: '기타', items: (['table', 'dir'] as const).map(toItem) },
+        { label: t('consoleLevelMenu.groupOther'), items: (['table', 'dir'] as const).map(toItem) },
       ]}
       enabledValues={enabledLevels}
       onToggle={onToggle}

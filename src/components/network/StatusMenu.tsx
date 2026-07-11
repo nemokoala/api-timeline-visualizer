@@ -5,6 +5,7 @@ import {
 } from '../../utils/requestFilterPrefs';
 import { FilterMenu } from '../shared/FilterMenu';
 import { StatusBadge } from './StatusBadge';
+import { useT } from '../../i18n';
 
 type StatusMenuProps = {
   enabledGroups: StatusGroup[];
@@ -23,10 +24,11 @@ const GROUP_TONE: Record<StatusGroup, string> = {
 
 /** 상태코드 그룹(2xx~5xx/Error) 표시 토글 드롭다운. */
 export function StatusMenu({ enabledGroups, onToggle, onSetAll }: StatusMenuProps) {
+  const t = useT();
   return (
     <FilterMenu
       buttonLabel="Status"
-      menuAriaLabel="상태코드 그룹 표시"
+      menuAriaLabel={t('statusMenu.aria')}
       groups={[
         {
           items: STATUS_GROUPS.map((group) => ({

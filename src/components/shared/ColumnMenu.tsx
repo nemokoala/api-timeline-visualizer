@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useT } from '../../i18n';
 import { MenuCheckItem, MenuSeparator, MenuSurface } from '../ui/Menu';
 
 type ColumnMenuOption = { id: string; label: string; checked: boolean };
@@ -26,6 +27,7 @@ export function ColumnMenu<T extends string>({
   onToggleOption,
   onClose,
 }: ColumnMenuProps<T>) {
+  const t = useT();
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,7 +53,7 @@ export function ColumnMenu<T extends string>({
       ref={menuRef}
       style={{ top: position.y, left: position.x }}
       role="menu"
-      aria-label="열 표시 설정"
+      aria-label={t('columnMenu.aria')}
     >
       {columns.map((col) => {
         const isVisible = visibility[col.id] ?? false;

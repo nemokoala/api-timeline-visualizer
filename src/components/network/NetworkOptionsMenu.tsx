@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { MenuCheckItem, MenuSurface } from '../ui/Menu';
+import { useT } from '../../i18n';
 
 type NetworkOptionsMenuProps = {
   /** 메뉴를 띄울 화면 좌표(보통 커서 위치). */
@@ -21,6 +22,7 @@ export function NetworkOptionsMenu({
   onClearOnReloadChange,
   onClose,
 }: NetworkOptionsMenuProps) {
+  const t = useT();
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,12 +42,12 @@ export function NetworkOptionsMenu({
   }, [onClose]);
 
   return (
-    <MenuSurface ref={menuRef} style={{ top: y, left: x }} role="menu" aria-label="네트워크 옵션">
+    <MenuSurface ref={menuRef} style={{ top: y, left: x }} role="menu" aria-label={t('networkOptions.aria')}>
       <MenuCheckItem
         checked={clearOnReload}
         onClick={() => onClearOnReloadChange(!clearOnReload)}
       >
-        새로고침 시 기록 지우기
+        {t('networkOptions.clearOnReload')}
       </MenuCheckItem>
     </MenuSurface>
   );

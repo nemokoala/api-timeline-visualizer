@@ -4,6 +4,7 @@ import {
 } from '../../utils/resourceTypePrefs';
 import { getRequestKindLabel } from '../../utils/formatters';
 import { FilterMenu, type FilterMenuItem } from '../shared/FilterMenu';
+import { useT } from '../../i18n';
 
 type ResourceTypeMenuProps = {
   enabledKinds: ToggleableResourceKind[];
@@ -46,13 +47,14 @@ function toItem(kind: ToggleableResourceKind): FilterMenuItem<ToggleableResource
 
 /** 리소스 타입(Fetch/XHR/…/Media) 표시 토글 드롭다운. */
 export function ResourceTypeMenu({ enabledKinds, onToggle, onSetAll }: ResourceTypeMenuProps) {
+  const t = useT();
   return (
     <FilterMenu
       buttonLabel="Types"
-      menuAriaLabel="리소스 타입 표시"
+      menuAriaLabel={t('resourceTypeMenu.aria')}
       groups={[
-        { label: '요청', items: API_KINDS.map(toItem) },
-        { label: '정적 리소스', items: STATIC_KINDS.map(toItem) },
+        { label: t('resourceTypeMenu.groupRequests'), items: API_KINDS.map(toItem) },
+        { label: t('resourceTypeMenu.groupStatic'), items: STATIC_KINDS.map(toItem) },
       ]}
       enabledValues={enabledKinds}
       onToggle={onToggle}

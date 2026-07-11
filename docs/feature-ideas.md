@@ -169,9 +169,42 @@ XML/SVG는 트리, `text/*`는 라이트 구문 강조. `JsonViewer`는 JSON 전
   draft는 지금 `CodeSnippetBlock` 안에서 cURL/fetch 스니펫과 한 몸이다("미리보기가 곧 보낼 내용").
   그 결합을 푸는 게 이 작업의 본체다.
 
+- **아직 i18n에 안 물린 영어 전용 라벨.** 이번 i18n 이전은 한국어 UI 문자열과 그에 바로 붙어 있던
+  영어 문구(툴바 칩, 테마 토글 등)까지만 키로 옮겼다. 원래부터 영어였던 짧은 라벨들 —
+  버튼 동사(`Edit`/`Copy`/`Send`/`Reset`/`Cancel`/`+ Add`, `Loading…`/`Sending…`/`Sent ✓`),
+  `DetailSection` 제목(`General`/`Headers`/`Cookies`/`Payload`/`Response`/`Timing`/`Replay`),
+  `ReplayEditorModal`의 눈썹 문구(`Edit & resend`)와 aria 라벨 몇 개 — 는 그대로 두었다.
+  고유명사(`Network`/`Storage`/`Console`/`JSON`/HTTP 메서드/`cURL`/`fetch`)는 의도적으로 제외.
+  결과적으로 한국어 모드에서도 이 라벨들은 영어로 남는다. 완전한 이중 언어를 원하면 이들도
+  `src/i18n/ko.ts`·`en.ts`에 키를 추가하고 해당 컴포넌트에서 `t()`로 바꾸면 된다.
+
 ---
 
 ## 완료됨
+
+### 한국어/영어 다국어(i18n) — 라이브러리 없이
+
+UI가 한국어로 하드코딩돼 있어 언어 전환이 없었다. 한/영 2개만 우선 지원하면 되고, 한국어는
+복수형 규칙이 없고 영어도 단순하며, SSR·라우팅 i18n이 필요 없는 클라이언트 SPA다. 그래서
+`i18next`류(~40KB, ICU·lazy-load 등 여기선 노는 기능)를 들이지 않고, `themePrefs` 패턴에 맞춘
+경량 자체 구현으로 갔다. 진짜 비용은 런타임이 아니라 흩어진 문자열을 키로 뽑는 이전 작업이고,
+그 비용은 어느 쪽을 골라도 같다.
+
+- **구조.** `src/i18n/ko.ts`(원본) + `en.ts` + `index.tsx`(Provider·`useT`·`useLocale`·보간).
+  키는 `namespace.key` 평면 문자열, 값 안 `{var}`는 `t(key, { var })`로 치환한다. `ko`의 키 집합이
+  `MessageKey`가 되고 `en`은 `Record<MessageKey, string>`이라 **키를 하나라도 빠뜨리면 빌드가
+  깨진다** — i18next의 JSON 방식보다 강한 안전장치다(키 자동완성도 공짜).
+- **언어 결정·저장.** `localePrefs.ts`가 `themePrefs`와 같은 방식으로 localStorage에 저장하고,
+  저장값이 없으면 `navigator.language`(ko*면 한국어, 아니면 영어)를 따른다. `LocaleProvider`는
+  `main.tsx` 루트에 물렸고, 툴바에 테마 토글 옆 언어 토글(현재 언어 코드 표시, 클릭 시 전환)을 뒀다.
+- **훅을 못 쓰는 유틸의 처리.** `requestResend.validateReplayDraft`는 이제 번역된 문장 대신
+  `MessageKey`를 반환하고, `ResendOutcome`은 `errorKey`(번역 대상)와 `error`(브라우저가 준 원문
+  런타임 오류)를 나눠 담는다. 번역은 UI 경계(App·RequestDetailPanel·ReplayEditorModal)에서 `t()`로
+  한다 — 유틸에 `t`를 주입하지 않으려는 선택이다.
+- **범위.** 한국어 UI 문자열 전부 + 그에 붙어 있던 영어 문구(툴바 칩·테마 토글)를 키로 옮겼다.
+  원래부터 영어였던 짧은 라벨과 고유명사는 두었다(→ [후속 정리 대상](#후속-정리-대상)).
+  이전 대상은 약 40개 파일 스캔 후 22개 파일 95개 문자열로 좁혔고, 정적 라벨 파일은 네임스페이스를
+  나눠 병렬로 배선했다. 주석(한국어 유지 규칙)은 건드리지 않았다.
 
 ### 스토리지 세부 패널에서 중복 값 뷰어 덜어내기
 

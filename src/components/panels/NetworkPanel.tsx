@@ -16,9 +16,11 @@ import { StatusMenu } from '../network/StatusMenu';
 import { Button } from '../ui/Button';
 import { ToggleControl } from '../ui/ToggleControl';
 import { PanelHeader } from './PanelHeader';
+import { useT } from '../../i18n';
 
 /** 도킹 패널로 렌더링되는 네트워크 뷰(Flow/Timeline + 요청 상세 분할). */
 export function NetworkPanel() {
+  const t = useT();
   const ctx = useWorkspace();
   const containerRef = useRef<HTMLDivElement>(null);
   const {
@@ -92,7 +94,7 @@ export function NetworkPanel() {
         <ToggleControl
           size="sm"
           label="Collapse IDs"
-          title="경로의 ID·날짜·해시를 :id 등으로 접어서 표시합니다."
+          title={t('networkPanel.collapsePathIdsTitle')}
           checked={ctx.collapsePathIds}
           onChange={ctx.onCollapsePathIdsChange}
         />
@@ -106,7 +108,7 @@ export function NetworkPanel() {
             size="sm"
             active={showSummary}
             aria-pressed={showSummary}
-            title="요약 통계 보기/숨기기"
+            title={t('networkPanel.toggleSummaryTitle')}
             onClick={() => setShowSummary((current) => !current)}
           >
             Summary
