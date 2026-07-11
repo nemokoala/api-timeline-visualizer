@@ -20,7 +20,7 @@ type FilterFieldProps = {
 /** Include/Exclude 알약형 필터 입력. 포커스 시 파란 테두리 + surface 배경. */
 function FilterField({ label, value, placeholder, onChange }: FilterFieldProps) {
   return (
-    <label className="flex h-6 min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-transparent bg-fill px-2 text-[11px] text-ink-weak transition-[background-color,border-color] duration-[120ms] focus-within:border-accent focus-within:bg-surface">
+    <label className="flex h-6 min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-line bg-fill px-2 text-[11px] text-ink-weak transition-[background-color,border-color] duration-[120ms] focus-within:border-accent focus-within:bg-surface">
       <span className="flex-none whitespace-nowrap font-medium">{label}</span>
       <input
         type="text"
@@ -92,15 +92,30 @@ export function PanelHeader({ scope }: PanelHeaderProps) {
         role="search"
         data-panel-search={scope}
       >
-        <input
-          className="h-[22px] min-w-0 flex-[1_1_80px] border-0 bg-transparent text-xs text-ink-strong outline-none [font-family:inherit]"
-          type="search"
-          value={model.searchText}
-          onChange={(event) => model.onSearchTextChange(event.currentTarget.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={model.placeholder}
-          aria-label={`Search ${scope}`}
-        />
+        <label className="flex h-6 min-w-0 flex-[1_1_80px] items-center gap-1.5 rounded-lg border border-line bg-fill px-2 transition-[background-color,border-color] duration-[120ms] focus-within:border-accent focus-within:bg-surface">
+          <svg
+            className="h-3.5 w-3.5 flex-none text-ink-faint"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            className="h-[22px] w-0 min-w-0 flex-auto border-0 bg-transparent text-xs text-ink-strong outline-none [font-family:inherit] placeholder:text-ink-faint"
+            type="search"
+            value={model.searchText}
+            onChange={(event) => model.onSearchTextChange(event.currentTarget.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={model.placeholder}
+            aria-label={`Search ${scope}`}
+          />
+        </label>
         <SearchOptionToggles
           className="flex shrink-0 items-center gap-0.5"
           matchCase={matchCase}
