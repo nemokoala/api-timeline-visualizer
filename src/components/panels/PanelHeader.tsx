@@ -24,7 +24,7 @@ function FilterField({ label, value, placeholder, onChange }: FilterFieldProps) 
       <span className="flex-none whitespace-nowrap font-medium">{label}</span>
       <input
         type="text"
-        className="h-[22px] w-0 min-w-0 flex-auto border-0 bg-transparent text-[11px] text-ink-strong outline-none [font-family:inherit]"
+        className="h-[22px] w-0 min-w-0 flex-auto border-0 bg-transparent text-[11px] text-ink-strong outline-none [font-family:inherit] placeholder:text-ink-faint"
         value={value}
         onChange={(event) => onChange(event.currentTarget.value)}
         placeholder={placeholder}
@@ -88,7 +88,7 @@ export function PanelHeader({ scope }: PanelHeaderProps) {
   return (
     <div className="flex shrink-0 flex-col border-b border-line-weak bg-surface">
       <div
-        className="flex h-7 items-center gap-1.5 pl-2.5 pr-1.5"
+        className="flex h-7 items-center gap-1.5 px-2"
         role="search"
         data-panel-search={scope}
       >
@@ -115,17 +115,17 @@ export function PanelHeader({ scope }: PanelHeaderProps) {
             placeholder={model.placeholder}
             aria-label={`Search ${scope}`}
           />
+          <SearchOptionToggles
+            className="-mr-1 flex shrink-0 items-center gap-0.5"
+            matchCase={matchCase}
+            wholeWord={wholeWord}
+            onMatchCaseChange={onMatchCaseChange}
+            onWholeWordChange={onWholeWordChange}
+          />
         </label>
-        <SearchOptionToggles
-          className="flex shrink-0 items-center gap-0.5"
-          matchCase={matchCase}
-          wholeWord={wholeWord}
-          onMatchCaseChange={onMatchCaseChange}
-          onWholeWordChange={onWholeWordChange}
-        />
         {hasActiveSearch ? (
           <div
-            className="flex shrink-0 items-center gap-1 border-l border-line pl-1.5"
+            className="flex shrink-0 items-center gap-1"
             aria-label="Search navigation"
           >
             <IconButton size="xs" onClick={model.onPrevious} title="Previous hit (Shift+Enter)">
@@ -193,7 +193,7 @@ export function PanelHeader({ scope }: PanelHeaderProps) {
         </IconButton>
       </div>
       {filtersOpen ? (
-        <div className="flex h-[30px] items-center gap-1.5 px-2 pb-1">
+        <div className="flex items-center gap-1.5 px-2 pb-1 pt-0.5">
           <FilterField
             label="Include"
             value={filter.includeText}
