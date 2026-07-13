@@ -135,10 +135,6 @@ export const en: Record<MessageKey, string> = {
   'consoleLevelMenu.aria': 'Show console log levels',
   'consoleLevelMenu.groupOther': 'Other',
 
-  // 스토리지 상세
-  'storageDetail.expandRowHint': 'Expand a row (▶) in the list to see its value.',
-  'storageDetail.editHint': 'Use the Edit button above to edit.',
-
   // 응답 비교 모달
   'responseDiff.loading': 'Loading response bodies…',
   'responseDiff.noRequest': 'No request to compare.',

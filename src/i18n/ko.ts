@@ -134,10 +134,6 @@ export const ko = {
   'consoleLevelMenu.aria': '콘솔 로그 레벨 표시',
   'consoleLevelMenu.groupOther': '기타',
 
-  // 스토리지 상세
-  'storageDetail.expandRowHint': '값은 목록에서 행을 펼쳐(▶) 보세요.',
-  'storageDetail.editHint': '편집은 상단 Edit 버튼.',
-
   // 응답 비교 모달
   'responseDiff.loading': '응답 본문을 불러오는 중…',
   'responseDiff.noRequest': '비교할 요청이 없습니다.',
