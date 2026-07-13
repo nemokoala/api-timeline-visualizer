@@ -31,6 +31,7 @@
   --color-fill-hover: var(--fill-hover);
   --color-fill-press: var(--fill-press);
   --color-row-hover: var(--row-hover);
+  --color-row-stripe: var(--row-stripe);
   --color-line: var(--border);
   --color-line-weak: var(--border-weak);
 

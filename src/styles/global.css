@@ -35,6 +35,8 @@
   --fill-hover: #e8ebed;
   --fill-press: #dde2e6;
   --row-hover: #f5f7f9;
+  /* 목록 얼룩말 줄무늬 — hover보다 옅게 둬 마우스 올린 행이 여전히 도드라지게 한다 */
+  --row-stripe: rgba(15, 23, 42, 0.025);
   --border: #e5e8eb;
   --border-weak: #eef0f3;
   --text-strong: #191f28;
@@ -67,6 +69,9 @@
   --json-guide-3: #40909e;
   --json-guide-4: #5b8fd4;
   --json-guide-5: #8871cf;
+  /* 얼룩말: 무채색 두 톤을 번갈아 써 레벨은 구분하되 무지개보다 눈에 덜 띈다 */
+  --json-guide-zebra-0: #cbd2d9;
+  --json-guide-zebra-1: #9aa5b1;
   --highlight-bg: #ffe28a;
   --highlight-text: #191f28;
   --highlight-deep: #6b4e00;
@@ -95,6 +100,8 @@
   --fill-hover: #353541;
   --fill-press: #3f3f4c;
   --row-hover: #26262e;
+  /* 목록 얼룩말 줄무늬 (dark) */
+  --row-stripe: rgba(255, 255, 255, 0.03);
   --border: #3a3a46;
   --border-weak: #2c2c35;
   --text-strong: #f2f3f5;
@@ -127,6 +134,9 @@
   --json-guide-3: #5aa9b8;
   --json-guide-4: #6ba3d6;
   --json-guide-5: #ada0e0;
+  /* 얼룩말: 무채색 두 톤 (dark) */
+  --json-guide-zebra-0: rgba(255, 255, 255, 0.14);
+  --json-guide-zebra-1: rgba(255, 255, 255, 0.34);
   --highlight-bg: #e3b341;
   --highlight-text: #1f1809;
   --highlight-deep: #4a3a05;

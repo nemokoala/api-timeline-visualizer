@@ -104,8 +104,13 @@ export const ko = {
   'jsonViewer.resizeAria': '뷰어 높이 조절 (더블클릭 시 기본값)',
   'jsonViewer.resizeTitle': '드래그로 높이 조절 · 더블클릭으로 기본값',
   'jsonViewer.displaySettings': 'JSON 표시 설정',
+  'jsonViewer.arrayLength': '요소 {count}개',
+  'jsonViewer.arrayLengthOption': '배열 개수 표시',
   'jsonViewer.indentGuide': '들여쓰기 가이드',
-  'jsonViewer.rainbow': '무지개색',
+  'jsonViewer.guideColor': '가이드 색',
+  'jsonViewer.guideColorPlain': '단색',
+  'jsonViewer.guideColorRainbow': '무지개',
+  'jsonViewer.guideColorZebra': '얼룩말',
 
   // JSON 행 미리보기
   'jsonRowPreview.collapse': 'JSON 접기',
@@ -152,6 +157,8 @@ export const ko = {
   'settings.themeDark': '다크',
   'settings.language': '언어',
   'settings.jsonDisplay': 'JSON 표시',
+  'settings.listDisplay': '목록 표시',
+  'table.rowStripe': '행 얼룩말 줄무늬',
   'settings.capture': '캡처',
   'settings.close': '닫기',
 };

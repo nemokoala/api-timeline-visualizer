@@ -105,8 +105,13 @@ export const en: Record<MessageKey, string> = {
   'jsonViewer.resizeAria': 'Resize viewer height (double-click to reset)',
   'jsonViewer.resizeTitle': 'Drag to resize · double-click to reset',
   'jsonViewer.displaySettings': 'JSON display settings',
+  'jsonViewer.arrayLength': '{count} items',
+  'jsonViewer.arrayLengthOption': 'Array item count',
   'jsonViewer.indentGuide': 'Indent guides',
-  'jsonViewer.rainbow': 'Rainbow colors',
+  'jsonViewer.guideColor': 'Guide color',
+  'jsonViewer.guideColorPlain': 'Plain',
+  'jsonViewer.guideColorRainbow': 'Rainbow',
+  'jsonViewer.guideColorZebra': 'Zebra',
 
   // JSON 행 미리보기
   'jsonRowPreview.collapse': 'Collapse JSON',
@@ -153,6 +158,8 @@ export const en: Record<MessageKey, string> = {
   'settings.themeDark': 'Dark',
   'settings.language': 'Language',
   'settings.jsonDisplay': 'JSON display',
+  'settings.listDisplay': 'List display',
+  'table.rowStripe': 'Zebra row stripes',
   'settings.capture': 'Capture',
   'settings.close': 'Close',
 };
