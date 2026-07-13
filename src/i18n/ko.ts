@@ -112,6 +112,10 @@ export const ko = {
   'jsonViewer.guideColorRainbow': '무지개',
   'jsonViewer.guideColorZebra': '얼룩말',
 
+  // 이미지 갤러리(스토리지 blob)
+  'imageGallery.gridSize': '그리드 타일 크기',
+  'imageGallery.gridSizeTitle': '타일 크기 {size}px · 열 개수는 패널 폭에 맞춰 자동',
+
   // JSON 행 미리보기
   'jsonRowPreview.collapse': 'JSON 접기',
   'jsonRowPreview.expand': 'JSON 펼치기',

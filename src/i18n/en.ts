@@ -113,6 +113,10 @@ export const en: Record<MessageKey, string> = {
   'jsonViewer.guideColorRainbow': 'Rainbow',
   'jsonViewer.guideColorZebra': 'Zebra',
 
+  // 이미지 갤러리(스토리지 blob)
+  'imageGallery.gridSize': 'Grid tile size',
+  'imageGallery.gridSizeTitle': 'Tile size {size}px · columns fit the panel width',
+
   // JSON 행 미리보기
   'jsonRowPreview.collapse': 'Collapse JSON',
   'jsonRowPreview.expand': 'Expand JSON',
