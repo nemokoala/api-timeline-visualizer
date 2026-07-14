@@ -22,6 +22,13 @@ import {
   getNextConsoleEntryJumpIndex,
   type ConsoleSearchOccurrence,
 } from './utils/consoleSearch';
+import {
+  canInspectWebSockets,
+  drainWebSocketEvents,
+  getWebSocketPollInterval,
+  installWebSocketCapture,
+} from './utils/websocketInspector';
+import { applyWebSocketEvents } from './utils/websocketRequests';
 import { exportSession, parseSession, pickSessionFile } from './utils/sessionIO';
 import {
   EMPTY_FLOW_LAYOUT,
@@ -392,6 +399,47 @@ export default function App() {
 
     return () => {
       chrome.devtools.network.onRequestFinished.removeListener(handleRequestFinished);
+    };
+  }, []);
+
+  // WebSocket 프레임 캡처. HAR(onRequestFinished)에는 WS 프레임이 실리지 않으므로,
+  // 콘솔과 같은 방식으로 페이지의 window.WebSocket을 계측해 폴링으로 가져온다.
+  useEffect(() => {
+    if (!canInspectWebSockets()) return;
+
+    let cancelled = false;
+    let captureInstalled = false;
+
+    const poll = async () => {
+      if (cancelled) return;
+
+      try {
+        if (!captureInstalled) {
+          await installWebSocketCapture();
+          captureInstalled = true;
+        }
+        const { installed, events } = await drainWebSocketEvents();
+        // 페이지가 새로고침되면 주입한 훅이 사라진다 — 다음 틱에 재설치한다.
+        if (!installed) {
+          captureInstalled = false;
+          return;
+        }
+        if (events.length) {
+          setRequests((current) => applyWebSocketEvents(current, events));
+        }
+      } catch {
+        captureInstalled = false;
+      }
+    };
+
+    void poll();
+    const intervalId = window.setInterval(() => {
+      void poll();
+    }, getWebSocketPollInterval());
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
     };
   }, []);
 

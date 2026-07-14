@@ -59,6 +59,18 @@ export const ko = {
   'requestDetail.resendTitle':
     '검사 대상 페이지에서 이 요청을 다시 보냅니다. 재전송된 요청은 목록에 새 항목으로 잡힙니다.',
 
+  // WebSocket 메시지(WebSocketMessages)
+  'websocket.sent': '송신 — 브라우저에서 서버로',
+  'websocket.received': '수신 — 서버에서 브라우저로',
+  'websocket.status': '연결 상태 변화',
+  'websocket.all': '전체',
+  'websocket.open': '열림',
+  'websocket.closed': '닫힘',
+  'websocket.directionFilter': '메시지 방향 필터',
+  'websocket.messageList': 'WebSocket 메시지 목록',
+  'websocket.noMessages': '아직 주고받은 메시지가 없습니다.',
+  'websocket.dropped': '상한을 넘어 오래된 메시지 {count}개를 버렸습니다.',
+
   // 네트워크 메뉴/요약/패널
   'methodMenu.aria': 'HTTP 메서드 표시',
   'statusMenu.aria': '상태코드 그룹 표시',

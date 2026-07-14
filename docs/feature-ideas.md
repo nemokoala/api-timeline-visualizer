@@ -122,6 +122,16 @@ XML/SVG는 트리, `text/*`는 라이트 구문 강조. `JsonViewer`는 JSON 전
 
 ## 후속 정리 대상
 
+- **WebSocket 캡처의 사각지대.** 훅은 `inspectedWindow.eval`로 주입되므로 **패널을 열기 전에 이미
+  열려 있던 소켓**과 **Worker/SharedWorker 안에서 만든 소켓**은 잡히지 않는다(그 소켓들은 우리가
+  감싼 `window.WebSocket`을 거치지 않는다). 페이지를 새로고침하면 훅이 재주입되어 이후 소켓은
+  전부 잡힌다. 근본 해결책은 CDP뿐인데 DevTools가 이미 붙어 있어 `chrome.debugger`를 쓸 수 없다.
+
+- **WS 프레임이 네트워크 검색 대상이 아니다.** `requestSearch.ts`는 URL·헤더·본문만 훑으므로
+  프레임 본문은 전역 검색(히트 카운트·↑↓ 내비)에 걸리지 않는다. 상세 패널 안에서 하이라이트는
+  되지만 검색이 그 행으로 데려가 주지는 않는다. 프레임을 검색 스코프에 넣으려면 `buildSearchOccurrences`에
+  frames를 순회하는 섹션(`messages`)을 추가하고, `getMatchingDetailSections`에도 같은 이름을 물려야 한다.
+
 - **IndexedDB 새 레코드 추가(put/add).** 이번엔 기존 값 수정만 했다. 신규 추가는 키(out-of-line)
   또는 키패스 값(in-line)·autoIncrement 여부에 따라 입력 UI가 달라져 미뤘다. `setIndexedDbRecord`의
   스크립트 패턴을 재사용하되, 스토어의 `keyPath`/`autoIncrement`를 보고 키 입력 필드를 조건부로
@@ -145,6 +155,27 @@ XML/SVG는 트리, `text/*`는 라이트 구문 강조. `JsonViewer`는 JSON 전
 ---
 
 ## 완료됨
+
+### WebSocket 프레임 캡처 — 네트워크 뷰에서 송수신 내용 보기
+
+**왜 안 보였나.** 네트워크 수집은 `chrome.devtools.network.onRequestFinished`(App.tsx) 하나뿐인데,
+이건 HAR 엔트리 = **끝난 HTTP 요청**만 준다. WebSocket은 101 이후 계속 열려 있는 연결이고 프레임은
+HAR에 실리지 않으므로 이 API로는 원리상 볼 수 없다. `RequestKind`에 `'websocket'`이 있고
+필터 토글에도 WS가 있었지만, 실제로 프레임을 가진 항목이 들어온 적은 없었다.
+
+**어떻게 풀었나.** `chrome.debugger`(CDP `Network.webSocketFrame*`)는 쓸 수 없다 — DevTools가 이미
+같은 탭에 붙어 있어 debugger attach가 충돌한다. 그래서 콘솔 캡처(`consoleInspector`)와 **같은 방식**을
+택했다: `inspectedWindow.eval`로 페이지의 `window.WebSocket`을 Proxy로 감싸(`websocketInspector.ts`)
+send/message/open/close/error를 페이지 쪽 버퍼에 쌓고, 패널이 400ms마다 drain한다. Proxy의
+`construct` 트랩이라 `instanceof WebSocket`과 `WebSocket.OPEN` 같은 정적 상수는 원본 그대로 동작한다
+(브라우저에서 실측 확인).
+
+**표시.** 각 WS 연결은 `ApiRequest`(`type: 'websocket'`, `status: 101`) 한 항목으로 네트워크 목록에
+들어가고(`websocketRequests.ts`가 소켓 id로 제자리 갱신), 상세 패널에서 Messages 섹션이 열린다 —
+방향(↑송신/↓수신/•상태)·시각·크기·본문의 가상화 목록이고, 행을 누르면 JsonViewer로 펼쳐진다.
+WS 항목에서는 의미 없는 Headers/Cookies/Payload/Response/Replay 섹션을 감춘다. 바이너리 프레임은
+내용을 옮기지 않고 크기만 잰다(`[Binary 2.4 KB]`). 연결 지속 시간은 마지막 프레임까지로 늘려
+타임라인에서도 길이를 갖는다. 프레임은 연결당 2000개까지 보관하고 넘으면 오래된 것부터 버린다.
 
 ### 패널 검색바–필터 행 정렬·디자인 정리
 

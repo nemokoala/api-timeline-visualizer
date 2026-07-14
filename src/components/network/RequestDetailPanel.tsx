@@ -9,6 +9,7 @@ import { displayPath } from '../../utils/normalizeUrl';
 import { canResendRequest, resendRequest } from '../../utils/requestResend';
 import { useT } from '../../i18n';
 import { ReplayEditorModal } from './ReplayEditorModal';
+import { WebSocketMessages } from './WebSocketMessages';
 import { getMatchingDetailSections } from '../../utils/requestSearch';
 import { requestCookieValue, responseCookieValue } from '../../utils/requestCookies';
 import { scrollSearchHitIntoView } from '../../utils/searchScroll';
@@ -86,6 +87,11 @@ export function RequestDetailPanel({
     // Body load updates should not re-open collapsed sections.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by selection/search navigation only
   }, [hasSearch, searchText, searchFocusKey, request?.id, searchOptions]);
+
+  // 우리가 계측해 프레임을 갖고 있는 WS 연결. 이 경우 Payload/Response/Replay/Cookies는
+  // 의미가 없으므로 감추고 Messages를 대신 보여준다. (HAR로만 잡힌 ws 요청은 frames가 없어
+  // 기존 섹션 구성을 그대로 쓴다.)
+  const isCapturedWebSocket = request.type === 'websocket' && request.frames !== undefined;
 
   const titleImageSource =
     getImageSource(request.normalizedPath) ?? getImageSource(request.path) ?? getImageSource(request.url);
@@ -184,6 +190,18 @@ export function RequestDetailPanel({
         />
       </DetailSection>
 
+      {isCapturedWebSocket ? (
+        <DetailSection sectionId="messages" title="Messages" defaultOpen searchExpandToken={searchFocusKey}>
+          <WebSocketMessages
+            request={request}
+            searchText={searchText}
+            searchFocusKey={searchFocusKey}
+          />
+        </DetailSection>
+      ) : null}
+
+      {isCapturedWebSocket ? null : (
+      <>
       <DetailSection
         sectionId="headers"
         title="Headers"
@@ -281,6 +299,8 @@ export function RequestDetailPanel({
           )}
         </div>
       </DetailSection>
+      </>
+      )}
 
       <DetailSection
         sectionId="timing"
@@ -301,14 +321,16 @@ export function RequestDetailPanel({
         ) : null}
       </DetailSection>
 
-      <DetailSection
-        sectionId="replay"
-        title="Replay"
-        searchExpandToken={searchFocusKey}
-        expandForSearch={matchingSections.has('replay')}
-      >
-        <CodeSnippetBlock request={request} searchText={searchText} />
-      </DetailSection>
+      {isCapturedWebSocket ? null : (
+        <DetailSection
+          sectionId="replay"
+          title="Replay"
+          searchExpandToken={searchFocusKey}
+          expandForSearch={matchingSections.has('replay')}
+        >
+          <CodeSnippetBlock request={request} searchText={searchText} />
+        </DetailSection>
+      )}
     </aside>
   );
 }

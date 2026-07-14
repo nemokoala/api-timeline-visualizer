@@ -48,6 +48,28 @@ export type NetworkCookie = {
   sameSite?: string;
 };
 
+/** 프레임의 방향. 'status'는 데이터가 아니라 연결 상태 변화(open/close/error)다. */
+export type WebSocketFrameDirection = 'sent' | 'received' | 'status';
+
+export type WebSocketFrameKind = 'text' | 'binary' | 'open' | 'close' | 'error';
+
+/**
+ * WebSocket 프레임 하나(또는 연결 상태 변화 한 줄).
+ * 바이너리 프레임은 내용을 옮기지 않고 크기만 재서 text에 요약 문구를 담는다.
+ */
+export type WebSocketFrame = {
+  id: string;
+  direction: WebSocketFrameDirection;
+  kind: WebSocketFrameKind;
+  timestamp: number;
+  /** 페이로드 바이트 수. 상태 프레임은 0. */
+  size: number;
+  /** 표시용 원문. 바이너리·상태 프레임은 요약 문구가 들어간다. */
+  text: string;
+  /** text가 JSON으로 파싱되면 그 값. 아니면 없음(= 평문으로 표시). */
+  preview?: unknown;
+};
+
 export type ApiRequest = {
   id: string;
   url: string;
@@ -74,6 +96,12 @@ export type ApiRequest = {
   responseContent?: string;
   size?: number;
   error?: string;
+  /** WebSocket 연결의 송수신 프레임(type === 'websocket'일 때만). */
+  frames?: WebSocketFrame[];
+  /** 프레임 상한을 넘겨 버린 오래된 프레임 수. 0이면 없음. */
+  droppedFrameCount?: number;
+  /** WebSocket 연결이 아직 열려 있는지. 닫혔거나 실패했으면 false. */
+  isOpen?: boolean;
 };
 
 /** 편집 가능한 헤더 한 줄. id는 편집 UI의 React key 용도로만 쓴다. */
