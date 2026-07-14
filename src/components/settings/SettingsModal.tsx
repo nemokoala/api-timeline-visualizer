@@ -2,10 +2,12 @@ import { useEffect, type ReactNode } from 'react';
 import { useLocale, useT, type Locale } from '../../i18n';
 import { useTheme } from '../../hooks/useTheme';
 import { useJsonViewPrefs } from '../../hooks/useJsonViewPrefs';
+import { useTableViewPrefs } from '../../hooks/useTableViewPrefs';
 import { useBackdropDismiss } from '../../hooks/useBackdropDismiss';
 import { DetailPanelCloseButton } from '../shared/DetailPanelCloseButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { ToggleControl } from '../ui/ToggleControl';
+import { GUIDE_COLOR_OPTIONS, type JsonGuideColor } from '../../utils/jsonViewPrefs';
 import type { ThemeName } from '../../utils/themePrefs';
 
 type SettingsModalProps = {
@@ -28,6 +30,7 @@ export function SettingsModal({
   const { locale, setLocale } = useLocale();
   const { theme, setTheme } = useTheme();
   const [jsonPrefs, setJsonPrefs] = useJsonViewPrefs();
+  const [tablePrefs, setTablePrefs] = useTableViewPrefs();
   const backdropDismiss = useBackdropDismiss(onClose);
 
   useEffect(() => {
@@ -90,14 +93,34 @@ export function SettingsModal({
               checked={jsonPrefs.indentGuide}
               onChange={(next) => setJsonPrefs((prev) => ({ ...prev, indentGuide: next }))}
             />
-            {/* 무지개색은 가이드선이 켜져 있을 때만 효과가 있어, 그때만 노출한다. */}
+            {/* 가이드선 색은 가이드선이 켜져 있을 때만 효과가 있어, 그때만 노출한다. */}
             {jsonPrefs.indentGuide ? (
-              <ToggleControl
-                label={t('jsonViewer.rainbow')}
-                checked={jsonPrefs.rainbow}
-                onChange={(next) => setJsonPrefs((prev) => ({ ...prev, rainbow: next }))}
-              />
+              <SettingRow label={t('jsonViewer.guideColor')}>
+                <SegmentedControl<JsonGuideColor>
+                  size="sm"
+                  ariaLabel={t('jsonViewer.guideColor')}
+                  value={jsonPrefs.guideColor}
+                  onChange={(next) => setJsonPrefs((prev) => ({ ...prev, guideColor: next }))}
+                  options={GUIDE_COLOR_OPTIONS.map(({ value, labelKey }) => ({
+                    value,
+                    label: t(labelKey),
+                  }))}
+                />
+              </SettingRow>
             ) : null}
+            <ToggleControl
+              label={t('jsonViewer.arrayLengthOption')}
+              checked={jsonPrefs.arrayLength}
+              onChange={(next) => setJsonPrefs((prev) => ({ ...prev, arrayLength: next }))}
+            />
+          </SettingsGroup>
+
+          <SettingsGroup title={t('settings.listDisplay')}>
+            <ToggleControl
+              label={t('table.rowStripe')}
+              checked={tablePrefs.rowStripe}
+              onChange={(next) => setTablePrefs((prev) => ({ ...prev, rowStripe: next }))}
+            />
           </SettingsGroup>
 
           <SettingsGroup title={t('settings.capture')}>

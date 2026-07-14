@@ -23,6 +23,7 @@ import {
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { cn } from '../../utils/cn';
+import { useTableViewPrefs } from '../../hooks/useTableViewPrefs';
 
 /** 컬럼별 추가 메타. flex 컬럼은 잔여 폭(1fr)을 차지하고 리사이즈되지 않는다. */
 export type DataTableColumnMeta = {
@@ -114,6 +115,7 @@ export function DataTable<T>({
   scrollToId,
   scrollToAlign = 'auto',
 }: DataTableProps<T>) {
+  const [tablePrefs] = useTableViewPrefs();
   const table = useReactTable({
     data,
     columns,
@@ -207,11 +209,23 @@ export function DataTable<T>({
     }
   };
 
-  const renderRowInner = (row: Row<T>) => (
+  // 얼룩말 줄무늬는 셀 그리드에만 칠한다. 행 컨테이너에 칠하면 펼친 서브행(JSON 트리 등)까지
+  // 물든다. 선택 행은 강조 배경을 가리지 않도록 건너뛰고, hover 시에는 배경을 비워
+  // 컨테이너의 hover 색이 그대로 드러나게 한다.
+  const stripeClass = (row: Row<T>, isSelected: boolean) =>
+    tablePrefs.rowStripe && !isSelected && row.index % 2 === 1
+      ? 'bg-row-stripe group-hover/row:bg-transparent'
+      : undefined;
+
+  const renderRowInner = (row: Row<T>, isSelected: boolean) => (
     <>
       <div
         data-row-cells=""
-        className={cn('grid', rowAlign === 'start' ? 'items-start' : 'items-center')}
+        className={cn(
+          'grid',
+          rowAlign === 'start' ? 'items-start' : 'items-center',
+          stripeClass(row, isSelected),
+        )}
         style={{ gridTemplateColumns }}
       >
         {row.getVisibleCells().map((cell) => {
@@ -331,7 +345,7 @@ export function DataTable<T>({
                 }
                 onKeyDown={rowKeyDown(row)}
               >
-                {renderRowInner(row)}
+                {renderRowInner(row, isSelected)}
               </div>
             );
           })}
@@ -355,7 +369,7 @@ export function DataTable<T>({
                 }
                 onKeyDown={rowKeyDown(row)}
               >
-                {renderRowInner(row)}
+                {renderRowInner(row, isSelected)}
               </div>
             );
           })}

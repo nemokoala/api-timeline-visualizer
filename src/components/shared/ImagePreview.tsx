@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 
 type ImagePreviewProps = {
   src: string;
   alt: string;
   className?: string;
+  style?: CSSProperties;
 };
 
-export function ImagePreview({ src, alt, className }: ImagePreviewProps) {
+export function ImagePreview({ src, alt, className, style }: ImagePreviewProps) {
   const [displaySrc, setDisplaySrc] = useState(src);
 
   useEffect(() => {
@@ -25,7 +26,7 @@ export function ImagePreview({ src, alt, className }: ImagePreviewProps) {
     return () => URL.revokeObjectURL(objectUrl);
   }, [src]);
 
-  return <img src={displaySrc} alt={alt} className={className} />;
+  return <img src={displaySrc} alt={alt} className={className} style={style} />;
 }
 
 function dataUrlToObjectUrl(src: string): string | null {

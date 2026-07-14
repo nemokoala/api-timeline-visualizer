@@ -19,12 +19,12 @@ import { DetailSection } from './DetailSection';
 import { ImagePreviewGallery } from './ImagePreviewGallery';
 import { Button, IconButton } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { MenuCheckItem, MenuSurface } from '../ui/Menu';
+import { MenuCheckItem, MenuGroupLabel, MenuSeparator, MenuSurface } from '../ui/Menu';
 import { SearchOptionToggles } from '../ui/SearchOptionToggles';
 import { cn } from '../../utils/cn';
 import { useT } from '../../i18n';
 import { useJsonViewPrefs } from '../../hooks/useJsonViewPrefs';
-import type { JsonViewPrefs } from '../../utils/jsonViewPrefs';
+import { GUIDE_COLOR_OPTIONS, type JsonViewPrefs } from '../../utils/jsonViewPrefs';
 
 type ActiveFieldMenu = {
   id: string;
@@ -516,11 +516,45 @@ const GUIDE_BORDER = [
   'border-[color:var(--json-guide-5)]',
 ];
 
+/* 얼룩말: 무채색 두 톤을 번갈아 써 레벨은 구분되되 무지개보다 조용하다. */
+const GUIDE_BORDER_ZEBRA = [
+  'border-[color:var(--json-guide-zebra-0)]',
+  'border-[color:var(--json-guide-zebra-1)]',
+];
+
 // 중첩 블록의 들여쓰기 래퍼 클래스. 가이드선을 꺼도 pl은 남겨 중첩은 유지한다.
 function guideClassName(depth: number, prefs: JsonViewPrefs): string {
   if (!prefs.indentGuide) return 'pl-[1.15em]';
-  const color = prefs.rainbow ? GUIDE_BORDER[depth % GUIDE_COLOR_COUNT] : 'border-line';
+
+  const color =
+    prefs.guideColor === 'rainbow'
+      ? GUIDE_BORDER[depth % GUIDE_COLOR_COUNT]
+      : prefs.guideColor === 'zebra'
+        ? GUIDE_BORDER_ZEBRA[depth % GUIDE_BORDER_ZEBRA.length]
+        : 'border-line';
+
   return `border-l pl-[1.15em] ${color}`;
+}
+
+const JSON_ROW = 'whitespace-pre-wrap [overflow-wrap:anywhere]';
+
+/**
+ * 배열의 요소 개수 배지. 여는 대괄호 옆에 붙어 접지 않고도 길이를 알 수 있게 한다.
+ * 값이 아니라 파생 정보라 검색 하이라이트·복사 대상에서는 빠진다(select-none).
+ */
+function ArrayLengthBadge({ length }: { length: number }) {
+  const t = useT();
+  const label = t('jsonViewer.arrayLength', { count: String(length) });
+
+  return (
+    <span
+      className="ml-1 select-none rounded-sm bg-surface-sub px-1 align-baseline text-[10px] text-ink-weak"
+      title={label}
+      aria-label={label}
+    >
+      {length}
+    </span>
+  );
 }
 
 /** 필드 복사 팝오버의 작은 버튼. */
@@ -552,9 +586,10 @@ function renderJsonValue(
     return (
       <>
         <span className="text-ink-weak">[</span>
+        {guideOptions.arrayLength ? <ArrayLengthBadge length={value.length} /> : null}
         <div className={guideClassName(depth, guideOptions)}>
           {value.map((item, index) => (
-            <div className="whitespace-pre-wrap [overflow-wrap:anywhere]" key={index}>
+            <div className={JSON_ROW} key={index}>
               {renderJsonValue(item, depth + 1, `${path}.${index}`, onFieldClick, searchText, searchOptions, markClassName, guideOptions)}
               {index < value.length - 1 ? <span className="text-ink-weak">,</span> : null}
             </div>
@@ -574,7 +609,7 @@ function renderJsonValue(
         <span className="text-ink-weak">{'{'}</span>
         <div className={guideClassName(depth, guideOptions)}>
           {entries.map(([key, item], index) => (
-            <div className="whitespace-pre-wrap [overflow-wrap:anywhere]" key={key}>
+            <div className={JSON_ROW} key={key}>
               <button
                 className="cursor-pointer border-0 bg-transparent p-0 text-accent [font:inherit] hover:text-accent-strong hover:underline hover:underline-offset-2"
                 type="button"
@@ -670,13 +705,25 @@ function JsonViewSettingsMenu({
       >
         {t('jsonViewer.indentGuide')}
       </MenuCheckItem>
-      {/* 무지개색은 가이드선이 꺼져 있으면 효과가 없어 비활성화한다. */}
+      {/* 가이드선 색은 가이드선이 꺼져 있으면 효과가 없어 비활성화한다. 셋 중 하나만 고른다. */}
+      <MenuGroupLabel>{t('jsonViewer.guideColor')}</MenuGroupLabel>
+      {GUIDE_COLOR_OPTIONS.map(({ value, labelKey }) => (
+        <MenuCheckItem
+          key={value}
+          role="menuitemradio"
+          checked={prefs.guideColor === value}
+          disabled={!prefs.indentGuide}
+          onClick={() => setPrefs((prev) => ({ ...prev, guideColor: value }))}
+        >
+          {t(labelKey)}
+        </MenuCheckItem>
+      ))}
+      <MenuSeparator />
       <MenuCheckItem
-        checked={prefs.rainbow}
-        disabled={!prefs.indentGuide}
-        onClick={() => setPrefs((prev) => ({ ...prev, rainbow: !prev.rainbow }))}
+        checked={prefs.arrayLength}
+        onClick={() => setPrefs((prev) => ({ ...prev, arrayLength: !prev.arrayLength }))}
       >
-        {t('jsonViewer.rainbow')}
+        {t('jsonViewer.arrayLengthOption')}
       </MenuCheckItem>
     </MenuSurface>
   );

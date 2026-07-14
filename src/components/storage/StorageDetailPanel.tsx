@@ -23,10 +23,8 @@ import { JsonViewer } from "../shared/JsonViewer";
 import { Button } from "../ui/Button";
 import { TextArea } from "../ui/Input";
 import { CookieForm } from "./CookieForm";
-import { isExpandableStorageValue } from "./StorageValueCell";
 import { formatCookieExpires, formatSameSite } from "./cookieFormat";
 import type { SelectedStorageItem } from "./storageShared";
-import { useT } from '../../i18n';
 
 export type StorageDetail = {
   title: string;
@@ -77,7 +75,6 @@ export function StorageDetailPanel({
   onToggleLayout: () => void;
   onClose: () => void;
 }) {
-  const t = useT();
   const searchOptions = useSearchOptions();
   const panelRef = useRef<HTMLElement>(null);
   const hasSearch = Boolean(searchText.trim());
@@ -133,11 +130,6 @@ export function StorageDetailPanel({
 
   if (!detail) return null;
 
-  // JSON 값은 목록 행에서 인라인으로 펼쳐 볼 수 있으므로, 세부 패널의 읽기 전용 뷰어는
-  // 중복이라 생략한다. 평문·blob 등 인라인 펼침이 없는 값만 뷰어로 보여준다.
-  const valueInlineExpandable =
-    typeof detail.value === "string" && isExpandableStorageValue(detail.value);
-
   const metaMatchesSearch =
     hasSearch &&
     (textMatchesSearch(detail.title, searchText, searchOptions) ||
@@ -173,7 +165,7 @@ export function StorageDetailPanel({
       <DetailSection
         sectionId={`${detail.instanceId}:meta`}
         title="Details"
-        defaultOpen={valueInlineExpandable}
+        defaultOpen={false}
         density="compact"
         className="shrink-0"
         expandForSearch={metaMatchesSearch}
@@ -220,11 +212,6 @@ export function StorageDetailPanel({
               </Button>
             </div>
           </div>
-        ) : valueInlineExpandable ? (
-          <p className="m-0 px-1 py-2 text-[11px] leading-[1.5] text-ink-weak">
-            {t('storageDetail.expandRowHint')}
-            {editable ? ` ${t('storageDetail.editHint')}` : ''}
-          </p>
         ) : (
           <JsonViewer
             instanceId={detail.instanceId}

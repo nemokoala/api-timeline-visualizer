@@ -1,11 +1,16 @@
 import type { ImagePreviewItem } from '../../utils/imageSource';
 import { usePersistedState } from '../../hooks/usePersistedState';
 import {
+  getStorageImageGridSize,
   getStorageImageLayoutMode,
+  saveStorageImageGridSize,
   saveStorageImageLayoutMode,
+  GRID_SIZE_MAX,
+  GRID_SIZE_MIN,
   type StorageImageLayoutMode,
 } from '../../utils/storageImagePrefs';
 import { formatBytes } from '../../utils/formatters';
+import { useT } from '../../i18n';
 import { ImagePreview } from './ImagePreview';
 import { SegmentedControl } from '../ui/SegmentedControl';
 
@@ -22,9 +27,14 @@ export function ImagePreviewGallery({
   blobPreviewsLoading = false,
   showLayoutToggle = false,
 }: ImagePreviewGalleryProps) {
+  const t = useT();
   const [layoutMode, setLayoutMode] = usePersistedState<StorageImageLayoutMode>(
     getStorageImageLayoutMode,
     saveStorageImageLayoutMode,
+  );
+  const [gridSize, setGridSize] = usePersistedState<number>(
+    getStorageImageGridSize,
+    saveStorageImageGridSize,
   );
 
   const isGrid = layoutMode === 'grid';
@@ -34,10 +44,31 @@ export function ImagePreviewGallery({
   }`;
   const metaClass = 'text-[11px] text-ink-faint';
 
+  // 타일 크기는 최소 폭일 뿐이고 열 개수는 auto-fill이 패널 폭에 맞춰 정한다.
+  // 이미지는 타일 안쪽 여백·라벨을 뺀 만큼만 차지하게 해 카드가 세로로 늘어지지 않게 한다.
+  const gridStyle = isGrid
+    ? { gridTemplateColumns: `repeat(auto-fill, minmax(${gridSize}px, 1fr))` }
+    : undefined;
+  const gridImageStyle = isGrid ? { maxHeight: Math.round(gridSize * 0.85) } : undefined;
+
   return (
     <>
       {showLayoutToggle && previews.length > 0 ? (
-        <div className="mb-2 flex justify-end">
+        <div className="mb-2 flex items-center justify-end gap-2">
+          {/* 크기 슬라이더는 그리드일 때만 의미가 있다(Large는 카드 한 장씩 크게 본다). */}
+          {isGrid ? (
+            <input
+              type="range"
+              className="h-1 w-24 cursor-pointer accent-[var(--blue)]"
+              min={GRID_SIZE_MIN}
+              max={GRID_SIZE_MAX}
+              step={8}
+              value={gridSize}
+              onChange={(event) => setGridSize(Number(event.target.value))}
+              aria-label={t('imageGallery.gridSize')}
+              title={t('imageGallery.gridSizeTitle', { size: String(gridSize) })}
+            />
+          ) : null}
           <SegmentedControl
             size="sm"
             ariaLabel="Image layout"
@@ -50,9 +81,7 @@ export function ImagePreviewGallery({
           />
         </div>
       ) : null}
-      <div
-        className={`grid ${isGrid ? 'grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-2' : 'gap-2.5'}`}
-      >
+      <div className={`grid ${isGrid ? 'gap-2' : 'gap-2.5'}`} style={gridStyle}>
         {previews.map((preview) => (
           <div
             className={`bg-checker-lg flex flex-col overflow-auto rounded-xl border border-line-weak ${
@@ -82,8 +111,9 @@ export function ImagePreviewGallery({
                 src={preview.src}
                 alt={`${preview.label} preview`}
                 className={`block max-w-full object-contain ${
-                  isGrid ? 'max-h-[88px] w-full' : 'max-h-[320px]'
+                  isGrid ? 'w-full' : 'max-h-[320px]'
                 }`}
+                style={gridImageStyle}
               />
             ) : blobPreviewsLoading && !preview.unavailableReason ? (
               <div className={unavailableClass}>

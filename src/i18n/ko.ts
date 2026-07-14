@@ -116,8 +116,17 @@ export const ko = {
   'jsonViewer.resizeAria': '뷰어 높이 조절 (더블클릭 시 기본값)',
   'jsonViewer.resizeTitle': '드래그로 높이 조절 · 더블클릭으로 기본값',
   'jsonViewer.displaySettings': 'JSON 표시 설정',
+  'jsonViewer.arrayLength': '요소 {count}개',
+  'jsonViewer.arrayLengthOption': '배열 개수 표시',
   'jsonViewer.indentGuide': '들여쓰기 가이드',
-  'jsonViewer.rainbow': '무지개색',
+  'jsonViewer.guideColor': '가이드 색',
+  'jsonViewer.guideColorPlain': '단색',
+  'jsonViewer.guideColorRainbow': '무지개',
+  'jsonViewer.guideColorZebra': '얼룩말',
+
+  // 이미지 갤러리(스토리지 blob)
+  'imageGallery.gridSize': '그리드 타일 크기',
+  'imageGallery.gridSizeTitle': '타일 크기 {size}px · 열 개수는 패널 폭에 맞춰 자동',
 
   // JSON 행 미리보기
   'jsonRowPreview.collapse': 'JSON 접기',
@@ -146,10 +155,6 @@ export const ko = {
   'consoleLevelMenu.aria': '콘솔 로그 레벨 표시',
   'consoleLevelMenu.groupOther': '기타',
 
-  // 스토리지 상세
-  'storageDetail.expandRowHint': '값은 목록에서 행을 펼쳐(▶) 보세요.',
-  'storageDetail.editHint': '편집은 상단 Edit 버튼.',
-
   // 응답 비교 모달
   'responseDiff.loading': '응답 본문을 불러오는 중…',
   'responseDiff.noRequest': '비교할 요청이 없습니다.',
@@ -168,6 +173,8 @@ export const ko = {
   'settings.themeDark': '다크',
   'settings.language': '언어',
   'settings.jsonDisplay': 'JSON 표시',
+  'settings.listDisplay': '목록 표시',
+  'table.rowStripe': '행 얼룩말 줄무늬',
   'settings.capture': '캡처',
   'settings.close': '닫기',
 };
