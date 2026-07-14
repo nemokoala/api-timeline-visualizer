@@ -8,38 +8,18 @@ import {
 import { WorkspaceProvider, type WorkspaceContextValue } from './contexts/WorkspaceContext';
 import { SearchOptionsProvider } from './contexts/SearchOptionsContext';
 import { Toolbar, type NetworkViewMode, type WorkspaceMode } from './components/layout/Toolbar';
-import type { ConsoleEntry } from './types/console';
-import type { DevtoolsNetworkRequest } from './types/chrome-har';
 import type { ApiRequest } from './types/network';
-import {
-  canInspectConsole,
-  drainConsoleEntries,
-  getConsolePollInterval,
-  installConsoleCapture,
-} from './utils/consoleInspector';
 import {
   buildConsoleOccurrenceSummaryByEntry,
   getNextConsoleEntryJumpIndex,
   type ConsoleSearchOccurrence,
 } from './utils/consoleSearch';
-import {
-  canInspectWebSockets,
-  drainWebSocketEvents,
-  getWebSocketPollInterval,
-  installWebSocketCapture,
-} from './utils/websocketInspector';
-import { applyWebSocketEvents } from './utils/websocketRequests';
 import { exportSession, parseSession, pickSessionFile } from './utils/sessionIO';
 import {
   EMPTY_FLOW_LAYOUT,
   type FlowLayout,
 } from './utils/flowLayoutPrefs';
-import {
-  matchesTextFilters,
-  parseNetworkRequest,
-  parseResponseContent,
-  shouldCollectRequest,
-} from './utils/requestParser';
+import { matchesTextFilters, parseResponseContent } from './utils/requestParser';
 import { buildReplayDraft } from './utils/requestCodeSnippets';
 import { canResendRequest, resendRequest } from './utils/requestResend';
 import { useT } from './i18n';
@@ -110,32 +90,32 @@ import {
   matchesStatusFilter,
   saveEnabledMethods,
   saveEnabledStatusGroups,
-  type FilterableMethod,
-  type StatusGroup,
 } from './utils/requestFilterPrefs';
 import {
   FILTERABLE_CONSOLE_LEVELS,
   getEnabledConsoleLevels,
   matchesConsoleLevelFilter,
   saveEnabledConsoleLevels,
-  type FilterableConsoleLevel,
 } from './utils/consoleLevelPrefs';
 import { countGroupedConsoleRows } from './utils/consoleGrouping';
 import { matchesIncludeExcludeFilters } from './utils/textFilters';
-import { getMockConsoleEntries, getMockRequests, shouldUseMockData } from './mocks/mockData';
+import { useConsoleCapture } from './hooks/useConsoleCapture';
+import { useNetworkCapture } from './hooks/useNetworkCapture';
+import { useOnPageNavigated } from './hooks/useOnPageNavigated';
 import { usePersistedState } from './hooks/usePersistedState';
-import { useSearchNavigation } from './hooks/useSearchNavigation';
+import { useSearchScope } from './hooks/useSearchScope';
+import { useToggleableSet } from './hooks/useToggleableSet';
 
 const PRELOAD_CONCURRENCY = 4;
 const PRELOAD_MAX = 100;
 
-// 콘솔 엔트리 상한. 네트워크(slice(-999))처럼 최근 것만 남기고 오래된 건 버려
-// 메모리·필터·렌더 비용을 묶는다. setInterval 로깅 페이지를 오래 열어둬도 안전하다.
-const CONSOLE_MAX = 10000;
-
 export default function App() {
   const t = useT();
-  const [requests, setRequests] = useState<ApiRequest[]>([]);
+
+  // 캡처 소스. 네트워크(HTTP + WebSocket)와 콘솔은 각자 폴링/리스너를 품고 있다.
+  const { requests, setRequests, networkRequestById } = useNetworkCapture();
+  const [consoleEntries, setConsoleEntries] = useConsoleCapture();
+
   // 세션 import 후 FlowChartView가 저장된 레이아웃을 다시 읽도록 알리는 신호값.
   const [flowLayoutRevision, setFlowLayoutRevision] = useState(0);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
@@ -148,22 +128,21 @@ export default function App() {
     saveClearNetworkOnReload,
   );
   const [collapsePathIds, setCollapsePathIds] = usePersistedState(getCollapsePathIds, saveCollapsePathIds);
-  const [enabledResourceKinds, setEnabledResourceKinds] = usePersistedState<ToggleableResourceKind[]>(
+
+  // 구조화 필터. 넷 다 "표준 순서 중 켜진 것만 저장"이라 같은 훅을 쓴다.
+  const resourceKinds = useToggleableSet(
+    TOGGLEABLE_RESOURCE_KINDS,
     getEnabledResourceKinds,
     saveEnabledResourceKinds,
   );
-  const [enabledStatusGroups, setEnabledStatusGroups] = usePersistedState<StatusGroup[]>(
-    getEnabledStatusGroups,
-    saveEnabledStatusGroups,
-  );
-  const [enabledMethods, setEnabledMethods] = usePersistedState<FilterableMethod[]>(
-    getEnabledMethods,
-    saveEnabledMethods,
-  );
-  const [enabledConsoleLevels, setEnabledConsoleLevels] = usePersistedState<FilterableConsoleLevel[]>(
+  const statusGroups = useToggleableSet(STATUS_GROUPS, getEnabledStatusGroups, saveEnabledStatusGroups);
+  const methods = useToggleableSet(FILTERABLE_METHODS, getEnabledMethods, saveEnabledMethods);
+  const consoleLevels = useToggleableSet(
+    FILTERABLE_CONSOLE_LEVELS,
     getEnabledConsoleLevels,
     saveEnabledConsoleLevels,
   );
+
   const [networkIncludeText, setNetworkIncludeText] = usePersistedState(getNetworkIncludeText, saveNetworkIncludeText);
   const [networkExcludeText, setNetworkExcludeText] = usePersistedState(getNetworkExcludeText, saveNetworkExcludeText);
   const [storageIncludeText, setStorageIncludeText] = usePersistedState(getStorageIncludeText, saveStorageIncludeText);
@@ -175,10 +154,11 @@ export default function App() {
   const [consoleSearchText, setConsoleSearchText] = usePersistedState(getConsoleSearchText, saveConsoleSearchText);
   const [searchMatchCase, setSearchMatchCase] = usePersistedState(getSearchMatchCase, saveSearchMatchCase);
   const [searchWholeWord, setSearchWholeWord] = usePersistedState(getSearchWholeWord, saveSearchWholeWord);
-  const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([]);
+
   const [selectedConsoleEntryId, setSelectedConsoleEntryId] = useState<string | null>(null);
-  const [storageSearchOccurrences, setStorageSearchOccurrences] = useState<StorageSearchOccurrence[]>([]);
-  const [consoleSearchOccurrences, setConsoleSearchOccurrences] = useState<ConsoleSearchOccurrence[]>([]);
+  // 스토리지·콘솔 히트는 각 뷰가 계산해 올려 준다(네트워크만 App이 직접 센다).
+  const [storageOccurrences, setStorageOccurrences] = useState<StorageSearchOccurrence[]>([]);
+  const [consoleOccurrences, setConsoleOccurrences] = useState<ConsoleSearchOccurrence[]>([]);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const [openPanels, setOpenPanels] = useState<WorkspaceMode[]>([]);
   const dockApiRef = useRef<DockviewApi | null>(null);
@@ -190,12 +170,8 @@ export default function App() {
   // 실제 값은 여기(세션 메모리)에만 둔다. 새로고침 시엔 값이 없으므로 패널을 복원하지 않는다.
   const jsonPanelDataRef = useRef(new Map<string, { title: string; value: unknown }>());
   const jsonPanelSeqRef = useRef(0);
-  const networkRequestById = useRef(new Map<string, chrome.devtools.network.Request>());
   const preloadQueueRef = useRef<string[]>([]);
   const preloadInFlightRef = useRef(new Set<string>());
-  // onNavigated 리스너를 토글마다 다시 붙이지 않도록 최신 플래그를 ref로 읽는다.
-  const clearOnReloadRef = useRef(clearNetworkOnReload);
-  clearOnReloadRef.current = clearNetworkOnReload;
 
   const searchOptions = useMemo(
     () => ({ matchCase: searchMatchCase, matchWholeWord: searchWholeWord }),
@@ -205,8 +181,8 @@ export default function App() {
   const isConsoleMode = workspaceMode === 'console';
 
   const enabledResourceKindSet = useMemo(
-    () => new Set<ToggleableResourceKind>(enabledResourceKinds),
-    [enabledResourceKinds],
+    () => new Set<ToggleableResourceKind>(resourceKinds.enabled),
+    [resourceKinds.enabled],
   );
 
   const filteredRequests = useMemo(
@@ -215,66 +191,56 @@ export default function App() {
         (request) =>
           // 토글 대상 종류는 켜졌을 때만 표시, 그 외('other' 등)는 항상 표시.
           (!isToggleableResourceKind(request.type) || enabledResourceKindSet.has(request.type)) &&
-          matchesStatusFilter(request, enabledStatusGroups) &&
-          matchesMethodFilter(request, enabledMethods) &&
+          matchesStatusFilter(request, statusGroups.enabled) &&
+          matchesMethodFilter(request, methods.enabled) &&
           matchesTextFilters(request, networkIncludeText, networkExcludeText),
       ),
-    [enabledMethods, enabledResourceKindSet, enabledStatusGroups, networkExcludeText, networkIncludeText, requests],
+    [
+      enabledResourceKindSet,
+      methods.enabled,
+      networkExcludeText,
+      networkIncludeText,
+      requests,
+      statusGroups.enabled,
+    ],
   );
 
-  const searchOccurrences = useMemo(() => {
+  const networkOccurrences = useMemo(() => {
     if (!networkSearchText.trim()) return [];
     return buildSearchOccurrences(filteredRequests, networkSearchText, searchOptions);
   }, [filteredRequests, networkSearchText, searchOptions]);
 
-  const {
-    matchIndex: networkSearchMatchIndex,
-    setMatchIndex: setNetworkSearchMatchIndex,
-    goToMatch: goToNetworkSearchMatch,
-    goToScope: goToNetworkSearchRequest,
-  } = useSearchNavigation(searchOccurrences, networkSearchText, searchOptions, getNextRequestJumpIndex);
-  const {
-    matchIndex: storageSearchMatchIndex,
-    setMatchIndex: setStorageSearchMatchIndex,
-    goToMatch: goToStorageSearchMatch,
-    goToScope: goToStorageSearchItem,
-  } = useSearchNavigation(storageSearchOccurrences, storageSearchText, searchOptions, getNextStorageItemJumpIndex);
-  const {
-    matchIndex: consoleSearchMatchIndex,
-    setMatchIndex: setConsoleSearchMatchIndex,
-    goToMatch: goToConsoleSearchMatch,
-    goToScope: goToConsoleSearchEntry,
-  } = useSearchNavigation(consoleSearchOccurrences, consoleSearchText, searchOptions, getNextConsoleEntryJumpIndex);
+  const networkSearch = useSearchScope({
+    occurrences: networkOccurrences,
+    searchText: networkSearchText,
+    setSearchText: setNetworkSearchText,
+    searchOptions,
+    summarize: buildSearchOccurrenceSummaryByRequest,
+    getScopeKey: (occurrence) => occurrence.requestId,
+    getScopeOrder: (summary) => summary.requestOrder,
+    getNextScopeJumpIndex: getNextRequestJumpIndex,
+  });
+  const storageSearch = useSearchScope({
+    occurrences: storageOccurrences,
+    searchText: storageSearchText,
+    setSearchText: setStorageSearchText,
+    searchOptions,
+    summarize: buildStorageOccurrenceSummaryByItem,
+    getScopeKey: (occurrence) => storageTargetKey(occurrence.target),
+    getScopeOrder: (summary) => summary.itemOrder,
+    getNextScopeJumpIndex: getNextStorageItemJumpIndex,
+  });
+  const consoleSearch = useSearchScope({
+    occurrences: consoleOccurrences,
+    searchText: consoleSearchText,
+    setSearchText: setConsoleSearchText,
+    searchOptions,
+    summarize: buildConsoleOccurrenceSummaryByEntry,
+    getScopeKey: (occurrence) => occurrence.entryId,
+    getScopeOrder: (summary) => summary.entryOrder,
+    getNextScopeJumpIndex: getNextConsoleEntryJumpIndex,
+  });
 
-  const activeSearchOccurrence = searchOccurrences[networkSearchMatchIndex] ?? null;
-  const searchOccurrenceByRequest = useMemo(
-    () => buildSearchOccurrenceSummaryByRequest(searchOccurrences),
-    [searchOccurrences],
-  );
-  const activeGlobalSearchIndex =
-    networkSearchText.trim() && searchOccurrences.length > 0 ? networkSearchMatchIndex + 1 : null;
-  const searchRequestJumpCount = searchOccurrenceByRequest.size;
-  const activeSearchRequestOrder = activeSearchOccurrence
-    ? (searchOccurrenceByRequest.get(activeSearchOccurrence.requestId)?.requestOrder ?? 0)
-    : 0;
-  const storageOccurrenceByItem = useMemo(
-    () => buildStorageOccurrenceSummaryByItem(storageSearchOccurrences),
-    [storageSearchOccurrences],
-  );
-  const activeStorageSearchOccurrence = storageSearchOccurrences[storageSearchMatchIndex] ?? null;
-  const storageSearchRequestJumpCount = storageOccurrenceByItem.size;
-  const activeStorageItemOrder = activeStorageSearchOccurrence
-    ? (storageOccurrenceByItem.get(storageTargetKey(activeStorageSearchOccurrence.target))?.itemOrder ?? 0)
-    : 0;
-  const consoleOccurrenceByEntry = useMemo(
-    () => buildConsoleOccurrenceSummaryByEntry(consoleSearchOccurrences),
-    [consoleSearchOccurrences],
-  );
-  const activeConsoleSearchOccurrence = consoleSearchOccurrences[consoleSearchMatchIndex] ?? null;
-  const consoleSearchEntryJumpCount = consoleOccurrenceByEntry.size;
-  const activeConsoleEntryOrder = activeConsoleSearchOccurrence
-    ? (consoleOccurrenceByEntry.get(activeConsoleSearchOccurrence.entryId)?.entryOrder ?? 0)
-    : 0;
   // 캡처 개수(= 툴바 "captured"). clear 표식만 제외한, 필터 이전의 전체 로그.
   const displayedConsoleEntries = useMemo(
     () => consoleEntries.filter((entry) => entry.level !== 'clear'),
@@ -286,7 +252,7 @@ export default function App() {
   const consoleShownCount = useMemo(() => {
     const hasIncludeExclude = Boolean(consoleIncludeText.trim() || consoleExcludeText.trim());
     const filtered = displayedConsoleEntries.filter((entry) => {
-      if (!matchesConsoleLevelFilter(entry, enabledConsoleLevels)) return false;
+      if (!matchesConsoleLevelFilter(entry, consoleLevels.enabled)) return false;
       if (hasIncludeExclude) {
         const haystack = `${entry.text} ${entry.source ?? ''} ${entry.stack ?? ''}`;
         if (!matchesIncludeExcludeFilters(haystack, consoleIncludeText, consoleExcludeText)) return false;
@@ -294,7 +260,8 @@ export default function App() {
       return true;
     });
     return countGroupedConsoleRows(filtered);
-  }, [consoleExcludeText, consoleIncludeText, displayedConsoleEntries, enabledConsoleLevels]);
+  }, [consoleExcludeText, consoleIncludeText, consoleLevels.enabled, displayedConsoleEntries]);
+
   const displayedRequests = filteredRequests;
   const selectedRequest = displayedRequests.find((request) => request.id === selectedRequestId) ?? null;
   const timelineItems = useMemo(() => toTimelineItems(displayedRequests), [displayedRequests]);
@@ -306,17 +273,17 @@ export default function App() {
   }, [displayedRequests, selectedRequestId]);
 
   useEffect(() => {
-    if (!networkSearchText.trim() || !searchOccurrences.length) return;
+    if (!networkSearchText.trim() || !networkOccurrences.length) return;
 
-    const clampedIndex = networkSearchMatchIndex % searchOccurrences.length;
-    if (clampedIndex !== networkSearchMatchIndex) {
-      setNetworkSearchMatchIndex(clampedIndex);
+    const clampedIndex = networkSearch.matchIndex % networkOccurrences.length;
+    if (clampedIndex !== networkSearch.matchIndex) {
+      networkSearch.setMatchIndex(clampedIndex);
       return;
     }
 
-    const activeOccurrence = searchOccurrences[clampedIndex];
+    const activeOccurrence = networkOccurrences[clampedIndex];
     if (activeOccurrence) setSelectedRequestId(activeOccurrence.requestId);
-  }, [networkSearchMatchIndex, networkSearchText, searchOccurrences]);
+  }, [networkOccurrences, networkSearch.matchIndex, networkSearch.setMatchIndex, networkSearchText]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -338,191 +305,20 @@ export default function App() {
     return () => window.clearTimeout(timeoutId);
   }, [sessionNotice]);
 
-  useEffect(() => {
-    if (!canInspectConsole()) return;
-
-    let cancelled = false;
-    let captureInstalled = false;
-
-    const poll = async () => {
-      if (cancelled) return;
-
-      try {
-        if (!captureInstalled) {
-          await installConsoleCapture(true);
-          captureInstalled = true;
-        }
-        const { installed, entries: drained } = await drainConsoleEntries();
-        // 페이지가 새로고침/이동되면 주입한 훅이 사라진다. 이 경우 drain은 예외 없이
-        // installed=false를 돌려주므로, 플래그를 리셋해 다음 틱에 재설치한다.
-        // (이 처리가 없으면 콘솔이 조용히 영영 비어버린다.)
-        if (!installed) {
-          captureInstalled = false;
-          return;
-        }
-        if (drained.length) {
-          setConsoleEntries((current) => {
-            const combined = current.length ? [...current, ...drained] : drained;
-            return combined.length > CONSOLE_MAX ? combined.slice(-CONSOLE_MAX) : combined;
-          });
-        }
-      } catch {
-        // Page reloading — reset flag so capture is reinstalled on next poll.
-        captureInstalled = false;
-      }
-    };
-
-    void poll();
-    const intervalId = window.setInterval(() => {
-      void poll();
-    }, getConsolePollInterval());
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof chrome === 'undefined' || !chrome.devtools?.network) return;
-
-    const handleRequestFinished = (request: chrome.devtools.network.Request) => {
-      const networkRequest = request as DevtoolsNetworkRequest;
-      if (!shouldCollectRequest(networkRequest)) return;
-
-      const parsed = parseNetworkRequest(networkRequest);
-      networkRequestById.current.set(parsed.id, request);
-      setRequests((current) => [...current.slice(-999), parsed]);
-    };
-
-    chrome.devtools.network.onRequestFinished.addListener(handleRequestFinished);
-
-    return () => {
-      chrome.devtools.network.onRequestFinished.removeListener(handleRequestFinished);
-    };
-  }, []);
-
-  // WebSocket 프레임 캡처. HAR(onRequestFinished)에는 WS 프레임이 실리지 않으므로,
-  // 콘솔과 같은 방식으로 페이지의 window.WebSocket을 계측해 폴링으로 가져온다.
-  useEffect(() => {
-    if (!canInspectWebSockets()) return;
-
-    let cancelled = false;
-    let captureInstalled = false;
-
-    const poll = async () => {
-      if (cancelled) return;
-
-      try {
-        if (!captureInstalled) {
-          await installWebSocketCapture();
-          captureInstalled = true;
-        }
-        const { installed, events } = await drainWebSocketEvents();
-        // 페이지가 새로고침되면 주입한 훅이 사라진다 — 다음 틱에 재설치한다.
-        if (!installed) {
-          captureInstalled = false;
-          return;
-        }
-        if (events.length) {
-          setRequests((current) => applyWebSocketEvents(current, events));
-        }
-      } catch {
-        captureInstalled = false;
-      }
-    };
-
-    void poll();
-    const intervalId = window.setInterval(() => {
-      void poll();
-    }, getWebSocketPollInterval());
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, []);
-
-  // 로컬 개발(npm run dev): DevTools 컨텍스트가 아니라 실데이터 소스가 없으므로 목업을 주입한다.
-  // 확장 프로그램 빌드에서는 shouldUseMockData()가 false라 실행되지 않는다.
-  useEffect(() => {
-    if (!shouldUseMockData()) return;
-    setRequests(getMockRequests());
-    setConsoleEntries(getMockConsoleEntries());
-  }, []);
-
   const handleClear = useCallback(() => {
     networkRequestById.current.clear();
     setRequests([]);
     setSelectedRequestId(null);
     setNetworkSearchText('');
-    setNetworkSearchMatchIndex(0);
+    networkSearch.setMatchIndex(0);
     flowLayoutRef.current = EMPTY_FLOW_LAYOUT;
     setFlowLayoutRevision((revision) => revision + 1);
-  }, []);
+  }, [networkRequestById, networkSearch.setMatchIndex, setNetworkSearchText, setRequests]);
 
-  // 검사 중인 페이지가 새로고침·이동되면(onNavigated) 옵션이 켜진 경우 기록을 지운다.
-  // 플래그는 ref로 읽어 토글마다 리스너를 다시 붙이지 않는다. onNavigated는 실제
-  // DevTools에서만 발생하므로 npm run dev(목업) 환경에서는 호출되지 않는다.
-  useEffect(() => {
-    if (typeof chrome === 'undefined' || !chrome.devtools?.network) return;
-
-    const handleNavigated = () => {
-      if (clearOnReloadRef.current) handleClear();
-    };
-
-    chrome.devtools.network.onNavigated.addListener(handleNavigated);
-
-    return () => {
-      chrome.devtools.network.onNavigated.removeListener(handleNavigated);
-    };
-  }, [handleClear]);
-
-  const handleToggleResourceKind = useCallback((kind: ToggleableResourceKind, enabled: boolean) => {
-    setEnabledResourceKinds((current) => {
-      const next = enabled ? [...current, kind] : current.filter((item) => item !== kind);
-      // 저장 순서를 표준 순서로 정규화하고 중복을 제거한다.
-      return TOGGLEABLE_RESOURCE_KINDS.filter((item) => next.includes(item));
-    });
-  }, []);
-
-  const handleSetAllResourceKinds = useCallback((enabled: boolean) => {
-    setEnabledResourceKinds(enabled ? [...TOGGLEABLE_RESOURCE_KINDS] : []);
-  }, []);
-
-  const handleToggleMethod = useCallback((method: FilterableMethod, enabled: boolean) => {
-    setEnabledMethods((current) => {
-      const next = enabled ? [...current, method] : current.filter((item) => item !== method);
-      return FILTERABLE_METHODS.filter((item) => next.includes(item));
-    });
-  }, []);
-
-  const handleSetAllMethods = useCallback((enabled: boolean) => {
-    setEnabledMethods(enabled ? [...FILTERABLE_METHODS] : []);
-  }, []);
-
-  const handleToggleStatusGroup = useCallback((group: StatusGroup, enabled: boolean) => {
-    setEnabledStatusGroups((current) => {
-      const next = enabled ? [...current, group] : current.filter((item) => item !== group);
-      return STATUS_GROUPS.filter((item) => next.includes(item));
-    });
-  }, []);
-
-  const handleSetAllStatusGroups = useCallback((enabled: boolean) => {
-    setEnabledStatusGroups(enabled ? [...STATUS_GROUPS] : []);
-  }, []);
-
-  const handleToggleConsoleLevel = useCallback((level: FilterableConsoleLevel, enabled: boolean) => {
-    setEnabledConsoleLevels((current) => {
-      const next = enabled ? [...current, level] : current.filter((item) => item !== level);
-      // 저장 순서를 표준 순서로 정규화하고 중복을 제거한다.
-      return FILTERABLE_CONSOLE_LEVELS.filter((item) => next.includes(item));
-    });
-  }, []);
-
-  const handleSetAllConsoleLevels = useCallback((enabled: boolean) => {
-    setEnabledConsoleLevels(enabled ? [...FILTERABLE_CONSOLE_LEVELS] : []);
-  }, []);
+  // 검사 중인 페이지가 새로고침·이동되면 옵션이 켜진 경우 기록을 지운다.
+  useOnPageNavigated(() => {
+    if (clearNetworkOnReload) handleClear();
+  });
 
   const handleFlowLayoutChange = useCallback((layout: FlowLayout) => {
     flowLayoutRef.current = layout;
@@ -591,13 +387,13 @@ export default function App() {
 
   const handleActivePanelChange = useCallback((mode: WorkspaceMode) => {
     setWorkspaceMode(mode);
-  }, []);
+  }, [setWorkspaceMode]);
 
   // 툴바에서 뷰 버튼을 누르면 해당 패널을 열거나 포커스한다(active 패널 = 툴바 컨텍스트).
   const handleWorkspaceModeChange = useCallback((mode: WorkspaceMode) => {
     setWorkspaceMode(mode);
     if (dockApiRef.current) focusOrOpenWorkspacePanel(dockApiRef.current, mode);
-  }, []);
+  }, [setWorkspaceMode]);
 
   const handleResetLayout = useCallback(() => {
     if (!dockApiRef.current) return;
@@ -612,15 +408,15 @@ export default function App() {
   const handleSelectRequest = useCallback(
     (requestId: string) => {
       if (networkSearchText.trim()) {
-        const matchIndex = getSearchMatchIndexForRequest(searchOccurrences, requestId);
+        const matchIndex = getSearchMatchIndexForRequest(networkOccurrences, requestId);
         if (matchIndex !== null) {
-          setNetworkSearchMatchIndex(matchIndex);
+          networkSearch.setMatchIndex(matchIndex);
         }
       }
 
       setSelectedRequestId(requestId);
     },
-    [networkSearchText, searchOccurrences],
+    [networkOccurrences, networkSearch.setMatchIndex, networkSearchText],
   );
 
   const applyResponseContent = useCallback((requestId: string, content: string | null) => {
@@ -636,7 +432,7 @@ export default function App() {
         };
       }),
     );
-  }, []);
+  }, [setRequests]);
 
   const fetchResponseContent = useCallback(
     (requestId: string, onComplete?: () => void) => {
@@ -652,7 +448,7 @@ export default function App() {
         onComplete?.();
       });
     },
-    [applyResponseContent],
+    [applyResponseContent, networkRequestById],
   );
 
   const getResponseContentForExport = useCallback(
@@ -682,7 +478,7 @@ export default function App() {
         });
       });
     },
-    [],
+    [networkRequestById],
   );
 
   const startResponseBodyLoad = useCallback(
@@ -714,7 +510,7 @@ export default function App() {
         preloadInFlightRef.current.delete(requestId);
       });
     },
-    [fetchResponseContent, requests],
+    [fetchResponseContent, networkRequestById, requests],
   );
 
   const drainPreloadQueue = useCallback(() => {
@@ -747,7 +543,7 @@ export default function App() {
     setRequests(hydratedRequests);
     exportSession(hydratedRequests, flowLayoutRef.current);
     setSessionNotice(`Exported ${hydratedRequests.length} requests.`);
-  }, [getResponseContentForExport, requests]);
+  }, [getResponseContentForExport, requests, setRequests]);
 
   const handleImportSession = useCallback(async () => {
     try {
@@ -757,7 +553,7 @@ export default function App() {
       setRequests(importedRequests);
       setSelectedRequestId(importedRequests[0]?.id ?? null);
       setNetworkSearchText('');
-      setNetworkSearchMatchIndex(0);
+      networkSearch.setMatchIndex(0);
       const nextFlowLayout = flowLayout ?? EMPTY_FLOW_LAYOUT;
       flowLayoutRef.current = nextFlowLayout;
       setFlowLayoutRevision((revision) => revision + 1);
@@ -766,7 +562,7 @@ export default function App() {
       const message = error instanceof Error ? error.message : 'Failed to import session.';
       setSessionNotice(message);
     }
-  }, []);
+  }, [networkRequestById, networkSearch.setMatchIndex, setNetworkSearchText, setRequests]);
 
   const loadResponseBody = useCallback(
     (requestId: string) => {
@@ -842,7 +638,7 @@ export default function App() {
     }
 
     drainPreloadQueue();
-  }, [drainPreloadQueue, filteredRequests, networkSearchText]);
+  }, [drainPreloadQueue, filteredRequests, networkRequestById, networkSearchText]);
 
   useEffect(() => {
     if (!selectedRequest) return;
@@ -850,48 +646,18 @@ export default function App() {
   }, [selectedRequest, startResponseBodyLoad]);
 
   const searchModels: WorkspaceContextValue['searchModels'] = {
-    network: {
-      searchText: networkSearchText,
-      onSearchTextChange: setNetworkSearchText,
-      occurrenceCount: searchOccurrences.length,
-      matchIndex: networkSearchMatchIndex,
-      scopeJumpCount: searchRequestJumpCount,
-      activeScopeOrder: activeSearchRequestOrder,
+    network: networkSearch.toModel({
       scopeLabel: 'Card',
       placeholder: 'Search path, status, body…',
-      onNext: () => goToNetworkSearchMatch(1),
-      onPrevious: () => goToNetworkSearchMatch(-1),
-      onNextScope: () => goToNetworkSearchRequest(1),
-      onPreviousScope: () => goToNetworkSearchRequest(-1),
-    },
-    storage: {
-      searchText: storageSearchText,
-      onSearchTextChange: setStorageSearchText,
-      occurrenceCount: storageSearchOccurrences.length,
-      matchIndex: storageSearchMatchIndex,
-      scopeJumpCount: storageSearchRequestJumpCount,
-      activeScopeOrder: activeStorageItemOrder,
+    }),
+    storage: storageSearch.toModel({
       scopeLabel: 'Row',
       placeholder: 'Search key, value…',
-      onNext: () => goToStorageSearchMatch(1),
-      onPrevious: () => goToStorageSearchMatch(-1),
-      onNextScope: () => goToStorageSearchItem(1),
-      onPreviousScope: () => goToStorageSearchItem(-1),
-    },
-    console: {
-      searchText: consoleSearchText,
-      onSearchTextChange: setConsoleSearchText,
-      occurrenceCount: consoleSearchOccurrences.length,
-      matchIndex: consoleSearchMatchIndex,
-      scopeJumpCount: consoleSearchEntryJumpCount,
-      activeScopeOrder: activeConsoleEntryOrder,
+    }),
+    console: consoleSearch.toModel({
       scopeLabel: 'Log',
       placeholder: 'Search logs, objects, stack…',
-      onNext: () => goToConsoleSearchMatch(1),
-      onPrevious: () => goToConsoleSearchMatch(-1),
-      onNextScope: () => goToConsoleSearchEntry(1),
-      onPreviousScope: () => goToConsoleSearchEntry(-1),
-    },
+    }),
   };
 
   const filterModels: WorkspaceContextValue['filterModels'] = {
@@ -939,18 +705,18 @@ export default function App() {
     clearNetworkOnReload,
     onClearNetworkOnReloadChange: setClearNetworkOnReload,
     collapsePathIds,
-    enabledResourceKinds,
-    onToggleResourceKind: handleToggleResourceKind,
-    onSetAllResourceKinds: handleSetAllResourceKinds,
-    enabledStatusGroups,
-    onToggleStatusGroup: handleToggleStatusGroup,
-    onSetAllStatusGroups: handleSetAllStatusGroups,
-    enabledMethods,
-    onToggleMethod: handleToggleMethod,
-    onSetAllMethods: handleSetAllMethods,
+    enabledResourceKinds: resourceKinds.enabled,
+    onToggleResourceKind: resourceKinds.toggle,
+    onSetAllResourceKinds: resourceKinds.setAll,
+    enabledStatusGroups: statusGroups.enabled,
+    onToggleStatusGroup: statusGroups.toggle,
+    onSetAllStatusGroups: statusGroups.setAll,
+    enabledMethods: methods.enabled,
+    onToggleMethod: methods.toggle,
+    onSetAllMethods: methods.setAll,
     networkSearchText,
-    searchOccurrenceByRequest,
-    activeGlobalSearchIndex,
+    searchOccurrenceByRequest: networkSearch.summary,
+    activeGlobalSearchIndex: networkSearch.activeGlobalIndex,
     flowLayoutRevision,
     flowLayoutSnapshot: flowLayoutRef.current,
     onSelectRequest: handleSelectRequestWithBodyLoad,
@@ -971,8 +737,8 @@ export default function App() {
     sessionNotice,
     selectedRequest,
     bodyLoadingId,
-    networkSearchMatchIndex,
-    activeSearchOccurrence,
+    networkSearchMatchIndex: networkSearch.matchIndex,
+    activeSearchOccurrence: networkSearch.activeOccurrence,
     onLoadResponseBody: loadResponseBody,
     onEnsureThumbnailBody: ensureResponseBody,
     onCloseDetail: handleCloseDetail,
@@ -980,24 +746,24 @@ export default function App() {
     getJsonPanelData,
     floatPanel,
     storageSearchText,
-    storageSearchMatchIndex,
+    storageSearchMatchIndex: storageSearch.matchIndex,
     storageIncludeText,
     storageExcludeText,
-    onStorageSearchOccurrencesChange: setStorageSearchOccurrences,
-    onStorageSearchMatchIndexChange: setStorageSearchMatchIndex,
+    onStorageSearchOccurrencesChange: setStorageOccurrences,
+    onStorageSearchMatchIndexChange: storageSearch.setMatchIndex,
     consoleEntries,
     selectedConsoleEntryId,
     consoleSearchText,
     consoleIncludeText,
     consoleExcludeText,
-    consoleSearchMatchIndex,
-    enabledConsoleLevels,
-    onToggleConsoleLevel: handleToggleConsoleLevel,
-    onSetAllConsoleLevels: handleSetAllConsoleLevels,
+    consoleSearchMatchIndex: consoleSearch.matchIndex,
+    enabledConsoleLevels: consoleLevels.enabled,
+    onToggleConsoleLevel: consoleLevels.toggle,
+    onSetAllConsoleLevels: consoleLevels.setAll,
     onConsoleEntriesChange: setConsoleEntries,
     onConsoleSelectedEntryIdChange: setSelectedConsoleEntryId,
-    onConsoleSearchOccurrencesChange: setConsoleSearchOccurrences,
-    onConsoleSearchMatchIndexChange: setConsoleSearchMatchIndex,
+    onConsoleSearchOccurrencesChange: setConsoleOccurrences,
+    onConsoleSearchMatchIndexChange: consoleSearch.setMatchIndex,
   };
 
   return (

@@ -156,6 +156,24 @@ XML/SVG는 트리, `text/*`는 라이트 구문 강조. `JsonViewer`는 JSON 전
 
 ## 완료됨
 
+### App.tsx 분해 — 캡처·필터·검색을 공용 훅으로
+
+WebSocket 폴링을 얹고 나니 App.tsx가 1026줄이 됐는데, 그중 JSX는 24줄뿐이었다. 나머지는 전부
+상태와 배선 — 즉 컴포넌트가 아니라 앱 전체의 상태 저장소였다. 특히 반복이 분명했다: 필터 토글
+핸들러 8개(리소스·메서드·상태·콘솔레벨)가 "배열에 넣고 빼고 표준 순서로 정규화"를 네 번 복붙했고,
+검색 오케스트레이션은 네트워크·스토리지·콘솔이 세 벌이었다. 새 캡처 소스가 생길 때마다 App이
+자라는 구조이기도 했다.
+
+훅 다섯 개로 걷어냈다 — `useNetworkCapture`(HTTP `onRequestFinished` + WS 폴링 + 목업),
+`useConsoleCapture`, `useOnPageNavigated`, `useToggleableSet`(토글 8개 → 4줄),
+`useSearchScope`(검색 3벌 → 각 8줄, 매치 인덱스·스코프 점프·검색바 모델을 한 벌로).
+결과 792줄. 세 요약 함수(`build*Summary*`)가 `*Order` 필드 이름만 다르고 구조가 같아서
+`getScopeKey`/`getScopeOrder`로 일반화할 수 있었다 — 유틸 자체는 뷰가 타입을 그대로 쓰므로 건드리지 않았다.
+
+응답 본문 로딩·세션 IO·dock 조작·컨텍스트 조립(약 140줄)은 중복이 아니라 단일 목적 코드라 이번엔
+남겼다. 여기까지 더 빼면 App은 200줄대가 되지만 손대는 파일이 많아, 테스트가 없는 지금은
+회귀 위험이 이득보다 크다고 봤다(1번 항목 참고).
+
 ### WebSocket 프레임 캡처 — 네트워크 뷰에서 송수신 내용 보기
 
 **왜 안 보였나.** 네트워크 수집은 `chrome.devtools.network.onRequestFinished`(App.tsx) 하나뿐인데,
