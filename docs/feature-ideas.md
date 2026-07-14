@@ -10,20 +10,20 @@
 
 ---
 
-## 1. 테스트·린트·CI 인프라 — DX / M / 높음
+## 1. 테스트·CI — DX / M / 높음
 
-**문제.** 자동화된 검증 장치가 전혀 없다. `package.json`의 scripts는 `dev`/`build`/`preview`
-셋뿐이고(`package.json:5-9`), 저장소 루트에 ESLint·Prettier·Vitest 설정이 없으며 `.github`
-디렉터리도 없다. 반면 순수 로직 유틸은 매우 많다 — `requestParser.ts`, `jsonDiff.ts`,
-`jsonTextTokens.ts`, `searchHighlight.tsx`, `textFilters.ts`, `sessionIO.ts`,
-`networkStats.ts`, `requestTimings.ts`. 이들이 회귀해도 잡아낼 그물이 없다.
+> ESLint는 붙였다(→ [완료됨](#eslint-도입)). 남은 것은 **테스트와 CI**다.
 
-**제안.** Vitest로 유틸 계층부터 단위 테스트를 붙인다(파서 → 검색 → 토크나이저 → 세션 IO 순).
-ESLint(`react-hooks` 규칙 포함 — 이미 `RequestDetailPanel.tsx:80`에 `eslint-disable` 주석이 있다)와
-Prettier를 설정하고, GitHub Actions로 PR마다 `tsc + lint + test + build`를 돌린다.
+**문제.** 자동 검증이 `tsc`와 ESLint뿐이다. 테스트가 하나도 없는데 순수 로직 유틸은 매우 많다 —
+`requestParser.ts`, `jsonDiff.ts`, `jsonTextTokens.ts`, `searchHighlight.tsx`, `sessionIO.ts`,
+`networkStats.ts`, `requestTimings.ts`, 그리고 pref 모듈들의 `normalize()`·레거시 마이그레이션.
+이들이 회귀해도 잡아낼 그물이 없다. 확장 프로그램이라 UI를 눈으로 확인하는 비용이 비싸서
+(실제 확장에서만 도는 코드가 많다) 유틸 단위 테스트의 가성비가 특히 높다.
 
-> 참고: `tsc`에 `noUnusedLocals`가 꺼져 있어 죽은 import가 빌드를 통과한다.
-> 현재도 `storageSearch.ts:62`에 미사용 변수가 하나 남아 있다.
+**제안.** Vitest로 유틸 계층부터 붙인다(파서 → 검색 → diff → 세션 IO → pref normalize 순).
+`storageInspector`/`consoleInspector`는 페이지 컨텍스트에 주입하는 eval 스크립트 문자열이 대부분이라
+단위 테스트로 의미 있게 덮이지 않으니 제외한다. 그다음 GitHub Actions로 PR마다
+`tsc + lint + test + build`를 돌린다.
 
 ---
 
@@ -122,6 +122,11 @@ XML/SVG는 트리, `text/*`는 라이트 구문 강조. `JsonViewer`는 JSON 전
 
 ## 후속 정리 대상
 
+- **ESLint 경고 67건 정리.** 대부분 React Compiler 기반 새 규칙(`set-state-in-effect` 21,
+  `refs` 12)과 `exhaustive-deps`(17), `only-export-components`(14)다. 앞의 둘은 의도한 패턴이라
+  경고로 낮춰 둔 것이니(위 [ESLint 도입](#eslint-도입)), 규칙을 끌지 코드를 고칠지 파일별로
+  판단해야 한다. `exhaustive-deps`는 진짜 버그가 섞여 있을 수 있어 먼저 볼 값어치가 있다.
+
 - **IndexedDB 새 레코드 추가(put/add).** 이번엔 기존 값 수정만 했다. 신규 추가는 키(out-of-line)
   또는 키패스 값(in-line)·autoIncrement 여부에 따라 입력 UI가 달라져 미뤘다. `setIndexedDbRecord`의
   스크립트 패턴을 재사용하되, 스토어의 `keyPath`/`autoIncrement`를 보고 키 입력 필드를 조건부로
@@ -145,6 +150,27 @@ XML/SVG는 트리, `text/*`는 라이트 구문 강조. `JsonViewer`는 JSON 전
 ---
 
 ## 완료됨
+
+### ESLint 도입
+
+검증 장치가 `tsc` 하나뿐이었다 — 린터가 없는데 `RequestDetailPanel.tsx:80`엔 `eslint-disable`
+주석만 남아 있었다. ESLint 10 flat config(`eslint.config.js`) + `typescript-eslint` +
+`react-hooks` + `react-refresh`를 붙이고 `npm run lint`를 추가했다.
+
+**첫 실행에서 실제 버그 1건을 잡았다.** `exportFlowImage.ts`의 `resolveNodeSize`가
+`Number(node.style?.width) ?? DEFAULT_NODE_WIDTH`였는데, `Number()`는 `null`/`undefined`를 반환하지
+않으므로 `??` 우변이 영영 쓰이지 않는다(`no-constant-binary-expression`). `style.width`가 없거나
+`'240px'` 같은 문자열이면 `NaN`이 그대로 흘러가 플로우 차트 이미지 내보내기의 뷰포트 계산이
+깨진다. `toPixels()` 헬퍼로 고쳤다 — 숫자로 못 읽으면 `undefined`를 돌려 기본값이 실제로 쓰이게 한다.
+
+**새 React Compiler 규칙 넷은 경고로 낮췄다** — `set-state-in-effect`(21), `refs`(12),
+`immutability`, `preserve-manual-memoization`. v7의 이 규칙들이 잡는 곳 대부분은 이 코드베이스가
+의도해서 쓰는 패턴이다(렌더 중 `latestRef.current = value`로 최신값을 담아 effect가 "값이 바뀔 때"가
+아니라 "트리거가 바뀔 때"만 돌게 하는 식 — `DataTable`의 `rowIndexByIdRef`, `rootRefLatest`).
+에러로 두면 린트가 항상 실패해 아무도 안 보게 된다. 하나씩 따져 고치는 건 후속 과제(아래).
+
+`tsc`의 `noUnusedLocals`는 켜지 않았다 — ESLint의 `no-unused-vars`(error)와 역할이 겹친다.
+(예전 메모에 있던 `storageSearch.ts:62` 미사용 변수는 이미 없다.)
 
 ### 패널 검색바–필터 행 정렬·디자인 정리
 
