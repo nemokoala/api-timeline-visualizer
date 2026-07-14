@@ -10,9 +10,17 @@ const DEFAULT_NODE_WIDTH = 240;
 const DEFAULT_NODE_HEIGHT = 152;
 
 function resolveNodeSize(node: Node): { width: number; height: number } {
-  const width = node.measured?.width ?? node.width ?? Number(node.style?.width) ?? DEFAULT_NODE_WIDTH;
-  const height = node.measured?.height ?? node.height ?? Number(node.style?.height) ?? DEFAULT_NODE_HEIGHT;
+  const width = node.measured?.width ?? node.width ?? toPixels(node.style?.width) ?? DEFAULT_NODE_WIDTH;
+  const height =
+    node.measured?.height ?? node.height ?? toPixels(node.style?.height) ?? DEFAULT_NODE_HEIGHT;
   return { width, height };
+}
+
+// style.width는 숫자일 수도 '240px' 같은 문자열일 수도 있다. 숫자로 못 읽으면 undefined를 돌려
+// 호출부의 ?? 기본값이 실제로 쓰이게 한다 — Number()를 바로 쓰면 NaN이 흘러가 이미지가 깨진다.
+function toPixels(value: unknown): number | undefined {
+  const parsed = typeof value === 'number' ? value : Number.parseFloat(String(value ?? ''));
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function resolveNodesBounds(nodes: Node[]) {
