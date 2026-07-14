@@ -127,6 +127,16 @@ XML/SVG는 트리, `text/*`는 라이트 구문 강조. `JsonViewer`는 JSON 전
   경고로 낮춰 둔 것이니(위 [ESLint 도입](#eslint-도입)), 규칙을 끌지 코드를 고칠지 파일별로
   판단해야 한다. `exhaustive-deps`는 진짜 버그가 섞여 있을 수 있어 먼저 볼 값어치가 있다.
 
+- **WebSocket 캡처의 사각지대.** 훅은 `inspectedWindow.eval`로 주입되므로 **패널을 열기 전에 이미
+  열려 있던 소켓**과 **Worker/SharedWorker 안에서 만든 소켓**은 잡히지 않는다(그 소켓들은 우리가
+  감싼 `window.WebSocket`을 거치지 않는다). 페이지를 새로고침하면 훅이 재주입되어 이후 소켓은
+  전부 잡힌다. 근본 해결책은 CDP뿐인데 DevTools가 이미 붙어 있어 `chrome.debugger`를 쓸 수 없다.
+
+- **WS 프레임이 네트워크 검색 대상이 아니다.** `requestSearch.ts`는 URL·헤더·본문만 훑으므로
+  프레임 본문은 전역 검색(히트 카운트·↑↓ 내비)에 걸리지 않는다. 상세 패널 안에서 하이라이트는
+  되지만 검색이 그 행으로 데려가 주지는 않는다. 프레임을 검색 스코프에 넣으려면 `buildSearchOccurrences`에
+  frames를 순회하는 섹션(`messages`)을 추가하고, `getMatchingDetailSections`에도 같은 이름을 물려야 한다.
+
 - **IndexedDB 새 레코드 추가(put/add).** 이번엔 기존 값 수정만 했다. 신규 추가는 키(out-of-line)
   또는 키패스 값(in-line)·autoIncrement 여부에 따라 입력 UI가 달라져 미뤘다. `setIndexedDbRecord`의
   스크립트 패턴을 재사용하되, 스토어의 `keyPath`/`autoIncrement`를 보고 키 입력 필드를 조건부로
@@ -171,6 +181,45 @@ XML/SVG는 트리, `text/*`는 라이트 구문 강조. `JsonViewer`는 JSON 전
 
 `tsc`의 `noUnusedLocals`는 켜지 않았다 — ESLint의 `no-unused-vars`(error)와 역할이 겹친다.
 (예전 메모에 있던 `storageSearch.ts:62` 미사용 변수는 이미 없다.)
+
+### App.tsx 분해 — 캡처·필터·검색을 공용 훅으로
+
+WebSocket 폴링을 얹고 나니 App.tsx가 1026줄이 됐는데, 그중 JSX는 24줄뿐이었다. 나머지는 전부
+상태와 배선 — 즉 컴포넌트가 아니라 앱 전체의 상태 저장소였다. 특히 반복이 분명했다: 필터 토글
+핸들러 8개(리소스·메서드·상태·콘솔레벨)가 "배열에 넣고 빼고 표준 순서로 정규화"를 네 번 복붙했고,
+검색 오케스트레이션은 네트워크·스토리지·콘솔이 세 벌이었다. 새 캡처 소스가 생길 때마다 App이
+자라는 구조이기도 했다.
+
+훅 다섯 개로 걷어냈다 — `useNetworkCapture`(HTTP `onRequestFinished` + WS 폴링 + 목업),
+`useConsoleCapture`, `useOnPageNavigated`, `useToggleableSet`(토글 8개 → 4줄),
+`useSearchScope`(검색 3벌 → 각 8줄, 매치 인덱스·스코프 점프·검색바 모델을 한 벌로).
+결과 792줄. 세 요약 함수(`build*Summary*`)가 `*Order` 필드 이름만 다르고 구조가 같아서
+`getScopeKey`/`getScopeOrder`로 일반화할 수 있었다 — 유틸 자체는 뷰가 타입을 그대로 쓰므로 건드리지 않았다.
+
+응답 본문 로딩·세션 IO·dock 조작·컨텍스트 조립(약 140줄)은 중복이 아니라 단일 목적 코드라 이번엔
+남겼다. 여기까지 더 빼면 App은 200줄대가 되지만 손대는 파일이 많아, 테스트가 없는 지금은
+회귀 위험이 이득보다 크다고 봤다(1번 항목 참고).
+
+### WebSocket 프레임 캡처 — 네트워크 뷰에서 송수신 내용 보기
+
+**왜 안 보였나.** 네트워크 수집은 `chrome.devtools.network.onRequestFinished`(App.tsx) 하나뿐인데,
+이건 HAR 엔트리 = **끝난 HTTP 요청**만 준다. WebSocket은 101 이후 계속 열려 있는 연결이고 프레임은
+HAR에 실리지 않으므로 이 API로는 원리상 볼 수 없다. `RequestKind`에 `'websocket'`이 있고
+필터 토글에도 WS가 있었지만, 실제로 프레임을 가진 항목이 들어온 적은 없었다.
+
+**어떻게 풀었나.** `chrome.debugger`(CDP `Network.webSocketFrame*`)는 쓸 수 없다 — DevTools가 이미
+같은 탭에 붙어 있어 debugger attach가 충돌한다. 그래서 콘솔 캡처(`consoleInspector`)와 **같은 방식**을
+택했다: `inspectedWindow.eval`로 페이지의 `window.WebSocket`을 Proxy로 감싸(`websocketInspector.ts`)
+send/message/open/close/error를 페이지 쪽 버퍼에 쌓고, 패널이 400ms마다 drain한다. Proxy의
+`construct` 트랩이라 `instanceof WebSocket`과 `WebSocket.OPEN` 같은 정적 상수는 원본 그대로 동작한다
+(브라우저에서 실측 확인).
+
+**표시.** 각 WS 연결은 `ApiRequest`(`type: 'websocket'`, `status: 101`) 한 항목으로 네트워크 목록에
+들어가고(`websocketRequests.ts`가 소켓 id로 제자리 갱신), 상세 패널에서 Messages 섹션이 열린다 —
+방향(↑송신/↓수신/•상태)·시각·크기·본문의 가상화 목록이고, 행을 누르면 JsonViewer로 펼쳐진다.
+WS 항목에서는 의미 없는 Headers/Cookies/Payload/Response/Replay 섹션을 감춘다. 바이너리 프레임은
+내용을 옮기지 않고 크기만 잰다(`[Binary 2.4 KB]`). 연결 지속 시간은 마지막 프레임까지로 늘려
+타임라인에서도 길이를 갖는다. 프레임은 연결당 2000개까지 보관하고 넘으면 오래된 것부터 버린다.
 
 ### 패널 검색바–필터 행 정렬·디자인 정리
 

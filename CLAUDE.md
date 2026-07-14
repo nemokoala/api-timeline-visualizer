@@ -24,6 +24,19 @@
 쓰는 자리에 둔다. 같은 pref를 양쪽(설정 창 + 우클릭/인라인 메뉴)에서 만질 거면 반응형 store
 (`useSyncExternalStore` 기반, 예: `useJsonViewPrefs`)로 두어 자동 동기화되게 한다.
 
+### App.tsx는 조립만 — 반복은 공용 훅으로
+
+App은 캡처·필터·검색을 **직접 구현하지 않고 훅에서 받아 컨텍스트로 내려보내는 자리**다.
+새로 붙일 때 App에 이펙트나 핸들러를 얹기 전에 아래를 먼저 본다.
+
+- 새 캡처 소스(페이지 계측 + 폴링): `useNetworkCapture`(HTTP·WebSocket)·`useConsoleCapture` 안에
+  넣는다. 두 훅은 목업 주입까지 품고 있어 App은 결과만 받는다. 페이지 새로고침 훅은 `useOnPageNavigated`.
+- 새 구조화 필터(켜진 값만 배열로 저장): `useToggleableSet(표준순서, read, write)`. 토글·전체선택·
+  순서 정규화가 들어 있어 핸들러를 새로 쓸 일이 없다.
+- 새 검색 스코프: `useSearchScope`. 매치 인덱스·스코프 점프·검색바 모델(`toModel`)을 한 벌로 준다.
+  occurrences 계산과 활성 매치의 부수효과(선택·스크롤)만 호출부 몫이다.
+- 단순 localStorage 상태는 `usePersistedState`.
+
 ## 작업 규칙
 
 ### 작업 완료 후 항상 빌드 + 린트

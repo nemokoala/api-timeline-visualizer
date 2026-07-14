@@ -60,6 +60,18 @@ export const en: Record<MessageKey, string> = {
   'requestDetail.resendTitle':
     'Resend this request from the inspected page. The resent request appears as a new entry in the list.',
 
+  // WebSocket 메시지(WebSocketMessages)
+  'websocket.sent': 'Sent — browser to server',
+  'websocket.received': 'Received — server to browser',
+  'websocket.status': 'Connection status change',
+  'websocket.all': 'All',
+  'websocket.open': 'Open',
+  'websocket.closed': 'Closed',
+  'websocket.directionFilter': 'Message direction filter',
+  'websocket.messageList': 'WebSocket message list',
+  'websocket.noMessages': 'No messages exchanged yet.',
+  'websocket.dropped': 'Dropped {count} older message(s) over the capture limit.',
+
   // 네트워크 메뉴/요약/패널
   'methodMenu.aria': 'Show HTTP methods',
   'statusMenu.aria': 'Show status code groups',

@@ -1,9 +1,9 @@
 import type { ConsoleEntry } from '../types/console';
-import type { ApiRequest } from '../types/network';
+import type { ApiRequest, WebSocketFrame } from '../types/network';
 import type { HarTimings } from '../types/chrome-har';
 import type { CookieSnapshot, PageStorageSnapshot } from '../types/storage';
 import { parseResponseContent } from '../utils/requestParser';
-import { normalizePath } from '../utils/normalizeUrl';
+import { getUrlParts, normalizePath } from '../utils/normalizeUrl';
 import { normalizeTimings } from '../utils/requestTimings';
 
 /**
@@ -331,7 +331,64 @@ function toApiRequest(seed: MockRequestSeed): ApiRequest {
 }
 
 export function getMockRequests(): ApiRequest[] {
-  return SEEDS.map(toApiRequest);
+  return [...SEEDS.map(toApiRequest), buildMockWebSocket()];
+}
+
+/** 목업 WebSocket 연결 하나(프레임 포함). 상세 패널의 Messages 섹션을 dev에서 확인하려는 용도. */
+function buildMockWebSocket(): ApiRequest {
+  const url = `wss://${HOST}/realtime?room=general`;
+  const urlParts = getUrlParts(url);
+  const startedAt = BASE + 400;
+
+  const frames: WebSocketFrame[] = [
+    { direction: 'status', kind: 'open', offset: 0, text: 'Connection opened' },
+    { direction: 'sent', kind: 'text', offset: 60, text: '{"type":"subscribe","room":"general"}' },
+    { direction: 'received', kind: 'text', offset: 180, text: '{"type":"subscribed","room":"general","members":12}' },
+    {
+      direction: 'received',
+      kind: 'text',
+      offset: 1450,
+      text: '{"type":"message","from":"jane","body":"배포 끝났나요?","at":1720000000}',
+    },
+    { direction: 'sent', kind: 'text', offset: 2600, text: '{"type":"message","body":"네, 방금 끝났습니다"}' },
+    { direction: 'received', kind: 'binary', offset: 3100, text: '[Binary 2.4 KB]', size: 2458 },
+    { direction: 'sent', kind: 'text', offset: 5200, text: 'ping' },
+    { direction: 'received', kind: 'text', offset: 5260, text: 'pong' },
+  ].map((seed, index) => {
+    const text = seed.text;
+    const size = seed.size ?? (seed.direction === 'status' ? 0 : new TextEncoder().encode(text).length);
+    return {
+      id: `mock-ws-f${index + 1}`,
+      direction: seed.direction as WebSocketFrame['direction'],
+      kind: seed.kind as WebSocketFrame['kind'],
+      timestamp: startedAt + seed.offset,
+      size,
+      text,
+      preview: seed.kind === 'text' && text.startsWith('{') ? JSON.parse(text) : undefined,
+    };
+  });
+
+  const endedAt = frames[frames.length - 1].timestamp;
+
+  return {
+    id: 'mock-ws-1',
+    url,
+    host: urlParts.host,
+    path: urlParts.path,
+    normalizedPath: urlParts.normalizedPath,
+    method: 'GET',
+    status: 101,
+    statusText: 'Switching Protocols',
+    startedAt,
+    endedAt,
+    duration: endedAt - startedAt,
+    type: 'websocket',
+    queryParams: urlParts.queryParams,
+    frames,
+    droppedFrameCount: 0,
+    isOpen: true,
+    size: frames.reduce((total, frame) => total + frame.size, 0),
+  };
 }
 
 export function getMockConsoleEntries(): ConsoleEntry[] {
